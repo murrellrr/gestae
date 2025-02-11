@@ -1,26 +1,11 @@
 import "reflect-metadata";
-
-export class GestaeEvent<T = any> {
-    constructor(public name: string, public data: T = undefined as unknown as T) {}
-}
-
-export class CancelableEvent<T = any> extends GestaeEvent<T> {
-    private _canceled: boolean = false;
-
-    cancel() {
-        this._canceled = true;
-    }
-
-    get cancled(): boolean {
-        return this._canceled;
-    }
-}
+import { GestaeEvent, CancelableEvent } from "./GestaeEvent";
 
 export type Listener = (event: GestaeEvent) => Promise<void | GestaeEvent> | void;
 
 export interface ListenerItem {
     event: string | RegExp;
-    listener: Listener;
+    method: Listener;
     once: boolean;
 }
 
@@ -48,7 +33,7 @@ export class AsyncEventEmitter implements IAsyncEventEmitter {
         for(const _item of this.listeners) {
             _matched = (typeof _item.event === "string")? _item.event === event.name : _item.event.test(event.name);
             if(_matched) {
-                await _item.listener(event); // Ensure sequential execution
+                await _item.method(event); // Ensure sequential execution
                 if(!_item.once) _remaining.push(_item);
             }
         }

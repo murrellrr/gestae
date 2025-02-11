@@ -1,4 +1,5 @@
 
+import { AsyncEventEmitter, IAsyncEventEmitter } from "./AsyncEventEmitter";
 import { ILogger } from "./Logger";
 import { IProperties } from "./Properties";
 
@@ -7,15 +8,24 @@ export interface IApplicationContext{
     getInstance<T>(cls: new (...args: any[]) => T, defaultValue?: T): T;
     setValue(key:string, value:any): void;
     setInstance<T>(cls: new (...args: any[]) => T, value: T): void;
-    getLogger(): ILogger;
-    getProperties(): IProperties;
+    get logger(): ILogger;
+    get properties(): IProperties;
+    get events(): IAsyncEventEmitter
 }
 
 export class DefaultApplicationContext implements IApplicationContext {
-    constructor(private readonly context: Map<string, any> = new Map()) {}
+    private readonly _context: Map<string, any> = new Map();
+    private readonly _logger: ILogger;
+    private readonly _properties: IProperties;
+    private readonly _events: IAsyncEventEmitter = new AsyncEventEmitter();
+
+    constructor(rootLogger: ILogger, properties: IProperties) {
+        this._logger = rootLogger;
+        this._properties = properties;
+    }
 
     getValue(key: string, defaultValue?: any): any {
-        let _value = this.context.get(key);
+        let _value = this._context.get(key);
         if(!_value) _value = defaultValue;
         return _value;
     }
@@ -27,22 +37,26 @@ export class DefaultApplicationContext implements IApplicationContext {
     }
 
     setValue(key: string, value: any): void {
-        this.context.set(key, value);
+        this._context.set(key, value);
     }
 
     setInstance<T>(_Class: new (...args: any[]) => T, value: T): void{
         this.setValue(_Class.name, value);
     }
 
-    getLogger(): ILogger {
-        return {} as ILogger;
+    get logger(): ILogger {
+        return this._logger;
     }
 
-    getProperties(): IProperties {
+    get properties(): IProperties {
         return {} as IProperties;
+    }
+
+    get events(): IAsyncEventEmitter {
+        return this._events;
     }
 }
 
-export function createApplicationContext() {
-    return new DefaultApplicationContext();
+export function createApplicationContext(logger: ILogger, properties: IProperties): IApplicationContext {
+    return new DefaultApplicationContext(logger, properties);
 }

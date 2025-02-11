@@ -172,3 +172,8 @@ export class CachedProperties {
         });
     }
 }
+
+export function createProperties(cached:boolean = true): Properties {
+    const _properties = new Properties(new EnvironmentPropertyFactory());
+    return (cached)? CachedProperties.wrapWithCache(_properties) : _properties;
+}

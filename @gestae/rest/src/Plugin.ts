@@ -1,5 +1,5 @@
 import { IApplicationContext } from "./ApplicationContext";
-import { CancelableEvent } from "./AsyncEventQueue";
+import { CancelableEvent } from "./GestaeEvent";
 import { GestaeError } from "./GestaeError";
 
 export const PluginEvents = {

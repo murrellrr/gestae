@@ -1,6 +1,7 @@
 import { IApplicationContext } from "./ApplicationContext";
 import http from 'http';
 import { GestaeError } from "./GestaeError";
+import { ILogger } from "./Logger";
 
 /**
  * 
@@ -52,6 +53,7 @@ export class URI {
 export interface IRequestContext {
     get applicationContext(): IApplicationContext;
     get request(): IHttpRequest;
+    get logger(): ILogger;
 }
 
 export interface IHttpRequest {
@@ -97,9 +99,11 @@ export class HttpRequest implements IHttpRequest{
 }
 
 export class DefaultRequestContext implements IRequestContext {
-    private _request: HttpRequest;
+    private readonly _request: HttpRequest;
 
-    constructor(private readonly _applicationContext: IApplicationContext, request: http.IncomingMessage) {
+    constructor(private readonly _applicationContext: IApplicationContext, request: http.IncomingMessage,
+                private readonly _logger: ILogger
+    ) {
         this._request = new HttpRequest(request);
     }
 
@@ -110,8 +114,20 @@ export class DefaultRequestContext implements IRequestContext {
     get request(): IHttpRequest {
         return this._request as IHttpRequest;
     }
+
+    get logger(): ILogger {
+        return this._logger;
+    }
 }
 
-export function createRequestContextFactory(context: IApplicationContext, request: http.IncomingMessage): IRequestContext {
-    return new DefaultRequestContext(context, request);
+/**
+ * @description
+ * @param context 
+ * @param request 
+ * @param logger 
+ * @returns 
+ */
+export function createRequestContext(context: IApplicationContext, request: http.IncomingMessage, 
+                                     logger: ILogger): IRequestContext {
+    return new DefaultRequestContext(context, request, logger);
 }
