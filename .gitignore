@@ -1,0 +1,39 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# TypeScript build artifacts
+dist/
+build/
+out/
+*.js
+*.js.map
+*.d.ts
+*.d.ts.map
+*.tsbuildinfo
+
+# Editor & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Local environment and certs (as requested)
+local/
+certs/
+
+# Miscellaneous
+.env
+.env.local
+.env.*.local
+
+.fake

@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "target": "ESNext",
+    "outDir": "dist",
+    "rootDir": "@gestae/rest/src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "sourceMap": true,
+  },
+  "include": ["@gestae/rest/src/**/*", "@gestae/rest/local"],
+  "exclude": ["node_modules", "dist"]
+}
