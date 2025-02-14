@@ -1,10 +1,9 @@
 import { EventRegister, GestaeHttpEvent } from "./GestaeEvent";
 import { NotFoundError } from "./GestaeError";
-import { Part } from "./Part";
+import { Part, ModelType, PartOptions } from "./Part";
 import { IHttpContext } from "./HttpContext";
-import { DefaultModel, Model } from "./Model";
 
-export interface NamespaceOptions {
+export interface NamespaceOptions extends PartOptions {
     //
 };
 
@@ -20,8 +19,8 @@ export class Namespace extends Part {
 
     private readonly _options: NamespaceOptions;
 
-    constructor(model: Model, options: NamespaceOptions = {}) {
-        super(model);
+    constructor(_ModelClass: ModelType, options: NamespaceOptions = {}) {
+        super(_ModelClass, options);
         this._options = options;
     }
 
@@ -30,14 +29,10 @@ export class Namespace extends Part {
     }
 
     protected async _doRequest(context: IHttpContext): Promise<void> {
-        let _event = GestaeHttpEvent.createHttpEvent(
-            GestaeHttpEvent.createEventURI(this._path, Namespace.Events.OnBeforeTraverse), 
-            context, this);
-        await context.applicationContext.events.emit(_event);
-        _event.path = GestaeHttpEvent.createEventURI(this._path, Namespace.Events.OnTraverse);
-        await context.applicationContext.events.emit(_event);
-        _event.path = GestaeHttpEvent.createEventURI(this._path, Namespace.Events.OnAfterTraverse);
-        await context.applicationContext.events.emit(_event);
+        // Fire the read events no matter what.
+        let _target = this.createModelInstance(this._name);
+        let _event = GestaeHttpEvent.createHttpEventNoPath(context, _target);
+        return this.emitLifecycle(_event, Namespace.Events.OnTraverse.operation, _target);
     }
 
     protected async _done(context: IHttpContext): Promise<void> {
@@ -50,8 +45,7 @@ export class Namespace extends Part {
      * Create a new namespace.
      * @param name The name of the namespace.
      */
-    public static create(model: Model | string, options: NamespaceOptions = {}): Namespace {
-        if(typeof model === "string") model = new DefaultModel(model);
-        return new Namespace(model, options);
+    public static create(_ModelCalss: ModelType, options: NamespaceOptions = {}): Namespace {
+        return new Namespace(_ModelCalss, options);
     }
 }

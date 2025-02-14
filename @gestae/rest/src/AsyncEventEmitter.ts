@@ -16,7 +16,7 @@ export interface IAsyncEventQueue {
 }
 
 export interface IAsyncEventEmitter extends IAsyncEventQueue {
-    emit<T>(event: GestaeEvent<T>): Promise<void>;
+    emit<T>(event: GestaeEvent<T>, target?:object): Promise<void>;
 }
 
 export class AsyncEventEmitter implements IAsyncEventEmitter {
@@ -32,24 +32,31 @@ export class AsyncEventEmitter implements IAsyncEventEmitter {
      * @param event - The event data.
      */
     async emit<T>(event: GestaeEvent<T>, target?:object): Promise<void> {
-        let _path = event.path;
-
         if(this.listeners.length === 0) return;
 
-        let _matched: boolean = false;
         const _remaining: ListenerItem[] = [];
         
         for(const _item of this.listeners) {
-            _matched = (typeof _item.event === "string")? _item.event === event.path : _item.event.test(event.path);
-            if(_matched) {
-                await _item.method(event); // Ensure sequential execution
+            if(this.isMatched(_item, event.path)) {
+                await this.processListener(_item, event, target);
                 if(!_item.once) _remaining.push(_item);
                 if(event.cancled) throw GestaeError.toError(event.cause);
-            }
+            } 
             else _remaining.push(_item);
         }
+
         // Remove all the once listeners
         this.listeners = _remaining;
+    }
+
+    private isMatched(_item: ListenerItem, path: string): boolean {
+        return (typeof _item.event === "string") ? _item.event === path : _item.event.test(path);
+    }
+
+    private async processListener(_item: ListenerItem, event: GestaeEvent<any>, target?: object): Promise<void> {
+        let _method = _item.method;
+        if(target) _method = _method.bind(target); // bind the method to the target object if specified.
+        await _method(event); // Ensure sequential execution
     }
 
     /**

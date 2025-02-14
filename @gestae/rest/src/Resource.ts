@@ -1,17 +1,9 @@
-import { Part } from "./Part";
+import { Part, ModelType, PartOptions } from "./Part";
 import { HttpMethod, IHttpContext } from "./HttpContext";
 import { EventRegister, GestaeHttpEvent } from "./GestaeEvent";
 import { BadRequestError } from "./GestaeError";
-import { DefaultModel, Model } from "./Model";
 
-export enum ResourceMethod {
-    Create = "create",
-    Read = "read",
-    Update = "update",
-    Delete = "delete"
-}
-
-export interface ResourceOptions {
+export interface ResourceOptions extends PartOptions {
     validate?: boolean;
     useSchemaAsDefaults?: boolean;
     schema?: object;
@@ -43,11 +35,11 @@ export class Resource extends Part {
     };
 
     private readonly _options: ResourceOptions;
-    private readonly _ModelClass: new (...args: any[]) => Model;
+    //private readonly _ModelConstructor: new (...args: any[]) => Model;
 
-    constructor(model: Model, options: ResourceOptions = {}) {
-        super(model);
-        this._ModelClass = Object.getPrototypeOf(model).constructor;
+    constructor(model: ModelType, options: ResourceOptions = {}) {
+        super(model, options);
+        //this._ModelConstructor = this._ModelClass.constructor as new (...args: any[]) => Model;
         this._options = options;
     }
 
@@ -55,66 +47,39 @@ export class Resource extends Part {
         return "resource";
     }
 
-    protected async _emitGet(context: IHttpContext, instance: object) {
-        context.logger.debug(`Resource emitting GET event for ${this._path}`);
-
+    /**
+     * @description Emit the Read lifecycle events for the resource.
+     * @param context The HTTP context of the request.
+     * @param target The target model instance.
+     */
+    protected async _emitRead(context: IHttpContext, target: object): Promise<void> {
         // Fire the read events no matter what.
-        let _event = GestaeHttpEvent.createHttpEvent(
-            GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnBeforeRead), context, instance);
-
-        await context.applicationContext.events.emit(_event);
-        _event.path = GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnRead);
-        await context.applicationContext.events.emit(_event);
-        _event.path = GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnAfterRead);
-        await context.applicationContext.events.emit(_event);
+        let _event = GestaeHttpEvent.createHttpEventNoPath(context, target);
+        return this.emitLifecycle(_event, Resource.Events.OnRead.operation, target);
     }
 
-    protected async _emitFind(context: IHttpContext, instance: object) {
+    protected async _emitFind(context: IHttpContext, target: object): Promise<void> {
         // Fire the find events no matter what.
-        let _event = GestaeHttpEvent.createHttpEvent(
-            GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnBeforeFind), context, instance);
-
-        await context.applicationContext.events.emit(_event);
-        _event.path = GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnFind);
-        await context.applicationContext.events.emit(_event);
-        _event.path = GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnAfterFind);
-        await context.applicationContext.events.emit(_event);
+        let _event = GestaeHttpEvent.createHttpEventNoPath(context, target);
+        return this.emitLifecycle(_event, Resource.Events.OnFind.operation, target);
     }
 
-    protected async _emitCreate(context: IHttpContext, instance: object) {
+    protected async _emitCreate(context: IHttpContext, target: object): Promise<void> {
         // Fire the create events no matter what.
-        let _event = GestaeHttpEvent.createHttpEvent(
-            GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnBeforeCreate), context, instance);
-
-        await context.applicationContext.events.emit(_event);
-        _event.path = GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnCreate);
-        await context.applicationContext.events.emit(_event);
-        _event.path = GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnAfterCreate);
-        await context.applicationContext.events.emit(_event);
+        let _event = GestaeHttpEvent.createHttpEventNoPath(context, target);
+        return this.emitLifecycle(_event, Resource.Events.OnCreate.operation, target);
     }
 
-    protected async _emitPut(context: IHttpContext, instance: object) {
+    protected async _emitUpdate(context: IHttpContext, target: object): Promise<void> {
         // Fire the update events no matter what.
-        let _event = GestaeHttpEvent.createHttpEvent(
-            GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnBeforeUpdate), context, instance);
-
-        await context.applicationContext.events.emit(_event);
-        _event.path = GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnUpdate);
-        await context.applicationContext.events.emit(_event);
-        _event.path = GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnAfterUpdate);
-        await context.applicationContext.events.emit(_event);
+        let _event = GestaeHttpEvent.createHttpEventNoPath(context, target);
+        return this.emitLifecycle(_event, Resource.Events.OnUpdate.operation, target);
     }
 
-    protected async _emitDelete(context: IHttpContext, instance: object) {
+    protected async _emitDelete(context: IHttpContext, target: object): Promise<void> {
         // Fire the delete events no matter what.
-        let _event = GestaeHttpEvent.createHttpEvent(
-            GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnBeforeDelete), context, instance);
-
-        await context.applicationContext.events.emit(_event);
-        _event.path = GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnDelete);
-        await context.applicationContext.events.emit(_event);
-        _event.path = GestaeHttpEvent.createEventURI(this._path, Resource.Events.OnAfterDelete);
-        await context.applicationContext.events.emit(_event);
+        let _event = GestaeHttpEvent.createHttpEventNoPath(context, target);
+        return this.emitLifecycle(_event, Resource.Events.OnDelete.operation, target);
     }
 
     protected async _doRequest(context: IHttpContext): Promise<void> {
@@ -128,30 +93,29 @@ export class Resource extends Part {
         // Ensure an ID exists for non-Create/Find operations
         if(!uri.hasNext()) throw new BadRequestError("Resource ID is required.");
         const _id = uri.next(); // Extract the resource ID
-        let _instance = new this._ModelClass(_id); // Create an instance of the model
+        let _target = this.createModelInstance(_id); // Create an instance of the model
     
         // If there is more in the path, delegate as a GET request
         // We just need to look it up for later use in the request.
-        if(uri.hasNext()) return this._emitGet(context, _instance);
+        if(uri.hasNext()) return this._emitRead(context, _target);
     
         // Process the CRUD operation
         switch(method) {
             case HttpMethod.GET:
-                return this._emitGet(context, _instance);
+                return this._emitRead(context, _target);
             case HttpMethod.POST:
-                return this._emitCreate(context, _instance);
+                return this._emitCreate(context, _target);
             case HttpMethod.PUT:
             case HttpMethod.PATCH:
-                return this._emitPut(context, _instance);
+                return this._emitUpdate(context, _target);
             case HttpMethod.DELETE:
-                return this._emitDelete(context, _instance);
+                return this._emitDelete(context, _target);
             default:
                 throw new BadRequestError(`HTTP method '${method}' is invalid in the context of a resource.`);
         }
     }
 
-    public static create(model: Model | string, options: ResourceOptions = {}): Resource {
-        if(typeof model === "string") model = new DefaultModel(model);
+    public static create(model: ModelType, options: ResourceOptions = {}): Resource {
         return new Resource(model, options);
     }
 }

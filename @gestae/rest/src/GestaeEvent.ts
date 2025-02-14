@@ -15,7 +15,7 @@ export class GestaeEvent<T = any> {
 
     public path: string;
 
-    constructor(path: string, appContext: IApplicationContext, 
+    constructor(appContext: IApplicationContext, path: string = "gestaejs",
                 data: T = undefined as unknown as T) {
         this.path = path;
         this._appContext = appContext;
@@ -47,23 +47,22 @@ export class GestaeEvent<T = any> {
         return this._canceled;
     }
 
-    public static create<T>(path: string, appContext: IApplicationContext, 
+    public static create<T>(appContext: IApplicationContext, path: string = "gestaejs", 
                             data: T = undefined as unknown as T): GestaeEvent<T> {
-        return new GestaeEvent(path, appContext, data);
+        return new GestaeEvent(appContext, path, data);
     }
 
     public static createEventURI(path: string, register: EventRegister): string {
         return `${path}.${register.operation}.${register.event}`;
     }
-
 }
 
 export class GestaeHttpEvent<T = any> extends GestaeEvent<T> {
     private readonly _httpContext: IHttpContext;
 
-    constructor(path: string, appContext: IApplicationContext, httpContext: IHttpContext, 
+    constructor(appContext: IApplicationContext, httpContext: IHttpContext, path: string = "gestaejs", 
                 data: T = undefined as unknown as T) {
-        super(path, appContext, data);
+        super(appContext, path, data);
         this._httpContext = httpContext;
     }
 
@@ -73,7 +72,12 @@ export class GestaeHttpEvent<T = any> extends GestaeEvent<T> {
 
     public static createHttpEvent<T>(path: string, httpContext: IHttpContext, 
                                      data: T = undefined as unknown as T): GestaeEvent<T> {
-        return new GestaeHttpEvent(path, httpContext.applicationContext, httpContext, data);
+        return new GestaeHttpEvent(httpContext.applicationContext, httpContext, path, data);
+    }
+
+    public static createHttpEventNoPath<T>(httpContext: IHttpContext, 
+        data: T = undefined as unknown as T): GestaeEvent<T> {
+        return new GestaeHttpEvent(httpContext.applicationContext, httpContext, "gestaejs", data);
     }
 }
 
