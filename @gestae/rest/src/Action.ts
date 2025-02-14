@@ -1,53 +1,38 @@
 import { Part } from "./Part";
-import { IRequestContext } from "./RequestContext";
+import { IHttpContext } from "./HttpContext";
+import { NotImplementedError } from "./GestaeError";
+import { DefaultModel, Model } from "./Model";
 
 export enum ActionEvents {
     OnExecute = "gestaejs.com/api/events/action/execute/On",
 };
 
-export interface IActionOptions {
-    name?: string;
+export interface ActionOptions {
     validate?: boolean;
     useSchemaAsDefaults?: boolean;
     schema?: object;
     asynchronous?: boolean;
-};
+}
+
 
 export class Action extends Part {
-    private readonly options: IActionOptions;
+    private readonly _options: ActionOptions;
 
-    constructor(name?: string, options: Partial<IActionOptions> = {}) {
-        super(name ?? options.name ?? new.target.name);
-        this.options = options;
-
-        // set up the core defaults:
-        this.options.validate = this.options.validate ?? false;
-        this.options.schema = this.options.schema ?? {};
-        this.options.useSchemaAsDefaults = this.options.useSchemaAsDefaults ?? false;
-        this.options.asynchronous = this.options.asynchronous ?? false;
+    constructor(model: Model, options: ActionOptions = {}) {
+        super(model);
+        this._options = options;
     }
 
-    get validate(): boolean {
-        return this.options.validate ?? false;
+    get type(): string {
+        return "action";
     }
 
-    get useSchemaAsDefaults(): boolean {
-        return this.options.useSchemaAsDefaults ?? false;
+    protected async _doRequest(context: IHttpContext): Promise<void> {
+        throw new NotImplementedError();
     }
 
-    get schema(): object {
-        return this.options.schema ?? {};
-    }
-
-    get asynchronous(): boolean {
-        return this.options.asynchronous ?? false;
-    }
-
-    _do(context: IRequestContext): Promise<boolean> {
-        throw new Error("Method not implemented.");
-    }
-
-    public static create(name: string, options: Partial<IActionOptions> = {}): Action { 
-        return new Action(name, options);
+    public static create(model: Model | string, options: ActionOptions = {}): Action { 
+        if(typeof model === "string") model = new DefaultModel(model);
+        return new Action(model, options);
     }
 }

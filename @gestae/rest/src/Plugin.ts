@@ -1,5 +1,5 @@
 import { IApplicationContext } from "./ApplicationContext";
-import { CancelableEvent } from "./GestaeEvent";
+import { GestaeEvent } from "./GestaeEvent";
 import { GestaeError } from "./GestaeError";
 
 export const PluginEvents = {
@@ -24,24 +24,6 @@ export const PluginStates = {
     Started: "started",
     Stopped: "stopped"
 };
-
-export class LoadPluginEvent extends CancelableEvent<Plugin> {
-    constructor(plugin: Plugin) {
-        super(PluginEvents.LoadEvent, plugin);
-    }
-}
-
-export class StartPluginEvent extends CancelableEvent<Plugin> {
-    constructor(plugin: Plugin) {
-        super(PluginEvents.LoadEvent, plugin);
-    }
-}
-
-export class StopPluginEvent extends CancelableEvent<Plugin> {
-    constructor(plugin: Plugin) {
-        super(PluginEvents.StopEvent, plugin);
-    }
-}
 
 export abstract class Plugin {
     constructor(private _state: string = PluginStates.Unloaded, private _canonical: string = "") {

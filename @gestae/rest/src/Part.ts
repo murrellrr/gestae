@@ -1,31 +1,62 @@
 import { IApplicationContext } from "./ApplicationContext";
 import { ListenerItem } from "./AsyncEventEmitter";
 import { NotFoundError } from "./GestaeError";
-import { IRequestContext } from "./RequestContext";
+import { GestaeEvent } from "./GestaeEvent";
+import { IHttpContext } from "./HttpContext";
+import { Model } from "./Model";
 
 export abstract class Part {
     private _initialized: boolean = false;
-    protected parent: Part | undefined;
-    public readonly name: string;
+    private readonly _model: Model;
+    protected _parent: Part | undefined;
+    protected _path: string;
     public listeners: ListenerItem[] = [];
     public readonly children: Record<string, Part> = {};
-    
 
-    constructor(name: string) {
-        this.name = name.toLowerCase();
-        // Update any decorated event listeners to have a name and bound to this instance.
-        const _listeners = (this.constructor as any).__events ?? [];
+    constructor(model: Model) {
+        this._model = model;
+        // this.name = name.toLowerCase();
+        this._path = this._model.id;
+        // // Update any decorated event listeners to have a name and bound to this instance.
+        const _listeners = (this._model.constructor as any).__events ?? [];
         for(const _listener of _listeners) {
-            if(typeof _listener.method === "string")
-                _listener.method = (this as any)[_listener.method].bind(this);
-            else
-                _listener.method = _listener.method.bind(this);
+            _listener.method = (this._model as any)[_listener.method].bind(this._model);
             _listener.once = _listener.once ?? false;
         }
     }
 
+    protected abstract get type(): string;
+
+    get path(): string {
+        return this._path;
+    }
+
+    get name() {
+        return this._model.id;
+    }
+
+    get model(): Model {
+        return this._model;
+    }
+
     async initialize(context: IApplicationContext): Promise<void> {
-        // Do the things I need to do to register my listerns with the application events.
+        // Setting up this part URI.
+        let _parent = this._parent;
+        while(_parent) {
+            this._path = `${_parent.name}.${this._path}`;
+            _parent = _parent._parent;
+        }
+        this._path = `gestaejs.${this.type}.${this._path}`;
+
+        // Example full event path: gestaejs.${Part}.${Path}.${[Name]}.${Operation}.${Event}
+        // gestaejs.resource.api.company.person.read.before
+        // gestaejs.${Part<resource>}.${Path<api.company>}.${[Name<person>]}.${Operation<read>}.${Event<before>}
+        // Register all the listeners for this part with the application emitter.
+        const _listeners = (this._model.constructor as any).__events ?? [];
+        for(const _listener of _listeners) {
+            context.events.on(GestaeEvent.createEventURI(this._path, _listener.register), 
+                              _listener.method, _listener.once);
+        }
 
         // Initialize all the child parts.
         for(const _key of Object.keys(this.children)) {
@@ -37,16 +68,16 @@ export abstract class Part {
         this._initialized = true;
     }
 
-    abstract _do(context: IRequestContext): Promise<boolean>;
+    protected async _doRequest(context: IHttpContext): Promise<void> {
+        // do nothing
+    }
 
-    async _done(context: IRequestContext): Promise<void> {
+    protected async _done(context: IHttpContext): Promise<void> {
         // do nothing on purpose, just letting implementors know we stopped here.
     }
 
-    async do(context: IRequestContext): Promise<void> {
+    async doRequest(context: IHttpContext): Promise<void> {
         let _path = context.request.uri.part; // Take a look at the one we are on
-
-        context.logger.debug(`Processing part '${this.name}' for path '${_path}'.`);
 
         /* ====================================================================
          * Defensive Coding. 
@@ -54,20 +85,20 @@ export abstract class Part {
          * URI. This should never happen, but if it does, we want to catch it.
          * -------------------------------------------------------------------- */
         if(_path === this.name) 
-            await this._do(context); // We are the target, emit our events.
+            await this._doRequest(context); // We are the target, emit our events.
         else throw new NotFoundError(`Path ${_path} not found.`); // We are not the target, but we should be.
         /* ==================================================================== */
 
         // Check to see if there is more
         if(context.request.uri.hasNext()) {
             _path = context.request.uri.next(); // Move to the next path part
-            
+
             // Try and find it in our childres.
             const _child = this.children[_path];
             if(!_child) throw new NotFoundError(`Path ${_path} not found.`);
-            await _child.do(context); // Recurse into the child.
+            await _child.doRequest(context); // Recurse into the child.
         }
-        else await this._done(context);
+        else return this._done(context);
     }
 
     async finalize(context: IApplicationContext): Promise<void> {
@@ -78,48 +109,13 @@ export abstract class Part {
         return this._initialized;
     }
 
-    addChild(child: Part): Part {
-        this.children[child.name] = child;
-        child.parent = this;
-        return child;
+    get parent(): Part | undefined {
+        return this._parent;
     }
 
-    // /**
-    //  * Register an event listener for a specific event type.
-    //  * @param event - The name of the event.
-    //  * @param handler - The async function to handle the event.
-    //  */
-    // on(event: string | RegExp, listener: Listener, once: boolean = false) : this {
-    //     this.listeners.push({event, listener, once: once});
-    //     return this;
-    // }
-
-    // /**
-    //  * Register an event listener that will be called only once.
-    //  * @param event - The name of the event.
-    //  * @param handler - The async function to handle the event.
-    //  */
-    // once(event: string | RegExp, listener: Listener): this {
-    //     this.on(event, listener, true);
-    //     return this;
-    // }
-
-    // /**
-    //  * Remove a specific event listener.
-    //  * @param event - The name of the event.
-    //  * @param handler - The handler function to remove.
-    //  */
-    // off(event: string, listener: (event: GestaeEvent) => void | Promise<void>): this {
-        
-    //     return this;
-    // }
-
-    // /**
-    //  * Remove all listeners for a given event.
-    //  * @param event - The name of the event.
-    //  */
-    // removeAllListeners(event: string): this {
-    //     this.listeners.length = 0;
-    //     return this;
-    // }
+    addChild(child: Part): Part {
+        this.children[child.name] = child;
+        child._parent = this;
+        return child;
+    }
 }
