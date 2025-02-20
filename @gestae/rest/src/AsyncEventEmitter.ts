@@ -1,8 +1,29 @@
+/*
+ *  Copyright (c) 2024, KRI, LLC.
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *  THE SOFTWARE.
+ */
+
+import { IAsyncEventQueue } from "./AsyncEventQueue";
 import { GestaeError } from "./GestaeError";
 import { GestaeEvent } from "./GestaeEvent";
 import { ILogger } from "./Logger";
-
-//export type Listener<T> = (event: GestaeEvent<T>) => Promise<void>;
 
 export interface ListenerItem {
     event: string | RegExp;
@@ -10,16 +31,12 @@ export interface ListenerItem {
     once: boolean;
 }
 
-export interface IAsyncEventQueue {
-    on<T, E extends GestaeEvent<T>>(event: string | RegExp, method: (event: E) => Promise<void> | void, once?: boolean) : this;
-    once<T, E extends GestaeEvent<T>>(event: string | RegExp, method: (event: E) => Promise<void> | void): this;
-}
-
-export interface IAsyncEventEmitter extends IAsyncEventQueue {
+export interface IAsyncEventEmitter {
     emit<T>(event: GestaeEvent<T>, target?:object): Promise<void>;
+    clear(): void;
 }
 
-export class AsyncEventEmitter implements IAsyncEventEmitter {
+export class AsyncEventEmitter implements IAsyncEventEmitter, IAsyncEventQueue {
     private listeners: ListenerItem[] = [];
     private readonly _logger: ILogger;
 
@@ -37,8 +54,8 @@ export class AsyncEventEmitter implements IAsyncEventEmitter {
         const _remaining: ListenerItem[] = [];
         
         for(const _item of this.listeners) {
-            if(this.isMatched(_item, event.path)) {
-                await this.processListener(_item, event, target);
+            if(this._isMatched(_item, event.path)) {
+                await this._processListener(_item, event, target);
                 if(!_item.once) _remaining.push(_item);
                 if(event.cancled) throw GestaeError.toError(event.cause);
             } 
@@ -49,11 +66,11 @@ export class AsyncEventEmitter implements IAsyncEventEmitter {
         this.listeners = _remaining;
     }
 
-    private isMatched(_item: ListenerItem, path: string): boolean {
+    private _isMatched(_item: ListenerItem, path: string): boolean {
         return (typeof _item.event === "string") ? _item.event === path : _item.event.test(path);
     }
 
-    private async processListener(_item: ListenerItem, event: GestaeEvent<any>, target?: object): Promise<void> {
+    private async _processListener(_item: ListenerItem, event: GestaeEvent<any>, target?: object): Promise<void> {
         let _method = _item.method;
         if(target) _method = _method.bind(target); // bind the method to the target object if specified.
         await _method(event); // Ensure sequential execution
@@ -84,7 +101,7 @@ export class AsyncEventEmitter implements IAsyncEventEmitter {
      * @param event - The name of the event.
      * @param handler - The handler function to remove.
      */
-    off(event: string, listener: (event: GestaeEvent) => void | Promise<void>): this {
+    off<T, E extends GestaeEvent<T>>(event: string, listener: (event: E) => Promise<void> | void): this {
         
         return this;
     }
@@ -93,7 +110,7 @@ export class AsyncEventEmitter implements IAsyncEventEmitter {
      * Remove all listeners for a given event.
      * @param event - The name of the event.
      */
-    removeAllListeners(event: string): this {
+    clear(): this {
         this.listeners.length = 0;
         return this;
     }

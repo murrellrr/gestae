@@ -20,23 +20,10 @@
  *  THE SOFTWARE.
  */
 
-import { 
-    AbstractPart, 
-    IPartOptions 
-} from "./Part";
+import { GestaeEvent } from "./GestaeEvent";
 
-export interface INamespaceOptions extends IPartOptions {}
-
-export class NamespacePart extends AbstractPart {
-    constructor(options: INamespaceOptions = {}) {
-        super(options);
-    }
-
-    public async _doRequest(): Promise<void> {
-        //
-    }
-
-    static create(options: INamespaceOptions = {}): NamespacePart {
-        return new NamespacePart(options);
-    }
+export interface IAsyncEventQueue {
+    on<T, E extends GestaeEvent<T>>(event: string | RegExp, method: (event: E) => Promise<void> | void, once?: boolean) : this;
+    once<T, E extends GestaeEvent<T>>(event: string | RegExp, method: (event: E) => Promise<void> | void): this;
+    off<T, E extends GestaeEvent<T>>(event: string, listener: (event: E) => Promise<void> | void): this;
 }

@@ -1,185 +1,116 @@
-import { IApplicationContext } from "./ApplicationContext";
-import { ListenerItem } from "./AsyncEventEmitter";
-import { NotFoundError } from "./GestaeError";
-import { GestaeEvent, GestaeHttpEvent } from "./GestaeEvent";
-import { IHttpContext } from "./HttpContext";
-import { Model, DefaultModel } from "./Model";
+/*
+ *  Copyright (c) 2024, KRI, LLC.
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *  THE SOFTWARE.
+ */
 
-export type ModelType = (new (...args: any[]) => Model) | string;
+import { GestaeError } from "./GestaeError";
 
-export interface PartOptions {
+export interface IPartOptions {
     name?: string;
+    path?: string;
+};
+
+export const PartEvents = {
+    Initialize: {
+        OnBefore: {operation: "initialize", action: "before"},
+        On: {operation: "initialize", action: "on"},
+        OnAfter: {operation: "initialize", action: "after"},
+        OnError: {operation: "initialize", action: "error"}
+    },
+    Destroy: {
+        OnBefore: {operation: "destroy", action: "before"},
+        On: {operation: "destroy", action: "on"},
+        OnAfter: {operation: "destroy", action: "after"},
+        OnError: {operation: "destroy", action: "error"}
+    },
 }
 
-/**
- * @description A "Part" is a peice of a URI representing a namespace, resource, or action.
- * @author Robert R Murrell
- * @copyright Copyright (c) 2025, Dark Fox Technology, LLC.
- * @license MIT
- */
-export abstract class Part {
-    private _initialized: boolean = false;
-    protected _applicationContext: IApplicationContext | undefined;
-    protected readonly _name: string;
-    protected _path: string;
-    protected _parent: Part | undefined;
-    protected readonly _ModelClass: new (...args: any[]) => Model;
-    public listeners: ListenerItem[] = [];
-    public readonly children: Record<string, Part> = {};
+export interface IPart {
+    get name(): string;
+    get parent(): AbstractPart | undefined;
+    getRoot(): AbstractPart;
+    getChild(name: string): AbstractPart | undefined;
+    getChildByPath(path: string): AbstractPart | undefined;
+    addChild(part: AbstractPart): AbstractPart;
+}
 
-    constructor(_ModelClass: ModelType, options: PartOptions = {}) {
-        if(typeof _ModelClass === "string") {
-            this._name = options?.name?.toLowerCase() ?? _ModelClass;
-            this._ModelClass = DefaultModel;
-        }
-        else {
-            this._ModelClass = _ModelClass as new (...args: any[]) => Model;
-            this._name = options?.name?.toLowerCase() ?? this._ModelClass.name.toLowerCase();
-        }
-        this._path = this._name;
-        this._resolveListenerFunctions();
+export abstract class AbstractPart implements IPart {
+    protected readonly children: Record<string, AbstractPart> = {};
+    protected _parent: AbstractPart | undefined;
+    protected readonly options: IPartOptions = {};
+
+    constructor(options: IPartOptions = {}) {
+        this.options.name = options?.name ?? new.target.name;
     }
 
-    protected _resolveListenerFunctions() {
-        // // Update any decorated event listeners to have a name and bound to this instance.
-        const _listeners = (this._ModelClass as any).__events ?? [];
-        for(const _listener of _listeners) {
-            _listener.method = this._ModelClass.prototype[_listener.method];
-            _listener.once = _listener.once ?? false;
-        }
+    get name(): string {
+        return this.options.name!; // Set in the constructor
     }
 
-    /**
-     * @description The type of part this is.
-     */
-    protected abstract get type(): string;
-
-    /**
-     * @description The event path of this part in the application. Usually 
-     *              gestaejs.[Type].[Path.To.Next.Part].[Name].[Operation].[Event]
-     * @example gestaejs.resource.api.company.person.read.before
-     */
-    get path(): string {
-        return this._path;
-    }
-
-    get name() {
-        return this._name;
-    }
-
-    get model(): Model {
-        return this._ModelClass.prototype;
-    }
-
-    createModelInstance(id: string): Model {
-        return new this._ModelClass(id);
-    }
-
-    protected _setPath(): void {
-        // Setting up this part URI.
-        let _parent = this._parent;
-        while(_parent) {
-            this._path = `${_parent._name}.${this._path}`;
-            _parent = _parent._parent;
-        }
-        this._path = `gestaejs.${this.type}.${this._path}`;
-    }
-
-    protected _registerListeners(): void {
-        // Example full event path: gestaejs.${Part}.${Path}.${[Name]}.${Operation}.${Event}
-        // gestaejs.resource.api.company.person.read.before
-        // gestaejs.${Part<resource>}.${Path<api.company>}.${[Name<person>]}.${Operation<read>}.${Event<before>}
-        // Register all the listeners for this part with the application emitter.
-        const _listeners = (this._ModelClass as any).__events ?? [];
-        for(const _listener of _listeners) {
-            this._applicationContext!.events.on(GestaeEvent.createEventURI(this._path, _listener.register), 
-                              _listener.method, _listener.once);
-        }
-    }
-
-    protected async _initializeChildren(): Promise<void> {
-        // Initialize all the child parts.
-        for(const _key of Object.keys(this.children)) {
-            // Get each child by thier name.
-            let _child = this.children[_key];
-            await _child.initialize(this._applicationContext!); // Do this sync because there are likely dependencies.
-        }
-    }
-
-    async initialize(context: IApplicationContext): Promise<void> {
-        this._applicationContext = context;
-        this._setPath();
-        this._registerListeners();
-        await this._initializeChildren();
-        this._initialized = true;
-    }
-
-    async emit<T>(event: GestaeEvent<T>, target?:object): Promise<void> {
-        this._applicationContext!.events.emit(event, target);
-    }
-
-    protected async emitLifecycle<T>(event: GestaeEvent<T>, operation: string, 
-                                     target?:object): Promise<void> {
-        event.path = GestaeHttpEvent.createEventURI(this._path, 
-            {operation: operation, event: "before"});
-        await this._applicationContext!.events.emit(event, target);
-        event.path = GestaeHttpEvent.createEventURI(this._path, 
-            {operation: operation, event: "on"});
-        await this._applicationContext!.events.emit(event, target);
-        event.path = GestaeHttpEvent.createEventURI(this._path, 
-            {operation: operation, event: "after"});
-        await this._applicationContext!.events.emit(event, target);
-    }
-
-    protected async _doRequest(context: IHttpContext): Promise<void> {
-        // do nothing
-    }
-
-    protected async _done(context: IHttpContext): Promise<void> {
-        // do nothing on purpose, just letting implementors know we stopped here.
-    }
-
-    async doRequest(context: IHttpContext): Promise<void> {
-        let _path = context.request.uri.part; // Take a look at the one we are on
-
-        /* ====================================================================
-         * Defensive Coding. 
-         * This is protecting on the off chance we REALLY screwed up parsing 
-         * the URI. This should never happen, but if it does, we want to catch 
-         * it.
-         * -------------------------------------------------------------------- */
-        if(_path === this.name) 
-            await this._doRequest(context); // We are the target, emit our events.
-        else throw new NotFoundError(`Path ${_path} not found.`); // We are not the target, but we should be.
-        /* ==================================================================== */
-
-        // Check to see if there is more
-        if(context.request.uri.hasNext()) {
-            _path = context.request.uri.next(); // Move to the next path part
-
-            // Try and find it in our childres.
-            const _child = this.children[_path];
-            if(!_child) throw new NotFoundError(`Path ${_path} not found.`);
-            await _child.doRequest(context); // Recurse into the child.
-        }
-        else return this._done(context);
-    }
-
-    async finalize(context: IApplicationContext): Promise<void> {
-        this._initialized = false;
-    }
-
-    get initialized(): boolean {
-        return this._initialized;
-    }
-
-    get parent(): Part | undefined {
+    get parent(): AbstractPart | undefined {
         return this._parent;
     }
 
-    addChild(child: Part): Part {
-        this.children[child.name] = child;
-        child._parent = this;
-        return child;
+    getRoot(): AbstractPart {
+        let _part: AbstractPart = this;
+        while(_part.parent) {
+            _part = _part.parent;
+        }
+        return _part;
+    }
+
+    getChild(name: string): AbstractPart | undefined {
+        return this.children[name];
+    }
+
+    getChildByPath(path: string): AbstractPart | undefined {
+        const _tokens = path.split("/").filter(token => token.trim() !== "");
+        let _part: AbstractPart | undefined = this;
+
+        for(const _token of _tokens) {
+            if(!_part) return undefined;
+            _part = _part.getChild(_token);
+        }
+
+        return _part;
+    }
+
+    addChild(part: AbstractPart): AbstractPart {
+        if(this.children[part.name]) 
+            throw new GestaeError(`Part with name '${part.name}' already exists.`);
+        this.children[part.name] = part;
+        part._parent = this;
+        return part;
+    }
+
+    async initialize(): Promise<void> {
+        //
+    }
+
+    async destroy(): Promise<void> {
+        //
+    }
+
+    abstract _doRequest(): Promise<void>;
+
+    async doRequest(): Promise<void> {
+        //
     }
 }

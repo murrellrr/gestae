@@ -1,121 +1,143 @@
-import { Part, ModelType, PartOptions } from "./Part";
-import { HttpMethod, IHttpContext } from "./HttpContext";
-import { EventRegister, GestaeHttpEvent } from "./GestaeEvent";
-import { BadRequestError } from "./GestaeError";
+/*
+ *  Copyright (c) 2024, KRI, LLC.
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *  THE SOFTWARE.
+ */
 
-export interface ResourceOptions extends PartOptions {
-    validate?: boolean;
-    useSchemaAsDefaults?: boolean;
-    schema?: object;
-    lazyLoad?: boolean;
+import "reflect-metadata";
+import { HttpEvent } from "./GestaeEvent";
+import { IHttpContext } from "./HttpContext";
+import { 
+    IEventRegister,
+    IResourceOptions,
+    validateAndSetTypedEventMetaData  
+} from "./Gestae";
+
+
+const RESOURCE_ID  = "id";
+
+export type Model = new (...args: any[]) => any;
+
+export enum ResourceMethod {
+    Create = "create",
+    Read = "read",
+    Find = "find",
+    Update = "update",
+    Delete = "delete",
+}
+
+export const ResourceEvents = {
+    Create: {
+        OnBefore: {operation: "create", action: "before"},
+        On: {operation: "create", action: "on"},
+        OnAfter: {operation: "create", action: "after"},
+        OnError: {operation: "create", action: "error"}
+    },
+    Read: {
+        OnBefore: {operation: "read", action: "before"},
+        On: {operation: "read", action: "on"},
+        OnAfter: {operation: "read", action: "after"}
+    },
+    Find: {
+        OnBefore: {operation: "find", action: "before"},
+        On: {operation: "find", action: "on"},
+        OnAfter: {operation: "find", action: "after"},
+        OnError: {operation: "find", action: "error"}
+    },
+    Update: {
+        OnBefore: {operation: "update", action: "before"},
+        On: {operation: "update", action: "on"},
+        OnAfter: {operation: "update", action: "after"},
+        OnError: {operation: "update", action: "error"}
+    },
+    Delete: {
+        OnBefore: {operation: "delete", action: "before"},
+        On: {operation: "delete", action: "on"},
+        OnAfter: {operation: "delete", action: "after"},
+        OnError: {operation: "delete", action: "error"}
+    },
+    Error: {
+        On: {operation: "error", action: "on"}
+    }
 };
 
-export class Resource extends Part {
-    static readonly Events: Record<string, EventRegister>  = {
-        // Create:POST
-        OnBeforeCreate: {operation: "create", event: "before"}, 
-        OnCreate:       {operation: "create", event: "on"}, 
-        OnAfterCreate:  {operation: "create", event: "after"}, 
-        // Read:GET
-        OnBeforeRead:   {operation: "read",   event: "before"}, 
-        OnRead:         {operation: "read",   event: "on"}, 
-        OnAfterRead:    {operation: "read",   event: "after"}, 
-        // Update:PUT
-        OnBeforeUpdate: {operation: "update", event: "before"}, 
-        OnUpdate:       {operation: "update", event: "on"}, 
-        OnAfterUpdate:  {operation: "update", event: "after"}, 
-        // Delete:DELETE
-        OnBeforeDelete: {operation: "delete", event: "before"}, 
-        OnDelete:       {operation: "delete", event: "on"}, 
-        OnAfterDelete:  {operation: "delete", event: "after"}, 
-        // Find:GET with query params
-        OnBeforeFind:   {operation: "find",   event: "before"}, 
-        OnFind:         {operation: "find",   event: "on"}, 
-        OnAfterFind:    {operation: "find",   event: "after"}, 
+
+
+export interface IResource {
+    getResourceOptions(): IResourceOptions;
+    getModel(): Model;
+    getInstance(... args: [any]): any
+}
+
+export class ResourceEvent<T> extends HttpEvent<T> {
+    public readonly resource: IResource;
+
+    constructor(resource: IResource, context: IHttpContext, data: T) {
+        super(context, data);
+        this.resource = resource;
+    }
+}
+
+// export class ResourcePart extends AbstractPart implements IResource {
+//     protected readonly model: Model;
+
+//     constructor(model: Model, options: IResourceOptions = {}) {
+//         super(options);
+//         this.model = model;
+//         // Setting up the default options.
+//         options.idProperty = options?.idProperty ?? RESOURCE_ID;
+//         options.useSchemaAsDefaults = options?.useSchemaAsDefaults ?? false;
+//         options.lazyLoad = options?.lazyLoad ?? false;
+//         options.allowedMethods = options?.allowedMethods ?? [];
+//     }
+
+//     getInstance(... args: [any]): any {
+//         return new this.model(...args);
+//     }
+
+//     getResourceOptions(): IResourceOptions {
+//         return this.options as IResourceOptions;
+//     }
+
+//     getModel(): Model {
+//         return this.model;
+//     }
+
+//     async _doRequest(): Promise<void> {
+//         //
+//     }
+
+//     static create(model: Model, options: IResourceOptions = {}): ResourcePart {
+//         return new ResourcePart(model, options);
+//     }
+// }
+
+export function OnResourceEvent<I>(event: IEventRegister) {
+    return function <T extends Object>(target: T, property: string, 
+                        descriptor: TypedPropertyDescriptor<(event: ResourceEvent<I>) => void>) {
+        validateAndSetTypedEventMetaData(target, descriptor, event, property);
     };
+}
 
-    private readonly _options: ResourceOptions;
-    //private readonly _ModelConstructor: new (...args: any[]) => Model;
-
-    constructor(model: ModelType, options: ResourceOptions = {}) {
-        super(model, options);
-        //this._ModelConstructor = this._ModelClass.constructor as new (...args: any[]) => Model;
-        this._options = options;
-    }
-
-    get type(): string {
-        return "resource";
-    }
-
-    /**
-     * @description Emit the Read lifecycle events for the resource.
-     * @param context The HTTP context of the request.
-     * @param target The target model instance.
-     */
-    protected async _emitRead(context: IHttpContext, target: object): Promise<void> {
-        // Fire the read events no matter what.
-        let _event = GestaeHttpEvent.createHttpEventNoPath(context, target);
-        return this.emitLifecycle(_event, Resource.Events.OnRead.operation, target);
-    }
-
-    protected async _emitFind(context: IHttpContext, target: object): Promise<void> {
-        // Fire the find events no matter what.
-        let _event = GestaeHttpEvent.createHttpEventNoPath(context, target);
-        return this.emitLifecycle(_event, Resource.Events.OnFind.operation, target);
-    }
-
-    protected async _emitCreate(context: IHttpContext, target: object): Promise<void> {
-        // Fire the create events no matter what.
-        let _event = GestaeHttpEvent.createHttpEventNoPath(context, target);
-        return this.emitLifecycle(_event, Resource.Events.OnCreate.operation, target);
-    }
-
-    protected async _emitUpdate(context: IHttpContext, target: object): Promise<void> {
-        // Fire the update events no matter what.
-        let _event = GestaeHttpEvent.createHttpEventNoPath(context, target);
-        return this.emitLifecycle(_event, Resource.Events.OnUpdate.operation, target);
-    }
-
-    protected async _emitDelete(context: IHttpContext, target: object): Promise<void> {
-        // Fire the delete events no matter what.
-        let _event = GestaeHttpEvent.createHttpEventNoPath(context, target);
-        return this.emitLifecycle(_event, Resource.Events.OnDelete.operation, target);
-    }
-
-    protected async _doRequest(context: IHttpContext): Promise<void> {
-        const { request } = context;
-        const { uri, isCreate, isFind, method } = request;
-
-        // Handle Create (POST) or Find (GET with query params)
-        //if(isCreate || isFind)
-        //    return uri.hasNext() ? this._emitGet(context) : this._emitFind(context);
-    
-        // Ensure an ID exists for non-Create/Find operations
-        if(!uri.hasNext()) throw new BadRequestError("Resource ID is required.");
-        const _id = uri.next(); // Extract the resource ID
-        let _target = this.createModelInstance(_id); // Create an instance of the model
-    
-        // If there is more in the path, delegate as a GET request
-        // We just need to look it up for later use in the request.
-        if(uri.hasNext()) return this._emitRead(context, _target);
-    
-        // Process the CRUD operation
-        switch(method) {
-            case HttpMethod.GET:
-                return this._emitRead(context, _target);
-            case HttpMethod.POST:
-                return this._emitCreate(context, _target);
-            case HttpMethod.PUT:
-            case HttpMethod.PATCH:
-                return this._emitUpdate(context, _target);
-            case HttpMethod.DELETE:
-                return this._emitDelete(context, _target);
-            default:
-                throw new BadRequestError(`HTTP method '${method}' is invalid in the context of a resource.`);
-        }
-    }
-
-    public static create(model: ModelType, options: ResourceOptions = {}): Resource {
-        return new Resource(model, options);
-    }
+export function OnAsyncResourceEvent<I>(event: IEventRegister) {
+    return function <T extends Object>(target: T, property: string, 
+                        descriptor: TypedPropertyDescriptor<(event: ResourceEvent<I>) => Promise<void>>) {
+        validateAndSetTypedEventMetaData(target, descriptor, event, property);
+    };
 }
