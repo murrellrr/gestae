@@ -23,7 +23,7 @@
 import { GestaeEvent } from "./GestaeEvent";
 
 export interface IAsyncEventQueue {
-    on<T, E extends GestaeEvent<T>>(event: string | RegExp, method: (event: E) => Promise<void> | void, once?: boolean) : this;
-    once<T, E extends GestaeEvent<T>>(event: string | RegExp, method: (event: E) => Promise<void> | void): this;
+    on<T, E extends GestaeEvent<T>>(event: string | RegExp, listener: (event: E) => Promise<void> | void, once?: boolean) : this;
+    once<T, E extends GestaeEvent<T>>(event: string | RegExp, listener: (event: E) => Promise<void> | void): this;
     off<T, E extends GestaeEvent<T>>(event: string, listener: (event: E) => Promise<void> | void): this;
 }

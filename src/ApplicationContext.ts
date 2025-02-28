@@ -20,7 +20,8 @@
  *  THE SOFTWARE.
  */
 
-
+import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
+import { AbstractPartFactoryChain } from "./AbstractPartFactoryChain";
 import { 
     AsyncEventEmitter, 
     IAsyncEventEmitter 
@@ -33,27 +34,41 @@ import {
 import { ILogger } from "./Logger";
 import { IProperties } from "./Properties";
 
+export type PartChainFactoryType = (context: IApplicationContext) => AbstractPartFactoryChain<any, any>;
+export type FeatureChainFactoryType = (context: IApplicationContext) => AbstractFeatureFactoryChain<any>;
+
+export interface IApplicationContextOptions {
+    log:                 ILogger;
+    properties:          IProperties;
+    partChainFactory:    PartChainFactoryType;
+    featureChainFactory: FeatureChainFactoryType;
+}
+
 export interface IApplicationContext extends IContext {
-    get logger(): ILogger;
-    get properties(): IProperties;
-    get eventEmitter(): IAsyncEventEmitter;
-    get eventQueue(): IAsyncEventQueue;
+    get log():            ILogger;
+    get properties():     IProperties;
+    get eventEmitter():   IAsyncEventEmitter;
+    get eventQueue():     IAsyncEventQueue;
+    get partFactory():    AbstractPartFactoryChain<any, any>;
+    get featureFactory(): AbstractFeatureFactoryChain<any>;
 }
 
 export class DefaultApplicationContext extends AbstractContext implements IApplicationContext {
-    private readonly _logger: ILogger;
-    private readonly _properties: IProperties;
-    private readonly _events: AsyncEventEmitter;
+    private   readonly _properties:    IProperties;
+    private   readonly _events:        AsyncEventEmitter;
+    protected readonly options:        IApplicationContextOptions;
+    public    readonly log:            ILogger;
+    public    readonly partFactory:    AbstractPartFactoryChain<any, any>;
+    public    readonly featureFactory: AbstractFeatureFactoryChain<any>;
 
-    constructor(rootLogger: ILogger, properties: IProperties) {
+    constructor(options: IApplicationContextOptions) {
         super();
-        this._logger = rootLogger;
-        this._properties = properties;
-        this._events = new AsyncEventEmitter(this._logger); 
-    }
-
-    get logger(): ILogger {
-        return this._logger;
+        this.options = options;
+        this.log = this.options.log.child({name: this.constructor.name});
+        this._properties = this.options.properties;
+        this._events = new AsyncEventEmitter(this.log); 
+        this.partFactory = options.partChainFactory(this);
+        this.featureFactory = options.featureChainFactory(this);
     }
 
     get properties(): IProperties {
@@ -68,7 +83,7 @@ export class DefaultApplicationContext extends AbstractContext implements IAppli
         return this._events;
     }
 
-    static create(options: Record<string, any> = {logger: null, properties: null}) {
-        return new DefaultApplicationContext(options.logger, options.properties);
+    static create(options: IApplicationContextOptions) {
+        return new DefaultApplicationContext(options);
     }
 }

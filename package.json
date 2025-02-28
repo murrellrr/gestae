@@ -1,5 +1,54 @@
 {
+  "name": "@gestae/rest",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc",
+    "test": "mocha",
+    "dev": "nodemon",
+    "start:local": "nodemon"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/murrellrr/gestae.git"
+  },
+  "keywords": [
+    "Process",
+    "API",
+    "REST"
+  ],
+  "author": "Robert R Murrell",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/murrellrr/gestae/issues"
+  },
+  "homepage": "https://github.com/murrellrr/gestae#readme",
+  "description": "",
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "class-transformer": "^0.5.1",
+    "lodash": "^4.17.21",
+    "moment": "^2.30.1",
+    "pg": "^8.13.3",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.20",
+    "uuid": "^11.0.5"
+  },
   "devDependencies": {
-    "@types/node": "^22.13.1"
+    "@types/chai": "^5.0.1",
+    "@types/lodash": "^4.17.15",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.13.1",
+    "@types/sinon": "^17.0.4",
+    "chai": "^5.2.0",
+    "mocha": "^11.1.0",
+    "nodemon": "^3.1.9",
+    "sinon": "^19.0.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.0.0",
+    "typescript": "^5.7.3"
   }
 }

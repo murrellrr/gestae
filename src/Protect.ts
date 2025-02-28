@@ -20,23 +20,22 @@
  *  THE SOFTWARE.
  */
 
-import { 
-    AbstractPart, 
-    IPartOptions 
-} from "./Part";
+const PROTECT_OPTIONS_KEY = "gestae:protect";
 
-export interface INamespaceOptions extends IPartOptions {}
+export interface IProtectOptions {
+    persona?: string;
+}
 
-export class NamespacePart extends AbstractPart {
-    constructor(options: INamespaceOptions = {}) {
-        super(options);
-    }
+export const anyone = {persona: "anyone"} as IProtectOptions;
+export const noone  = {persona: "noone"}  as IProtectOptions;
 
-    public async _doRequest(): Promise<void> {
-        //
-    }
-
-    static create(options: INamespaceOptions = {}): NamespacePart {
-        return new NamespacePart(options);
-    }
+export function Protect(options: IProtectOptions = noone): ClassDecorator & MethodDecorator {
+    return function (target: Function | Object, property?: string | symbol, descriptor?: PropertyDescriptor) {
+        if(typeof target === "function") {
+            // Case: Decorating a class
+        } 
+        else if(property && descriptor) {
+            // Case: Decorating a method
+        }
+    };
 }

@@ -29,7 +29,7 @@ import {
 } from "./Context";
 import http from 'http';
 
-export enum HttpMethod {
+export enum HttpMethodEnum {
     GET = "get",
     POST = "post",
     PUT = "put",
@@ -115,7 +115,7 @@ export interface IHttpRequest {
     getQuery(key: string, defaultValue?:string | undefined): string | undefined;
     hasQueries(): boolean;
     getHeader(key: string, defaultValue?: HeaderValue): HeaderValue;
-    isMethod(method: HttpMethod): boolean;
+    isMethod(method: HttpMethodEnum): boolean;
     get isCreate(): boolean;
     get isRead(): boolean;  
     get isUpdate(): boolean;  
@@ -174,32 +174,32 @@ export class HttpRequest implements IHttpRequest{
         return this._request.method?.toLowerCase() ?? "get";
     }
 
-    isMethod(method: HttpMethod): boolean {
+    isMethod(method: HttpMethodEnum): boolean {
         return this.method === method;
     }
 
     get isCreate(): boolean {
-        return this.isMethod(HttpMethod.POST);
+        return this.isMethod(HttpMethodEnum.POST);
     }
 
     get isRead(): boolean {
-        return this.isMethod(HttpMethod.GET) && !this.hasQueries();
+        return this.isMethod(HttpMethodEnum.GET) && !this.hasQueries();
     }   
 
     get isUpdate(): boolean {
-        return this.isMethod(HttpMethod.PUT);
+        return this.isMethod(HttpMethodEnum.PUT);
     }   
 
     get isDelete(): boolean {
-        return this.isMethod(HttpMethod.DELETE);
+        return this.isMethod(HttpMethodEnum.DELETE);
     }
 
     get isFind(): boolean {
-        return this.isMethod(HttpMethod.GET) && this.hasQueries();
+        return this.isMethod(HttpMethodEnum.GET) && this.hasQueries();
     }
 
     get isPatch(): boolean {
-        return this.isMethod(HttpMethod.PATCH);
+        return this.isMethod(HttpMethodEnum.PATCH);
     }
 
     hasQueries(): boolean {

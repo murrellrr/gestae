@@ -7,70 +7,70 @@ Traditional API gateways, business process automation (BPA) platforms, and AI-dr
 
 **Gestae** is designed to fill this gap by bringing together:
 
-* Resource-first modeling (no more treating REST like RPC)
-* Imperative execution (code-first, no bloated workflow engines)
-* Event-driven interactions (tasks and resources trigger events, not hardcoded services)
+* **Resource-first modeling**, where namespaces, resources, and tasks are the core concepts—not paths and function signatures.
+* **Imperative execution**, ensuring that APIs are designed through code and decorators, not declarative configurations.
+* **Event-driven architecture**, where every interaction with namespaces, resources, and tasks operates through events.
 
 ## Resource-First Architecture
 Unlike traditional REST frameworks that revolve around paths and services, Gestae treats resources as first-class objects. Resources exist independent of their URL representation, focusing instead on hierarchical, object-oriented, and runtime-defined structures.
 
 This means that:
 
-* Resources are not defined by URI paths but by their relationships.
-* They maintain state and interact via event-driven operations.
-* Instead of manually managing HTTP routes, Gestae dynamically registers and resolves resources at runtime.
+* **Resources exist as runtime objects**, not predefined routes.
+* **Relationships** between resources are dynamically structured, rather than assumed through URL nesting.
+* Tasks are **intrinsic to resources**, allowing them to execute domain-specific business logic imperatively.
 
 
 ## Imperative by Design
 
-Gestae is built with imperative programming principles. Developers explicitly declare resources and tasks using decorators, allowing fine-grained control over execution flows.
+Gestae is built around imperative programming principles, where:
 
-Instead of relying on declarative YAML/JSON configs or visual workflow editors, all interactions are defined in TypeScript code, ensuring:
+* Developers explicitly **define resources**, relationships, and tasks using decorators.
+* APIs are **designed through code**, not static configuration files.
+* Resources and tasks are **instantiated and resolved dynamically at runtime**, enabling flexible and scalable composition.
 
+This approach ensures:
 
-* **Explicitness**: No hidden magic—everything is controlled in code.
-* **Composability**: Resources and tasks can be structured in a modular fashion.
-* **Predictability**: The execution flow is deterministic and testable.
+* **Explicit control over API logic**, avoiding hidden behaviors.
+* **Modular composability**, where resources and tasks can be reused.
+* **Predictable execution flows**, making debugging and testing easier.
+
+Gestae doesn’t force developers to conform to predefined URI signatures—instead, it lets them build APIs around the domain model, making relationships between resources explicit and enforceable.
 
 ## Event-Driven Interactions
 
 At its core, Gestae is an event-driven framework. All operations—whether interacting with resources, namespaces, or tasks—are performed via events rather than direct function calls or RPC-style service endpoints.
 
-This decouples business logic from HTTP transport, enabling:
+* **Resources trigger and listen** for events rather than relying on synchronous RPC calls.
+* Tasks are executed through an **event system**, allowing both synchronous and asynchronous workflows.
+* Events allow **loose coupling between services**, making APIs more resilient and scalable.
 
-* Loose coupling between services and event-driven subscribers.
-* Flexible integration with external event buses and messaging systems.
-* Seamless async/sync execution models for different business processes.
+This event-based model removes unnecessary tight coupling between API endpoints, making it easier to integrate with message queues, async job processing, and event-driven microservices.
 
-## Enforcing RESTful Best Practices
-Gestae strictly enforces RESTful principles by:
+## Strict RESTful Enforcement
+To ensure interoperability and maintain a clear separation of concerns, Gestae enforces strict RESTful constraints:
 
-* **Forcing Resources to support**: GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS.
-* **Limiting Tasks to only**: GET and POST.
+* **Resources** only support: GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS.
+* **Task**s are restricted to GET (status checks) and POST (execution triggers).
 
-This ensures maximum interoperability with HTTP standards while still allowing imperative task execution. Tasks are modeled as business processes, where:
+This approach ensures that:
 
-* **GET** retrieves task status (useful for async jobs).
-* **POST** triggers task execution (asynchronous or synchronous, depending on the process).
-By enforcing a clear distinction between resources and tasks, Gestae ensures clean API design, avoiding common anti-patterns like RPC-over-REST or task-specific resource endpoints.
+* **Resources handle CRUD operations**, keeping them stateless and consistent.
+* **Tasks handle business logic execution**, allowing message-driven workflows to be properly modeled.
+
+By enforcing clear separation between resources and tasks, Gestae ensures that API designs remain scalable, maintainable, and predictable—without falling into RPC-over-REST anti-patterns.
 
 ## Task-Based Process Execution
-Business processes do not fit neatly into REST because they are:
+Business APIs are often task-driven, where resources must perform operations that are non-idempotent and asynchronous. Unlike simple CRUD APIs, business processes:
 
-Non-idempotent (two identical inputs do not always yield the same result).
-Stateful and message-driven (involving queues, approvals, and multi-step operations).
-Gestae embraces Task-Based Process Execution, allowing business resources to perform tasks through an event-driven, task-oriented API model.
+* **Are often message-based**, requiring workflows that involve approvals, state transitions, and cross-service dependencies.
+* **Aren’t always idempotent**, meaning executing the same request twice may yield different outcomes.
+* **Require orchestration**, since they involve multiple steps and dependencies that cannot be handled as atomic operations.
 
-Since process APIs:
+To accommodate this, Gestae allows:
 
-* **Are not atomic** like CRUD operations.
-* **Require orchestration** across multiple services.
-* **Often include synchronous and asynchronous operations**.
+* **Tasks to be explicitly defined on resources**, mapping business processes to API interactions.
+* **Tasks to execute asynchronously or synchronously**, depending on the use case.
+* **Verbs in URIs for task execution**, such as POST /business/company/:companyId/employee/:employeeId/terminate, while still adhering to REST constraints.
 
-Gestae allows verbs in URIs (i.e., POST /business/company/:companyId/employee/:employeeId/terminate) to reflect the real-world complexity of business processes.
-
-This bridges the gap between RESTful design and enterprise process automation, ensuring:
-
-* Consistency in API structure while supporting task-based workflows.
-* Event-driven execution models where processes emit events rather than forcing blocking calls.
-* Scalability for workflows involving multiple services, approvals, and human-in-the-loop processes.
+Since business processes do not fit neatly into a pure event-driven model, Gestae bridges the gap between RESTful API design and task-based workflows, making process automation more scalable and maintainable.

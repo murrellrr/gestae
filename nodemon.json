@@ -1,0 +1,7 @@
+{
+    "watch": ["src"],
+    "ext": "ts",
+    "ignore": ["node_modules", "dist"],
+    "exec": "node --inspect -r ts-node/register ./src/local/local.ts"
+  }
+  
