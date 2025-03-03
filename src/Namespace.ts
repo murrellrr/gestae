@@ -34,11 +34,14 @@ import {
     IEventOptions, 
     setEventConfig 
 } from "./GestaeEvent";
-import { AbstractPart } from "./AbstractPart";
 import { GestaeError } from "./GestaeError";
-import _ from "lodash";
-import { AbstractPartFactoryChain, FactoryReturnType } from "./AbstractPartFactoryChain";
+import { 
+    AbstractPartFactoryChain, 
+    FactoryReturnType 
+} from "./AbstractPartFactoryChain";
 import { Template } from "./Template";
+import { AbstractTaskablePart } from "./Task";
+import _ from "lodash";
 
 const NAMESPACE_OPTION_KEY = "gestaejs:namespace";
 
@@ -84,7 +87,7 @@ export class NamespaceEvent extends HttpEvent<INamesapce> {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class NamespacePart extends AbstractPart<INamespaceOptions> implements INamesapce {
+export class NamespacePart extends AbstractTaskablePart<INamespaceOptions> implements INamesapce {
     constructor(public readonly instance: Object, options: INamespaceOptions = {}) {
         super(options);
         options.name = options.name ?? this.constructor.name.toLowerCase();
@@ -92,12 +95,8 @@ export class NamespacePart extends AbstractPart<INamespaceOptions> implements IN
         options.$overloads = options.$overloads ?? true;
     }
 
-    async _initialize(): Promise<void> {
-        //
-    }
-
-    async _finalize(): Promise<void> {
-        //
+    get type(): string {
+        return "namespace";
     }
 
     getInstance<T extends Object>(): T {

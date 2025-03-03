@@ -36,7 +36,8 @@ import {
     setEventConfig 
 } from "./GestaeEvent";
 import { HttpMethodEnum, IHttpContext } from "./HttpContext";
-import { AbstractPart } from "./AbstractPart";
+import { AbstractPart, IPartOptions } from "./AbstractPart";
+import { InitializationContext } from "./ApplicationContext";
 
 const TASK_OPTION_KEY = "gestaejs:task";
 
@@ -120,7 +121,6 @@ export class TaskEvent<T> extends HttpEvent<T> {
  * @copyright 2024 KRI, LLC
  */
 export class TaskPart extends AbstractPart<ITaskOptions> {
-    
     constructor(options: ITaskOptions = {}) {
         super(options);
         options.name = options.name ?? this.constructor.name.toLowerCase();
@@ -128,16 +128,12 @@ export class TaskPart extends AbstractPart<ITaskOptions> {
         options.requestMethod = options.requestMethod ?? HttpMethodEnum.POST;
     }
 
+    get type(): string {
+        return "task";
+    }
+
     getInstance<T extends Object>(): T {
         return {} as T;
-    }
-
-    async _initialize(): Promise<void> {
-        //
-    }
-
-    async _finalize(): Promise<void> {
-        //
     }
 
     /**
@@ -164,25 +160,29 @@ export class TaskPart extends AbstractPart<ITaskOptions> {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class TaskFeatureFactory extends AbstractFeatureFactoryChain<AbstractPart<any>> {
-    isFeatureFactory<T extends Object>(part: AbstractPart<any>, target: T): boolean {
-        return hasMetadata(target, TASK_OPTION_KEY);
-    }
-
-    _apply<T extends Object>(part: AbstractPart<any>, target: T): void {
-        this.log.debug(`'${target.constructor.name}' is decorated with @Task(s), applying task part(s) to '${part.name}'.`);
-        const _config = getsertMetadata(target, TASK_OPTION_KEY);
-        const _keys = Object.keys(_config);
-        this.log.debug(`Creating ${_keys.length} task part(s)...`);
-        for(const _key in _config) {
-            if(_config.hasOwnProperty(_key)) {
-                const _taskConfig = _config[_key];
-                this.log.debug(`Creating task part '${_taskConfig.name}' and adding it to '${part.name}'.`);
-                const _task = new TaskPart(_taskConfig);
-                part.add(_task);
+export abstract class AbstractTaskablePart<O extends IPartOptions> extends AbstractPart<O> {
+    /**
+     * @description
+     * @param context 
+     */
+    async _beforeInitialize(context: InitializationContext): Promise<void> {
+        const _target = this.getInstance();
+        if(hasMetadata(_target, TASK_OPTION_KEY)) {
+            const _log = context.applicationContext.log.child({name: `AbstractTaskablePart:${this.constructor.name}:${this.name}`});
+            _log.debug(`'${_target.constructor.name}' is decorated with @Task(s), applying task part(s) to '${this.name}'.`);
+            const _config = getsertMetadata(_target, TASK_OPTION_KEY);
+            const _keys = Object.keys(_config);
+            _log.debug(`Creating ${_keys.length} task part(s)...`);
+            for(const _key in _config) {
+                if(_config.hasOwnProperty(_key)) {
+                    const _taskConfig = _config[_key];
+                    _log.debug(`Creating task part '${_taskConfig.name}' and adding it to '${this.name}'.`);
+                    const _task = new TaskPart(_taskConfig);
+                    this.add(_task);
+                }
             }
+            _log.debug(`${_keys.length} task part(s) applied.`);
         }
-        this.log.debug(`${_keys.length} task part(s) applied.`);
     }
 }
 

@@ -32,7 +32,6 @@ import {
     IHttpContext 
 } from "./HttpContext";
 import { 
-    getGestaeMetadata,
     IOptions, 
 } from "./Gestae";
 import { 
@@ -46,7 +45,6 @@ import { BaseProperties, IProperties, IPropertyOptions, Properties } from "./Pro
 import { GestaeError } from "./GestaeError";
 import { EventFeatureFactory, GestaeEvent } from "./GestaeEvent";
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
-import { TaskFeatureFactory } from "./Task";
 import { SchemaFeatureFactory } from "./Schema";
 import { ITemplate, PartTemplateType, Template } from "./Template";
 import { AbstractPartFactoryChain } from "./AbstractPartFactoryChain";
@@ -183,9 +181,8 @@ export class Application {
         // this._partFactory = options.partChainFactory(this.context);
         options.featureChainFactory = options.featureChainFactory ?? 
                                    ((context: IApplicationContext): AbstractFeatureFactoryChain<any> => 
-                                        new EventFeatureFactory(context, 
-                                            new TaskFeatureFactory(context, 
-                                                new SchemaFeatureFactory(context))));
+                                        new EventFeatureFactory(context,  
+                                            new SchemaFeatureFactory(context)));
         
         // Application Root.
         options.root = options.root ?? DEFAULT_ROOT;

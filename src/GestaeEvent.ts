@@ -36,7 +36,11 @@ const EVENT_OPTIONS_KEY = "gestaejs:event";
 
 /**
  * @description Interface for defingin options on an event.
- * @param once If true, the event will be removed after it is called once.
+ * @example Event registers are formatted as {method:string | Function, topic?: string, operation: string, action: string};
+ * @example The full event format in Gestae is: gestaejs:<part-type>:<path>:<part-name>:<operation>:[<topic>]:<action>
+ * @example gestaejs:resource:api:business:employee:read:on
+ * @param register The event to register.
+ * @param once     If true, the event will be removed after it is called once.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
@@ -47,6 +51,7 @@ export interface IEventOptions extends IOptions {
 }
 
 /**
+ * @description base class for all events in Gestae.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
@@ -127,7 +132,7 @@ export function formatEvent(event: EventRegisterType): string {
  */
 export function setEventConfig(target: any, event: EventRegisterType, property: string, options: IEventOptions = {}): void {
     let _namesapce = formatEvent(event);
-    let _config: Record<string, any> = getsertMetadata(target, EVENT_OPTIONS_KEY, {});
+    let _config: Record<string, any> = getsertMetadata(target, EVENT_OPTIONS_KEY);
 
     let _event = _config[_namesapce];
     if(!_event) {
@@ -155,9 +160,30 @@ export class EventFeatureFactory extends AbstractFeatureFactoryChain<AbstractPar
     }
 
     _apply<T extends Object>(part: AbstractPart<any>, target: T): void {
-        this.log.debug(`'${target.constructor.name}' is decorated with @On<Asyn>Event(s), applying event listeners for '${part.name}'...`);
+        this.log.debug(`'${target.constructor.name}' is decorated with @On<Asyn><Type>Event(s), applying event listeners for '${part.name}'...`);
         const _config = getsertMetadata(target, EVENT_OPTIONS_KEY);
-         this.log.debug(`************************************ \n ${JSON.stringify(_config, null, 2)}`);
+        for(const _key in _config) {
+            const _events = _config[_key];
+            for(const _event of _events) {
+                const _fullyQualifiedEventPath = `${part.fullyQualifiedPath}:${formatEvent(_event.register)}`;
+                this.log.debug(`Registering event '${_fullyQualifiedEventPath}'`);
+                const _method = EventFeatureFactory.getMethod(target, _event.register.method);
+                if(_method) {
+                    this.context.eventQueue.on(_fullyQualifiedEventPath, 
+                        _method as (event: GestaeEvent<unknown>) => void | Promise<void>, 
+                        _event.once);
+                    this.log.debug(`Method '${_event.register.method}' of '${target.constructor.name}' registered on '${_fullyQualifiedEventPath}'.`);
+                }
+                else 
+                    this.log.warn(`Method '${_event.register.method}' not found on '${target.constructor.name}', skipping event registration.'`);
+            }
+        }
+        this.log.debug(`'Applied event listeners for '${part.name}'.`);
+    }
+
+    static getMethod(instance: object, method: string): Function | undefined {
+        return Object.getOwnPropertyDescriptor(
+            Object.getPrototypeOf(instance), method)?.value;
     }
 }
 

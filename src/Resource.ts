@@ -37,8 +37,8 @@ import {
 } from "./GestaeEvent";
 import { IHttpContext } from "./HttpContext";
 import { AbstractPartFactoryChain, FactoryReturnType } from "./AbstractPartFactoryChain";
-import { AbstractPart } from "./AbstractPart";
 import { Template } from "./Template";
+import { AbstractTaskablePart } from "./Task";
 
 const RESOURCE_OPTION_KEY = "gestaejs:resource";
 
@@ -109,7 +109,7 @@ export class ResourceEvent<T> extends HttpEvent<T> {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class ResourcePart extends AbstractPart<IResourceOptions> {
+export class ResourcePart extends AbstractTaskablePart<IResourceOptions> {
     public readonly model: ClassType;
 
     constructor(target: ClassType, options: IResourceOptions = {}) {
@@ -128,16 +128,12 @@ export class ResourcePart extends AbstractPart<IResourceOptions> {
         options.$overloads = options.$overloads ?? true;
     }
 
+    get type(): string {
+        return "resource";
+    }
+
     getInstance<T extends Object>(...args: any[]): T {
         return new this.model(...args) as T;
-    }
-
-    async _initialize(): Promise<void> {
-        //
-    }
-
-    async _finalize(): Promise<void> {
-        //
     }
 }
 

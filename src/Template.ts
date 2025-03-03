@@ -58,7 +58,7 @@ export interface ITemplate extends IAsyncEventQueue {
 export class Template implements ITemplate {
     private readonly _listeners: ListenerItem[] = [];
     private readonly _base:     PartTemplateType;
-    private readonly _children: Map<string, Template> = new Map<string, Template>();
+    private readonly _children: Map<string, Template> = new Map();
     private readonly _name:     string;
 
     constructor(base: PartTemplateType, name?: string) {
@@ -120,21 +120,13 @@ export class Template implements ITemplate {
         const _name = Template.toName(child);
         let _template: Template;
         if(!this._children.has(_name)) {
-            _template = new Template(child, _name);
-            this._children.set(_name, _template);
+             _template = new Template(child, _name);
+             this._children.set(_name, _template);
         }
         else 
             _template = this._children.get(_name)!; // Just checked if it existed above.
 
         return _template;
-    }
-
-    private async applyFeatures(context: InitializationContext, part: AbstractPart<any>): Promise<void> {
-        // Applying the features to the top-level part.
-        const _log = context.applicationContext.log.child({name: `${this.constructor.name}.applyFeatures:${this.name}`});
-        _log.debug(`Applying features to '${part.name}'...`);
-        context.featureFactory.apply(part, part.getInstance());
-        _log.debug(`Features applied to '${part.name}'.`);
     }
 
     /**
@@ -147,7 +139,7 @@ export class Template implements ITemplate {
         const _log = context.applicationContext.log.child({name: `${this.constructor.name}.convert:${this.name}`});
         _log.debug(`Converting template '${this.name}'...`);
         const _result = context.partFactory.create(this);
-        const _part = _result.bottom ?? _result.top;
+        const _part   = _result.bottom ?? _result.top;
 
         // Add all event listeners to context.
         _log.debug(`Registering ${this._listeners.length} event listeners...`);
@@ -160,12 +152,10 @@ export class Template implements ITemplate {
         // Converting child templates.
         _log.debug(`Converting ${this._children.size} child templates...`);
         for(const child of this._children.values()) {
+            _log.debug(`Converting template ${child.name} and adding to part '${_part.name}'.`);
             _part.add(await child.convert(context));
         }
         _log.debug(`${this._children.size} child templates converted.`);
-
-        // Applying features.
-        await this.applyFeatures(context, _result.top);
 
         _log.debug(`Template '${this.name}' converted to ${_part.constructor.name} '${_part.name}'.`);
         return _result.top;

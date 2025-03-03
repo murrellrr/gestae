@@ -51,6 +51,7 @@ export abstract class AbstractPart<O extends IPartOptions> implements IPart {
     private   readonly _children: Map<string, AbstractPart<any>> = new Map<string, AbstractPart<any>>();
     protected readonly options?:  O;
     protected          parent?:   AbstractPart<any>;
+    protected          uri:       string = "";
 
     constructor(options?: O) {
         this.options = (options ?? {}) as O;
@@ -69,34 +70,79 @@ export abstract class AbstractPart<O extends IPartOptions> implements IPart {
         return false;
     }
 
+    get fullyQualifiedPath(): string {
+        return `gestaejs:${this.type}:${this.uri}`;
+    }
+
     add(child: AbstractPart<any>): AbstractPart<any> {
         child.parent = this;
         this._children.set(child.name, child);
         return child;
     }
 
+    abstract get type(): string;
+
     abstract getInstance<T extends Object>(): T;
 
-    abstract _initialize(context: InitializationContext): Promise<void>;
-    abstract _finalize(): Promise<void>;
+    async _beforeInitialize(context: InitializationContext): Promise<void> {
+        // do nothing, developers, override this method to take custom action.
+    }
+
+    async _afterInitialize(context: InitializationContext): Promise<void> {
+        // do nothing, developers, override this method to take custom action.
+    }
+
+    async _beforeFinalize(): Promise<void> {
+        // do nothing, developers, override this method to take custom action.
+    };
+
+    async _afterFinalize(): Promise<void> {
+        // do nothing, developers, override this method to take custom action.
+    };
+
+    /**
+     * @description Generates the full hierarchical path by traversing up the parent chain.
+     * @private
+     */
+    private generateURI(): void {
+        let _path    = this.name;
+        let _current = this.parent;
+        while(_current) {
+            _path    = `${_current.name}:${_path}`;
+            _current = _current.parent;
+        }
+        this.uri = _path;
+    }
+
+    private async applyFeatures(context: InitializationContext): Promise<void> {
+        // Applying the features to the top-level part.
+        const _log = context.applicationContext.log.child({name: `${this.constructor.name}.applyFeatures:${this.name}`});
+        _log.debug(`Applying features to '${this.name}'...`);
+        context.featureFactory.apply(this, this.getInstance());
+        _log.debug(`Features applied to '${this.name}'.`);
+    }
 
     async initialize(context: InitializationContext): Promise<void> {
         const _log = context.applicationContext.log.child({name: `${this.constructor.name}:${this.name}`});
         _log.debug(`Initializing ${this.constructor.name} '${this.name}'...`);
-
-        await this._initialize(context);
+        await this._beforeInitialize(context);
+        this.generateURI();
+        // Applying features.
+        await this.applyFeatures(context);
         for(const child of this.children.values()) {
             await child.initialize(context);
         }
-        _log.debug(`${this.constructor.name} '${this.name}' initialized.`);
+        await this._afterInitialize(context);
+        _log.debug(`${this.constructor.name} '${this.name}' initialized on path '${this.fullyQualifiedPath}'.`);
     }
 
     async finalize(): Promise<void> {
         //this.log.debug(`Finalizing ${this.constructor.name} '${this.name}'.`);
+        await this._beforeFinalize();
         for(const child of this.children.values()) {
             await child.finalize();
         }
-        this._finalize();
+        await this._afterFinalize();
         //this.log.debug(`${this.constructor.name} '${this.name}' finalized.`);
     }
 }
