@@ -22,6 +22,11 @@
 
 import { GestaeError } from "./GestaeError";
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface IContext {
     getValue(key: string, defaultValue?: any): any;
     getInstance<T>(_Class: new (...args: any[]) => T, defaultValue?: T): T;
@@ -34,6 +39,11 @@ export interface IContext {
     readonly entries: [string, any][];
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class AbstractContext implements IContext {
     private readonly _values: Record<string, any> = {};
 

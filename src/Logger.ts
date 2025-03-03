@@ -22,10 +22,20 @@
 
 import pino from "pino";
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface ILoggerOptions {
     name:string;
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface ILogger {
     log(message: string, ...optionalParams: any[]): void;
     info(message: string, ...optionalParams: any[]): void;
@@ -35,6 +45,11 @@ export interface ILogger {
     child(options?: ILoggerOptions): ILogger;
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class DefaultLogger implements ILogger {
     private static instance: DefaultLogger; // Singleton instance
 

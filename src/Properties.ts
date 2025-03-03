@@ -22,6 +22,11 @@
 
 import moment from "moment";
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface IPropertyOptions {
     cache?: boolean;
     cacheExpirySec?: number;
@@ -29,7 +34,10 @@ export interface IPropertyOptions {
     
 
 /**
- * Interface for managing properties.
+ * @description Interface for managing properties.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export interface IProperties {
     object(key:string, defaultValue?: any): Promise<any>;
@@ -40,12 +48,16 @@ export interface IProperties {
 }
 
 /**
- * Base class for creating properties. This is a chain of responsability pattern
+ * @description Base class for creating properties. This is a chain of responsability pattern
  * design to stop at the first factory that resolves the property.
  * 
  * This is intedfned to ALWAYS check the local environment (process.env) fist so you can 
  * override other propertie systems when in local development mode. Allows you to fake things 
  * like and app configuration or key vault.
+ * 
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export abstract class PropertyFactory<T> {
     constructor(private _link: PropertyFactory<any> | undefined = undefined) {}
@@ -71,6 +83,9 @@ export abstract class PropertyFactory<T> {
 /**
  * @description Property factory for environment variables. This is the default factory.
  *              All other factories will come after this one on the chain.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export class EnvironmentPropertyFactory extends PropertyFactory<string | undefined> {
     async _get(key: string): Promise<string | undefined> {
@@ -79,14 +94,20 @@ export class EnvironmentPropertyFactory extends PropertyFactory<string | undefin
 }
 
 /**
- * Interface for managing properties.
+ * @description Interface for managing properties.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export interface IPropertyManager {
     addLink(factory: PropertyFactory<any>): void;
 }
 
 /**
- * Class for managing properties.
+ * @description Class for managing properties.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export class Properties implements IProperties, IPropertyManager {
     constructor(protected readonly factory: PropertyFactory<any>) {}
@@ -97,7 +118,7 @@ export class Properties implements IProperties, IPropertyManager {
 
     /**
      * @description Get a property value from its origin. If the key is not found, it will return the defaultValue.
-     * If the value is not valid, it will return the defaultValue.
+     *              If the value is not valid, it will return the defaultValue.
      * @param key          The key of the property to get.
      * @param defaultValue The default value to return if the key is not found or the value is not valid.
      * @param validator    A function to validate the value. If the value is not valid, it will return the defaultValue.
@@ -134,7 +155,10 @@ export class Properties implements IProperties, IPropertyManager {
 }
 
 /**
- * Interface for ctontaining cached values.
+ * @description Interface for ctontaining cached values.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 interface CachedValue<T> {
     value: T;
@@ -143,7 +167,10 @@ interface CachedValue<T> {
 }
 
 /**
- * Wrapper proxy for adding caching to the properties.
+ * @description Wrapper proxy for adding caching to the properties.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export class CachedProperties {
     static wrapWithCache(properties: Properties, options: IPropertyOptions): Properties {
@@ -202,6 +229,11 @@ export class CachedProperties {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class BaseProperties extends Properties {
     constructor() {
         super(new EnvironmentPropertyFactory());

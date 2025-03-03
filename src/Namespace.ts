@@ -20,50 +20,76 @@
  *  THE SOFTWARE.
  */
 
-import { AbstractPartFactoryChain, FactoryReturnType } from "./AbstractPartFactoryChain";
-import { IApplicationContext } from "./ApplicationContext";
 import { 
     ClassType,
     defineEvents,
     EventRegisterType,
-    getClassOptions,
-    hasOptionData, 
-    isClassConstructor, 
-    setClassOptions 
+    getMetadata,
+    hasMetadata,
+    IOptions,
+    setMetadata
 } from "./Gestae";
 import { 
     HttpEvent, 
     IEventOptions, 
     setEventConfig 
 } from "./GestaeEvent";
-import { AbstractPart } from "./Part";
+import { AbstractPart } from "./AbstractPart";
 import { GestaeError } from "./GestaeError";
 import _ from "lodash";
+import { AbstractPartFactoryChain, FactoryReturnType } from "./AbstractPartFactoryChain";
+import { Template } from "./Template";
 
 const NAMESPACE_OPTION_KEY = "gestaejs:namespace";
 
-export interface INamespaceOptions {
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export interface INamespaceOptions extends IOptions {
     name?: string;
+    instance?: Object;
     traversable?: boolean;
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface INamesapce {}
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export const NamespaceEvents = defineEvents(
     ["traverse"],
     ["before", "on", "after", "error"]
 );
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class NamespaceEvent extends HttpEvent<INamesapce> {
     //
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class NamespacePart extends AbstractPart<INamespaceOptions> implements INamesapce {
-    
-    constructor(target: new (...args: any[]) => any, context: IApplicationContext, options: INamespaceOptions = {}) {
-        super(target, context, options);
-        options.name = options.name ?? target.name.toLowerCase();
+    constructor(public readonly instance: Object, options: INamespaceOptions = {}) {
+        super(options);
+        options.name = options.name ?? this.constructor.name.toLowerCase();
         options.traversable = options.traversable ?? true;
+        options.$overloads = options.$overloads ?? true;
     }
 
     async _initialize(): Promise<void> {
@@ -73,36 +99,55 @@ export class NamespacePart extends AbstractPart<INamespaceOptions> implements IN
     async _finalize(): Promise<void> {
         //
     }
+
+    getInstance<T extends Object>(): T {
+        return this.instance as T;
+    }
+
+    public static create(aClass: ClassType | string): NamespacePart {
+        if(typeof aClass === "string") {
+            const _result = NamespacePartFactory.createFromString(aClass);
+            return _result.bottom ?? _result.top;
+        }
+        else {
+            const _instance = new aClass([]);
+            return new NamespacePart(_instance, getMetadata(_instance, NAMESPACE_OPTION_KEY));
+        }
+    }
 }
 
-@Namespace()
-export class DefaultNamespace {
-    // Do nothing.
-}
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+class DefaultNameSpace {
+    static getInstance(): Object {
+        return new DefaultNameSpace();
+    }
+};
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class NamespacePartFactory extends AbstractPartFactoryChain<INamespaceOptions, NamespacePart> {
-    isPartFactory(target: ClassType | string): boolean {
-        return (typeof target === "string") || 
-               (isClassConstructor(target) && hasOptionData(target, NAMESPACE_OPTION_KEY));
+    isPartFactory(target: Template): boolean {
+        return target.isString || 
+               (target.isClass && hasMetadata(target.base, NAMESPACE_OPTION_KEY));
     }
 
-    _create(part: ClassType | string): FactoryReturnType<INamespaceOptions, NamespacePart> {
-        this.log.debug(`Creating namespace '${part}'`);
-        if(typeof part === "string")
-            return this._createFromString(part);
-        else
-            return { top: new NamespacePart(part, this.context, getClassOptions(part, NAMESPACE_OPTION_KEY)) };
+    _create(target: Template): FactoryReturnType<INamespaceOptions, NamespacePart> {
+        this.log.debug(`Creating namespace '${target.name}'`);
+        if(target.isString)
+            return NamespacePartFactory.createFromString((target.base as string));
+        else 
+            return { top: NamespacePart.create((target.base as ClassType)) };
     }
 
-    private _createFromString(part: string, options: INamespaceOptions = {}): FactoryReturnType<INamespaceOptions, NamespacePart> {
-        part = part.trim();
-        if(part.length === 0)
-            throw GestaeError.toError("Namespace name cannot be empty.");
-        return this._createFromDelimString(part, options);
-    }
-
-    private _createFromDelimString(part: string, options: INamespaceOptions = {}): FactoryReturnType<INamespaceOptions, NamespacePart> {
-        const _parts = part.split("/").filter(p => p.length > 0);
+    public static createFromDelimString(target: string, options: INamespaceOptions = {}): FactoryReturnType<INamespaceOptions, NamespacePart> {
+        const _parts = target.split("/").filter(p => p.length > 0);
 
         let _parent: NamespacePart | undefined;
         let _current: NamespacePart | undefined;
@@ -110,12 +155,19 @@ export class NamespacePartFactory extends AbstractPartFactoryChain<INamespaceOpt
         for(const _part of _parts) {
             let _options = _.cloneDeep(options);
             _options.name = _part.trim().toLowerCase();
-            _current = new NamespacePart(DefaultNamespace, this.context, _options);
+            _current = new NamespacePart(DefaultNameSpace.getInstance(), _options);
             if(!_first) _first = _current;
-            if(_parent) _parent.insert(_current);
+            if(_parent) _parent.add(_current);
             _parent = _current;
         }
         return { top: _first!, bottom: _current };
+    }
+
+    public static createFromString(target: string, options: INamespaceOptions = {}): FactoryReturnType<INamespaceOptions, NamespacePart> {
+        target = target.trim();
+        if(target.length === 0)
+            throw GestaeError.toError("Namespace name cannot be empty.");
+        return NamespacePartFactory.createFromDelimString(target, options);
     }
 }
 
@@ -123,14 +175,25 @@ export class NamespacePartFactory extends AbstractPartFactoryChain<INamespaceOpt
  * @description Decorator for configuraing a plain-old object as a resource in Gestae.
  * @param options 
  * @returns 
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export function Namespace(options: INamespaceOptions = {}) {
     return function (target: new (... args: [any]) => any) {
-        options.name = options.name ?? target.name.toLowerCase();
-        setClassOptions(target, NAMESPACE_OPTION_KEY, options);
+        options.name        = options.name ?? target.name.toLowerCase();
+        options.instance    = new target([]);
+        options.traversable = options.traversable ?? true;
+        options.$overloads  = options.$overloads ?? true;
+        setMetadata(target, NAMESPACE_OPTION_KEY, options);
     };
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export function OnNamespaceEvent(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: NamespaceEvent) => void>) {
@@ -138,6 +201,11 @@ export function OnNamespaceEvent(event: EventRegisterType, options: IEventOption
     };
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export function OnAsyncNamespaceEvent(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: NamespaceEvent) => Promise<void>>) {

@@ -24,11 +24,11 @@ import {
     ClassType,
     defineEvents,
     EventRegisterType,
-    getClassOptions,
-    hasOptionData, 
-    IClassOptions, 
-    isClassConstructor, 
-    setClassOptions 
+    getsertMetadata,
+    hasMetadata,
+    IOptions, 
+    isClassConstructor,
+    setMetadata
 } from "./Gestae";
 import { 
     HttpEvent, 
@@ -37,13 +37,16 @@ import {
 } from "./GestaeEvent";
 import { IHttpContext } from "./HttpContext";
 import { AbstractPartFactoryChain, FactoryReturnType } from "./AbstractPartFactoryChain";
-import { AbstractPart } from "./Part";
-import { IApplicationContext } from "./ApplicationContext";
+import { AbstractPart } from "./AbstractPart";
+import { Template } from "./Template";
 
 const RESOURCE_OPTION_KEY = "gestaejs:resource";
 
 /**
  * @description Action types for a resource.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export enum ResourceAction {
     Create = "create",
@@ -55,25 +58,43 @@ export enum ResourceAction {
 
 /**
  * @description Options for a resource.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
-export interface IResourceOptions extends IClassOptions {
+export interface IResourceOptions extends IOptions {
     name?: string;
     idProperty?: string;
     lazyLoad?: boolean;
     supportedActions?: ResourceAction[];
 };
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface IResource {
     getResourceOptions(): IResourceOptions;
     //getModel(): Model;
     getInstance(... args: [any]): any
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export const ResourceEvents = defineEvents(
     ["initialize", "revive", "replace", "finalize", "create", "read", "find", "update", "delete", "error"],
     ["before", "on", "after", "error"]
 );
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class ResourceEvent<T> extends HttpEvent<T> {
     public readonly resource: IResource;
 
@@ -83,10 +104,18 @@ export class ResourceEvent<T> extends HttpEvent<T> {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class ResourcePart extends AbstractPart<IResourceOptions> {
-    constructor(target: new (...args: any[]) => any, context: IApplicationContext, options: IResourceOptions = {}) {
-        super(target, context, options);
-        options.name = options.name ?? target.name.toLowerCase();
+    public readonly model: ClassType;
+
+    constructor(target: ClassType, options: IResourceOptions = {}) {
+        super(options);
+        this.model = target;
+        options.name = options.name?.toLowerCase() ?? target.name.toLowerCase();
         options.idProperty = options.idProperty ?? "id";
         options.lazyLoad = options.lazyLoad ?? true;
         options.supportedActions = options.supportedActions ?? [
@@ -96,6 +125,11 @@ export class ResourcePart extends AbstractPart<IResourceOptions> {
             ResourceAction.Delete,
             ResourceAction.Find
         ];
+        options.$overloads = options.$overloads ?? true;
+    }
+
+    getInstance<T extends Object>(...args: any[]): T {
+        return new this.model(...args) as T;
     }
 
     async _initialize(): Promise<void> {
@@ -107,17 +141,21 @@ export class ResourcePart extends AbstractPart<IResourceOptions> {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class ResourcePartFactory extends AbstractPartFactoryChain<IResourceOptions, ResourcePart> {
-    isPartFactory(part: any): boolean {
-        return isClassConstructor(part) && hasOptionData(part, RESOURCE_OPTION_KEY);
+    isPartFactory(target: Template): boolean {
+        return isClassConstructor(target.base) && hasMetadata(target.base, RESOURCE_OPTION_KEY);
     }
 
-    _create(part: ClassType): 
-            FactoryReturnType<IResourceOptions, ResourcePart> {
-        this.log.debug(`Creating resource '${part.name}'`);
-        const options: IResourceOptions = getClassOptions(part, RESOURCE_OPTION_KEY);
-        options.name = options.name ?? part.name.toLowerCase();
-        return {top: new ResourcePart(part, this.context, options)};
+    _create(target: Template): FactoryReturnType<IResourceOptions, ResourcePart> {
+        this.log.debug(`Creating resource '${target.name}'`);
+        const options: IResourceOptions = getsertMetadata(target.base, RESOURCE_OPTION_KEY);
+        options.name = options.name ?? target.name;
+        return {top: new ResourcePart((target.base as ClassType), options)};
     }
 }
 
@@ -125,14 +163,32 @@ export class ResourcePartFactory extends AbstractPartFactoryChain<IResourceOptio
  * @description Decorator for configuraing a plain-old object as a resource in Gestae.
  * @param options 
  * @returns 
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export function Resource(options: IResourceOptions = {}) {
     return function (target: new (... args: [any]) => any) {
-        options.name = options.name ?? target.name.toLowerCase();
-        setClassOptions(target, RESOURCE_OPTION_KEY, options);
+        options.name = options.name ?? target.name;
+        options.idProperty = options.idProperty ?? "id";
+        options.lazyLoad = options.lazyLoad ?? true;
+        options.supportedActions = options.supportedActions ?? [
+            ResourceAction.Create,
+            ResourceAction.Read,
+            ResourceAction.Update,
+            ResourceAction.Delete,
+            ResourceAction.Find
+        ];
+        options.$overloads = options.$overloads ?? true;
+        setMetadata(target, RESOURCE_OPTION_KEY, options);
     };
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export function OnResourceEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: ResourceEvent<I>) => void>) {
@@ -140,6 +196,11 @@ export function OnResourceEvent<I>(event: EventRegisterType, options: IEventOpti
     };
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export function OnAsyncResourceEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: ResourceEvent<I>) => Promise<void>>) {

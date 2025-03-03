@@ -20,22 +20,41 @@
  *  THE SOFTWARE.
  */
 
-import "reflect-metadata";
-import _ from "lodash";
+/**
+ * @description _GESTAE_METADATA contains all the meta-data set by decorators in Gestate
+ */
+const _GESTAE_METADATA: Record<string, any> = {};
 
-export type ClassType = new (...args: any[]) => any;
-
-export interface IClassOptions {
-    $overloads?: boolean;
-    $extends?: string;
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const getGestaeMetadata = (): Record<string, any> => {
+    return _GESTAE_METADATA;
 }
 
-export interface IMethodOptions {
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export type ClassType = new (...args: any[]) => any;
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export interface IOptions {
     $overloads?: boolean;
 }
 
 /**
  * @description Interface for defining the event register.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export type EventRegisterType = {
     method?: string,
@@ -46,6 +65,9 @@ export type EventRegisterType = {
 
 /**
  * @description Type for the object structure returned by `defineEvents`.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export type EventRegistry = Record<
     string, // Capitalized operation names
@@ -60,6 +82,9 @@ export type EventRegistry = Record<
  * @param operations - The list of operation names.
  * @param actions - The list of action names.
  * @returns An object mapping operations to their corresponding events.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export const defineEvents = (operations: string[], actions: string[]): EventRegistry => {
     return Object.fromEntries(
@@ -77,89 +102,111 @@ export const defineEvents = (operations: string[], actions: string[]): EventRegi
     ) as EventRegistry;
 };
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+function getTarget(target: Function | Object): Record<string, any> | undefined {
+    return _GESTAE_METADATA[(typeof target === "function")? target.name : target.constructor.name];
+}
 
 /**
- * @description Gets the Reflect Metadata from a target, Class or Instance, structured by a key and 
- *              Class namespace. The method allows for metadata of both the super and sub classes be 
- *              stored.
- * @example     {
- *                  "SupoerClassName": {
- *                     "key": {
- *                       "property_name": "property_value"
- *                     },
- *                  },
- *                  "SubClassName": {
- *                     "key": {
- *                       "property_name": "property_value"
- *                     },
- *                     "$extends": "SupoerClassName"
- *                  }
- *              }
- * @param key     The property group to retrieve
- * @param target  The class or instance to set metatdata to.
- * @returns       The metadata for the target, or an empt object {}.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
-const getReflectConfig = <O extends Object>(key: string, target: any, namespace: string): O => {
-    // Upsert the root config element for the property key
-    let _options = Reflect.getMetadata(key, target);
-    if(!_options) {
-        _options = {};
-        Reflect.defineMetadata(key, _options, target);
-    }
-
-    // Upsert the target-specific config element
-    if(!_options[namespace])
-        _options[namespace] = {};
-
-    return _options[namespace] as O;
-};
-
-export const getClassOptions = <O extends Object>(aClass: new (...args: any[]) => any, key: string): O => {
-    return getReflectConfig<O>(key, aClass, aClass.name);
-};
-
-export const getInstanceOptions = <T extends Object, O extends Object>(instance: T, key: string): O => {
-    return getReflectConfig<O>(key, instance, instance.constructor.name);
-};
-
-export const getConfig = <T extends Object, O extends Object>(instance: T, key: string): O => {
-    return _.merge(
-        getClassOptions<O>(instance.constructor as any, key),
-        getInstanceOptions<T, O>(instance, key)
-    );
-};
-
-export const hasOptionData = (target: any, key: string): boolean => {
-    return Reflect.hasMetadata(key, target);
-};
-
-const setReflectConfig = <O extends Object>(key: string, target: any, namespace: string, options: O): void => {
-    let _options = Reflect.getMetadata(key, target);
-    if(!_options) {
-        _options = {};
-        Reflect.defineMetadata(key, _options, target);
-    }
-
-    // Upsert the target-specific config element
-    let _target = _options[namespace];
+function setTarget(target: Function | Object): Record<string, any> {
+    const _name  = (typeof target === "function")? target.name : target.constructor.name;
+    const _super = (typeof target === "function") ? Object.getPrototypeOf(target) : Object.getPrototypeOf(target.constructor);
+    let _target = _GESTAE_METADATA[_name];
     if(!_target) {
-        _target = options;
-        _options[namespace] = _target;
+        _target = {
+            $name: _name,
+        };
+        if(_super?.name && _super !== Object) _target.$extends = _super.name;
+        _GESTAE_METADATA[_name] = _target;
     }
+    return _target;
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+function getsertTarget(target: Function | Object): Record<string, any> {
+    let _target = getTarget(target);
+    if(!_target) _target = setTarget(target);
+    return _target;
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const hasMetadata = (target: Function | Object, key: string): boolean => {
+    const _target = getTarget(target);
+    return (!_target)? false : _target.hasOwnProperty(key);
 };
 
-export const setClassOptions = <O extends Object>(aClass: new (...args: any[]) => any, key: string, options: O): void => {
-    const _prototype = Object.getPrototypeOf(aClass);
-    if(_prototype?.name) {
-        (options as any).$extends = _prototype.name;
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const getMetadata = (target: Function | Object, key: string, 
+                            defaultValue: Record<string, any> | undefined = undefined): Record<string, any> | undefined => {
+    const _target = getTarget(target);
+    // Get the key'd meta-data and return | defaultValue
+    if(!_target) return defaultValue;
+    let _metadata = _target[key];
+    return (!_metadata)? defaultValue : _metadata;
+};
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const getsertMetadata = (target: Function | Object, key: string, 
+                                defaultValue: Record<string, any> = {}): Record<string, any> => {
+    const _target = getsertTarget(target);
+    // Get the key'd meta-data and return | defaultValue
+    let _metadata = _target[key];
+    if(!_metadata) {
+        _metadata = defaultValue;
+        _target[key] = _metadata;
     }
-    setReflectConfig<O>(key, aClass, aClass.name, options);
+    return _metadata;
 };
 
-export const setInstanceOptions = <T extends Object, O extends Object>(instance: T, key: string, options: O): void => {
-    setReflectConfig<O>(key, instance, instance.constructor.name, options);
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const setMetadata = (target: Function | Object, key: string, data: Record<string, any>): void => {
+    const _target = getsertTarget(target);
+    _target[key] = data;
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const deleteMetadata = (target: Function | Object, key: string): void => {
+    const _target = getTarget(target);
+    if(_target) delete _target[key];
 };
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export const isClassConstructor = (target: any): target is new (...args: any[]) => any => {
     return (
         typeof target === "function" &&
@@ -169,6 +216,11 @@ export const isClassConstructor = (target: any): target is new (...args: any[]) 
     );
 };
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export const isPlainOleObject = (target: unknown): target is Record<string, any> => {
     return typeof target === "object" && target !== null && target.constructor === Object;
 }

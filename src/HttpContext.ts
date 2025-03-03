@@ -29,6 +29,11 @@ import {
 } from "./Context";
 import http from 'http';
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export enum HttpMethodEnum {
     GET = "get",
     POST = "post",
@@ -40,7 +45,9 @@ export enum HttpMethodEnum {
 }
 
 /**
- * 
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export class URI {
     private readonly _parts: string[];
@@ -84,7 +91,11 @@ export class URI {
     }
 }
 
-
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface Cookie {
     name: string;
     value: string;
@@ -95,8 +106,13 @@ export interface Cookie {
     secure?: boolean;
     httpOnly?: boolean;
     sameSite?: "Strict" | "Lax" | "None";
-  }
+}
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface IHttpContext extends IContext{
     get applicationContext(): IApplicationContext;
     get request(): IHttpRequest;
@@ -104,8 +120,18 @@ export interface IHttpContext extends IContext{
     get logger(): ILogger;
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 type HeaderValue = string[] | string | undefined;
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface IHttpRequest {
     get url(): URL;
     get uri(): URI;
@@ -124,6 +150,11 @@ export interface IHttpRequest {
     get isPatch(): boolean;
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class HttpRequest implements IHttpRequest{
     private readonly _request: http.IncomingMessage;
     private readonly _cookies: Record<string, Cookie> = {};
@@ -219,6 +250,11 @@ export class HttpRequest implements IHttpRequest{
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface IHttpResponse {
     set code(code: number);
     get code(): number;
@@ -227,6 +263,11 @@ export interface IHttpResponse {
     setCookie(key: string, value: Cookie): void;
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class HttpResponse implements IHttpResponse {
     private readonly _response: http.ServerResponse
 
@@ -255,6 +296,11 @@ export class HttpResponse implements IHttpResponse {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class DefaultHttpContext extends AbstractContext implements IHttpContext {
     private readonly _applicationContext: IApplicationContext;
     private readonly _request: HttpRequest;

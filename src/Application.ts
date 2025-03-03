@@ -1,35 +1,55 @@
+/*
+ *  Copyright (c) 2024, KRI, LLC.
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *  THE SOFTWARE.
+ */
 
-import { AbstractPartFactoryChain } from "./AbstractPartFactoryChain";
 import { 
-    DefaultApplicationContext, 
-    FeatureChainFactoryType, 
+    DefaultApplicationContext,
     IApplicationContext, 
     IApplicationContextOptions,
-    PartChainFactoryType
+    IInitializationContextOptions,
+    InitializationContext,
 } from "./ApplicationContext";
 import { 
     DefaultHttpContext, 
     IHttpContext 
 } from "./HttpContext";
 import { 
-    ClassType, 
-    IClassOptions 
+    getGestaeMetadata,
+    IOptions, 
 } from "./Gestae";
 import { 
-    DefaultNamespace,
-    NamespacePart, 
-    NamespacePartFactory 
+    NamespacePartFactory, 
 } from "./Namespace";
-import { IPart } from "./Part";
+import { AbstractPart } from "./AbstractPart";
 import { ResourcePartFactory } from "./Resource";
 import http from "node:http";
 import { DefaultLogger, ILogger, ILoggerOptions } from "./Logger";
-import { BaseProperties, IPropertyOptions, Properties } from "./Properties";
+import { BaseProperties, IProperties, IPropertyOptions, Properties } from "./Properties";
 import { GestaeError } from "./GestaeError";
 import { EventFeatureFactory, GestaeEvent } from "./GestaeEvent";
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { TaskFeatureFactory } from "./Task";
 import { SchemaFeatureFactory } from "./Schema";
+import { ITemplate, PartTemplateType, Template } from "./Template";
+import { AbstractPartFactoryChain } from "./AbstractPartFactoryChain";
 
 export const VERSION = "1.0.0";
 
@@ -37,31 +57,91 @@ const DEFAULT_NAME = "app";
 const DEFAULT_PORT = 3000;
 const DEFAULT_ROOT = "/";
 
-export type ApplicationContextFactoryType = (options: IApplicationContextOptions) => IApplicationContext;
-export type HttpContextFactoryType = (request: http.IncomingMessage, response: http.ServerResponse) => IHttpContext;
-export type LoggerFactoryType = (options?: ILoggerOptions) => ILogger;
-export type PropertyFactoryType = (options?: IPropertyOptions) => Properties;
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export type ApplicationContextFactoryType = (log: ILogger, properties: IProperties, 
+                                             options?: IApplicationContextOptions) => IApplicationContext;
 
-export interface IApplicationOptions extends IClassOptions {
-    name?:                      string;
-    port?:                      number;
-    root?:                      string;
-    tls?:                       boolean;
-    privateKeyPath?:            string;
-    publicKeyPath?:             string;
-    applicationContextFactory?: ApplicationContextFactoryType;
-    httpContextFactory?:        HttpContextFactoryType;
-    partChainFactory?:          PartChainFactoryType;
-    featureChainFactory?:       FeatureChainFactoryType;
-    loggerOptions?:             ILoggerOptions;
-    loggerFactory?:             LoggerFactoryType;
-    propertyOptions?:           IPropertyOptions;
-    propertyFactory?:           PropertyFactoryType;      
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export type HttpContextFactoryType        = (request: http.IncomingMessage, response: http.ServerResponse) => IHttpContext;
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export type InitizationContextFactoryType = (context: IApplicationContext, 
+                                             partChain: AbstractPartFactoryChain<any, any>, 
+                                             featureChain: AbstractFeatureFactoryChain<any>, 
+                                             options?: IInitializationContextOptions) => InitializationContext;
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export type LoggerFactoryType             = (options?: ILoggerOptions) => ILogger;
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export type PropertyFactoryType           = (options?: IPropertyOptions) => Properties;
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export type PartChainFactoryType          = (context: IApplicationContext) => AbstractPartFactoryChain<any, any>;
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export type FeatureChainFactoryType       = (context: IApplicationContext) => AbstractFeatureFactoryChain<any>;
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export interface IApplicationOptions extends IOptions {
+    name?:                         string;
+    port?:                         number;
+    root?:                         string;
+    tls?:                          boolean;
+    privateKeyPath?:               string;
+    publicKeyPath?:                string;
+    applicationContextFactory?:    ApplicationContextFactoryType;
+    httpContextFactory?:           HttpContextFactoryType;
+    initializationContextFactory?: InitizationContextFactoryType;
+    partChainFactory?:             PartChainFactoryType;
+    featureChainFactory?:          FeatureChainFactoryType;
+    loggerOptions?:                ILoggerOptions;
+    loggerFactory?:                LoggerFactoryType;
+    propertyOptions?:              IPropertyOptions;
+    propertyFactory?:              PropertyFactoryType;      
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class Application {
-    protected readonly _partFactory: AbstractPartFactoryChain<any, any>;
-    protected readonly _root:        NamespacePart;
+    // protected readonly _partFactory: AbstractPartFactoryChain<any, any>;
+    protected readonly _template:    Template;
+    protected          _root:        AbstractPart<any> | undefined;
     protected readonly context:      IApplicationContext;
     public    readonly options:      IApplicationOptions;
     public    readonly log:          ILogger;
@@ -69,49 +149,47 @@ export class Application {
     
     constructor(options: IApplicationOptions = {}) {
         this.options = options;
+        // Setting up default options.
         options.name = options.name ?? DEFAULT_NAME;
         options.port = options.port ?? DEFAULT_PORT;
-        options.root = options.root ?? DEFAULT_ROOT;
         options.tls  = options.tls  ?? false;
-
         if(options.tls && (!options.privateKeyPath || !options.publicKeyPath))
             throw GestaeError.toError(`TLS is enabled but no key paths are provided. Please set privateKeyPath and publicKeyPath in options.`);
 
         // Logger.
         options.loggerFactory = options.loggerFactory ?? DefaultLogger.create;
         options.loggerOptions = options.loggerOptions ?? {name: options.name};
+        options.loggerOptions = {name: `Application:${options.loggerOptions.name}`}
         this.log = options.loggerFactory(options.loggerOptions);
 
         // Properties.
         options.propertyFactory = options.propertyFactory ?? BaseProperties.create;
         options.propertyOptions = options.propertyOptions ?? {cache: false};
         this.properties = options.propertyFactory(options.propertyOptions);
-
         // Application Context and Part Factory.
         options.applicationContextFactory = options.applicationContextFactory ?? 
-                                            DefaultApplicationContext.create;
+                                             DefaultApplicationContext.create;
+        // HTTP Context Factory.                                     
+        options.httpContextFactory = options.httpContextFactory ??
+                                     DefaultHttpContext.create;
+        // Initialization Context Factory.
+        options.initializationContextFactory = options.initializationContextFactory ??
+                                               InitializationContext.create;
+        this.context = options.applicationContextFactory(this.log, this.properties);
         options.partChainFactory = options.partChainFactory ?? 
-                                   ((context: IApplicationContext): AbstractPartFactoryChain<any, any> => 
-                                        new NamespacePartFactory(context, 
-                                            new ResourcePartFactory(context)));
+                                    ((context: IApplicationContext): AbstractPartFactoryChain<any, any> => 
+                                         new NamespacePartFactory(context, 
+                                             new ResourcePartFactory(context)));
+        // this._partFactory = options.partChainFactory(this.context);
         options.featureChainFactory = options.featureChainFactory ?? 
                                    ((context: IApplicationContext): AbstractFeatureFactoryChain<any> => 
                                         new EventFeatureFactory(context, 
                                             new TaskFeatureFactory(context, 
                                                 new SchemaFeatureFactory(context))));
-        this.context = options.applicationContextFactory({log: this.log, properties: this.properties, 
-                                                          partChainFactory: options.partChainFactory, 
-                                                          featureChainFactory: options.featureChainFactory});
-        this._partFactory = options.partChainFactory(this.context);
-
+        
         // Application Root.
-        this.log.debug(`Creating application root '${options.root}'.`);
-        if(options.root === DEFAULT_ROOT)
-            this._root = new NamespacePart(DefaultNamespace, this.context, {name: options.root});
-        else {
-            const _results = this.context.partFactory.create(options.root);
-            this._root = _results.bottom ?? _results.top;
-        }
+        options.root = options.root ?? DEFAULT_ROOT;
+        this._template = new Template(options.root);
     }
 
     get name(): string {
@@ -122,27 +200,41 @@ export class Application {
         return this.options.port!;
     }
 
-    add(child: ClassType | string): IPart {
-        return this._root.add(child);
+    add(child: PartTemplateType): ITemplate {
+        return this._template.add(child);
     }
 
     on<T, E extends GestaeEvent<T>>(event: string | RegExp, listener: (event: E) => Promise<void> | void, once?: boolean) : this {
-        this.context.eventQueue.on(event, listener, once);
+        this._template.on(event, listener, once);
         return this;
     }
 
     once<T, E extends GestaeEvent<T>>(event: string | RegExp, listener: (event: E) => Promise<void> | void): this {
-        this.context.eventQueue.once(event, listener);
+        this._template.once(event, listener);
         return this;
     }
 
     off<T, E extends GestaeEvent<T>>(event: string, listener: (event: E) => Promise<void> | void): this {
-        this.context.eventQueue.off(event, listener);
+        this._template.off(event, listener);
         return this;
     }
 
     private async _initialize(): Promise<void> {
-        await this._root.initialize();
+        //this.log.warn(`Application '${JSON.stringify(getGestaeMetadata(), null, 2)}'`);
+        this.log.debug(`Initializing application '${this.name}'...`);
+        const _initContext: InitializationContext = 
+            this.options.initializationContextFactory!(this.context, 
+                this.options.partChainFactory!(this.context), 
+                    this.options.featureChainFactory!(this.context));
+        // Initialize the templates to parts.
+        this.log.debug("Converting templates...");
+        this._root = await this._template.convert(_initContext);
+        this.log.debug("Templates converted.");
+        // Initialize the parts.
+        this.log.debug("Initializing parts...");
+        await this._root.initialize(_initContext);
+        this.log.debug("Parts initialized.");
+        this.log.debug(`Application '${this.name}' initialized on root '${this._root.name}'.`);
     }
 
     async start(): Promise<Application> {
@@ -164,7 +256,27 @@ export class Application {
         console.log("       You can also find us on github at git+https://github.com/murrellrr/gestae.git        ");
         console.log();
         console.log();
+        console.log("Permission is hereby granted, free of charge, to any person obtaining a copy");
+        console.log("of this software and associated documentation files (the \"Software\"), to deal");
+        console.log("in the Software without restriction, including without limitation the rights");
+        console.log("to use, copy, modify, merge, publish, distribute, sublicense, and/or sell");
+        console.log("copies of the Software, and to permit persons to whom the Software is");
+        console.log("furnished to do so, subject to the following conditions:");
+        console.log();
+        console.log("The above copyright notice and this permission notice shall be included in");
+        console.log("all copies or substantial portions of the Software.");
+        console.log();
+        console.log("THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR");
+        console.log("IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,");
+        console.log("FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE");
+        console.log("AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER");
+        console.log("LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,");
+        console.log("OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN");
+        console.log("THE SOFTWARE.");
+        console.log();
+        this.log.info(`Starting application '${this.name}'...`);
         await this._initialize();
+        this.log.info(`Application '${this.name}' started.`);
         return this;
     }
 }

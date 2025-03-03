@@ -25,25 +25,32 @@ import { IHttpContext } from "./HttpContext";
 import { IApplicationContext } from "./ApplicationContext";
 import { 
     EventRegisterType,
-    getInstanceOptions,
-    hasOptionData,
-    IMethodOptions,
-    isPlainOleObject
+    getsertMetadata,
+    hasMetadata,
+    IOptions,
 } from "./Gestae";
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
-import { AbstractPart } from "./Part";
+import { AbstractPart } from "./AbstractPart";
 
 const EVENT_OPTIONS_KEY = "gestaejs:event";
 
 /**
  * @description Interface for defingin options on an event.
  * @param once If true, the event will be removed after it is called once.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
-export interface IEventOptions extends IMethodOptions {
+export interface IEventOptions extends IOptions {
     register?: EventRegisterType;
     once?: boolean;
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class GestaeEvent<T> {
     private _cancled: boolean = false;
     private _casue: any = null;
@@ -68,6 +75,11 @@ export class GestaeEvent<T> {
     }   
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class ApplicationEvent<T> extends GestaeEvent<T> {
     public readonly context: IApplicationContext;
 
@@ -77,6 +89,11 @@ export class ApplicationEvent<T> extends GestaeEvent<T> {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class HttpEvent<T> extends GestaeEvent<T> {
     public readonly context: IHttpContext;
 
@@ -91,6 +108,9 @@ export class HttpEvent<T> extends GestaeEvent<T> {
  * @param event The event to format.
  * @returns A ':' delimited string of the event.
  * @example employee:task:before or resource:after
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export function formatEvent(event: EventRegisterType): string {
     return (event.topic ? event.topic + ":" : "") + event.operation + ":" + event.action;
@@ -101,20 +121,19 @@ export function formatEvent(event: EventRegisterType): string {
  * @param target 
  * @param event 
  * @param options 
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export function setEventConfig(target: any, event: EventRegisterType, property: string, options: IEventOptions = {}): void {
     let _namesapce = formatEvent(event);
-    let _config: { [key: string]: any } = getInstanceOptions(target, EVENT_OPTIONS_KEY);
+    let _config: Record<string, any> = getsertMetadata(target, EVENT_OPTIONS_KEY, {});
 
     let _event = _config[_namesapce];
     if(!_event) {
         _event = [];
         _config[_namesapce] = _event;
     }
-
-    // Set up and extensions.
-    const _prototype = Object.getPrototypeOf(target.constructor);
-    if(_prototype?.name) (_config as any).$extends = _prototype?.name;
 
     event.method = property;
     options.register = event;
@@ -125,22 +144,39 @@ export function setEventConfig(target: any, event: EventRegisterType, property: 
     _event.push(options);
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class EventFeatureFactory extends AbstractFeatureFactoryChain<AbstractPart<any>> {
     isFeatureFactory<T extends Object>(part: AbstractPart<any>, target: T): boolean {
-        return hasOptionData(target, EVENT_OPTIONS_KEY);
+        return hasMetadata(target, EVENT_OPTIONS_KEY);
     }
 
     _apply<T extends Object>(part: AbstractPart<any>, target: T): void {
-        //
+        this.log.debug(`'${target.constructor.name}' is decorated with @On<Asyn>Event(s), applying event listeners for '${part.name}'...`);
+        const _config = getsertMetadata(target, EVENT_OPTIONS_KEY);
+         this.log.debug(`************************************ \n ${JSON.stringify(_config, null, 2)}`);
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export function OnEvent(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, descriptor: PropertyDescriptor) {
         setEventConfig(target, event, property, options);
     };
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export function OnApplicationEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: ApplicationEvent<E>) => void>) {
@@ -148,6 +184,11 @@ export function OnApplicationEvent<E>(event: EventRegisterType, options: IEventO
     };
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export function OnAsyncApplicationEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: ApplicationEvent<E>) => Promise<void>>) {
@@ -155,6 +196,11 @@ export function OnAsyncApplicationEvent<E>(event: EventRegisterType, options: IE
     };
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export function OnHttpEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: HttpEvent<E>) => void>) {
@@ -162,6 +208,11 @@ export function OnHttpEvent<E>(event: EventRegisterType, options: IEventOptions 
     };
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export function OnAsyncHttpEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: HttpEvent<E>) => Promise<void>>) {

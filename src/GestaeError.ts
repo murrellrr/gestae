@@ -20,6 +20,11 @@
  *  THE SOFTWARE.
  */
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class GestaeError extends Error {
     private readonly _code: number = 500;
     private readonly _cause?: any;
@@ -58,6 +63,11 @@ export class GestaeError extends Error {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class StartupError extends GestaeError {
     constructor(message: string, cause?: any) {
         super(message, 500, cause);
@@ -65,6 +75,11 @@ export class StartupError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class BadRequestError extends GestaeError {
     constructor(cause?: any) {
         super("Bad Request.", 400, cause);
@@ -72,6 +87,11 @@ export class BadRequestError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class NotAuthorizedError extends GestaeError {
     constructor(cause?: any) {
         super("Not Authorized.", 401, cause);
@@ -79,6 +99,11 @@ export class NotAuthorizedError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class ForbiddenError extends GestaeError {
     constructor(cause?: any) {
         super('Forbidden.', 403, cause);
@@ -86,6 +111,11 @@ export class ForbiddenError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class NotFoundError extends GestaeError {
     constructor(cause?: any) {
         super("Not Found.", 404, cause);
@@ -93,6 +123,11 @@ export class NotFoundError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class MethodNotAllowedError extends GestaeError {
     constructor(cause?: any) {
         super("Method Not Allowed.", 405, cause);
@@ -100,6 +135,11 @@ export class MethodNotAllowedError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class NotAcceptableError extends GestaeError {
     constructor(cause?: any) {
         super("Not Acceptable.", 406, cause);
@@ -107,6 +147,11 @@ export class NotAcceptableError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class RequestTimeoutError extends GestaeError {
     constructor(cause?: any) {
         super("RequestTimeout.", 408, cause);
@@ -114,6 +159,11 @@ export class RequestTimeoutError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class ConflictError extends GestaeError {
     constructor(cause?: any) {
         super("Conflict.", 409, cause);
@@ -121,6 +171,11 @@ export class ConflictError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class UnprocessableEntityError extends GestaeError {
     constructor(cause?: any) {
         super("Unprocessable Entity.", 422, cause);
@@ -128,6 +183,11 @@ export class UnprocessableEntityError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class TooEArlyError extends GestaeError {
     constructor(cause?: any) {
         super("Too Early.", 425, cause);
@@ -135,6 +195,11 @@ export class TooEArlyError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class PreconditionRequiredError extends GestaeError {
     constructor(cause?: any) {
         super("Precondition Required.", 428, cause);
@@ -142,6 +207,11 @@ export class PreconditionRequiredError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class TooManyRequestsError extends GestaeError {
     constructor(cause?: any) {
         super("Too Many Requests.", 429, cause);
@@ -149,6 +219,11 @@ export class TooManyRequestsError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class InternalServerError extends GestaeError {
     constructor(cause?: any) {
         super("Internal Server Error.", 500, cause);
@@ -156,6 +231,11 @@ export class InternalServerError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class NotImplementedError extends GestaeError {
     constructor(cause?: any) {
         super("Not Implemented.", 501, cause);
@@ -163,6 +243,11 @@ export class NotImplementedError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class BadGatewayError extends GestaeError {
     constructor(cause?: any) {
         super("Bad Gateway.", 502, cause);
@@ -170,6 +255,11 @@ export class BadGatewayError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class ServiceUnavailableError extends GestaeError {
     constructor(cause?: any) {
         super("Service Unavailable.", 503, cause);
@@ -177,6 +267,11 @@ export class ServiceUnavailableError extends GestaeError {
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class GatewayTimeoutError extends GestaeError {
     constructor(cause?: any) {
         super("Gateway Timeout.", 504, cause);

@@ -34,56 +34,94 @@ import {
 import { ILogger } from "./Logger";
 import { IProperties } from "./Properties";
 
-export type PartChainFactoryType = (context: IApplicationContext) => AbstractPartFactoryChain<any, any>;
-export type FeatureChainFactoryType = (context: IApplicationContext) => AbstractFeatureFactoryChain<any>;
-
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface IApplicationContextOptions {
-    log:                 ILogger;
-    properties:          IProperties;
-    partChainFactory:    PartChainFactoryType;
-    featureChainFactory: FeatureChainFactoryType;
+    //
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export interface IInitializationContextOptions {
+    //
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface IApplicationContext extends IContext {
     get log():            ILogger;
     get properties():     IProperties;
     get eventEmitter():   IAsyncEventEmitter;
     get eventQueue():     IAsyncEventQueue;
-    get partFactory():    AbstractPartFactoryChain<any, any>;
-    get featureFactory(): AbstractFeatureFactoryChain<any>;
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class DefaultApplicationContext extends AbstractContext implements IApplicationContext {
-    private   readonly _properties:    IProperties;
-    private   readonly _events:        AsyncEventEmitter;
-    protected readonly options:        IApplicationContextOptions;
-    public    readonly log:            ILogger;
-    public    readonly partFactory:    AbstractPartFactoryChain<any, any>;
-    public    readonly featureFactory: AbstractFeatureFactoryChain<any>;
-
-    constructor(options: IApplicationContextOptions) {
+    public    readonly properties: IProperties;
+    public    readonly log:        ILogger;
+    private   readonly events:     AsyncEventEmitter;
+    protected readonly options:    IApplicationContextOptions;
+    
+    constructor(log: ILogger, properties: IProperties, options: IApplicationContextOptions = {}) {
         super();
-        this.options = options;
-        this.log = this.options.log.child({name: this.constructor.name});
-        this._properties = this.options.properties;
-        this._events = new AsyncEventEmitter(this.log); 
-        this.partFactory = options.partChainFactory(this);
-        this.featureFactory = options.featureChainFactory(this);
-    }
-
-    get properties(): IProperties {
-        return {} as IProperties;
+        this.options    = options;
+        this.log        = log.child({name: this.constructor.name});
+        this.properties = properties;
+        this.events     = new AsyncEventEmitter(this.log); 
     }
 
     get eventEmitter(): IAsyncEventEmitter {
-        return this._events;
+        return this.events;
     }
 
     get eventQueue(): IAsyncEventQueue {
-        return this._events;
+        return this.events;
     }
 
-    static create(options: IApplicationContextOptions) {
-        return new DefaultApplicationContext(options);
+    static create(log: ILogger, properties: IProperties, options: IApplicationContextOptions = {}) {
+        return new DefaultApplicationContext(log, properties, options);
+    }
+}
+
+/**
+ * @description Context used during initialization of the Templates and Parts.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export class InitializationContext {
+    public readonly applicationContext: IApplicationContext;
+    public readonly partFactory:        AbstractPartFactoryChain<any, any>;
+    public readonly featureFactory:     AbstractFeatureFactoryChain<any>;
+    public readonly options:            IInitializationContextOptions;
+
+    constructor(context: IApplicationContext, 
+                partChain: AbstractPartFactoryChain<any, any>, 
+                featureChain: AbstractFeatureFactoryChain<any>, 
+                options: IInitializationContextOptions = {}) {
+        this.applicationContext = context;
+        this.partFactory        = partChain;
+        this.featureFactory     = featureChain;
+        this.options            = options;
+    }
+
+    static create(context: IApplicationContext, 
+                  partChain: AbstractPartFactoryChain<any, any>, 
+                  featureChain: AbstractFeatureFactoryChain<any>, 
+                  options: IInitializationContextOptions = {}): InitializationContext {
+        return new InitializationContext(context, partChain, featureChain, options);
     }
 }

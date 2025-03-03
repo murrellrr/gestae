@@ -25,17 +25,31 @@ import { GestaeError } from "./GestaeError";
 import { GestaeEvent } from "./GestaeEvent";
 import { ILogger } from "./Logger";
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface ListenerItem {
     event: string | RegExp;
     method: any;
     once: boolean;
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface IAsyncEventEmitter {
     emit<T>(event: GestaeEvent<T>, target?:object): Promise<void>;
     clear(): void;
 }
-
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class AsyncEventEmitter implements IAsyncEventEmitter, IAsyncEventQueue {
     private listeners: ListenerItem[] = [];
     private readonly _logger: ILogger;

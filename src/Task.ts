@@ -21,14 +21,13 @@
  */
 
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
-import { AbstractPartFactoryChain, FactoryReturnType } from "./AbstractPartFactoryChain";
-import { IApplicationContext } from "./ApplicationContext";
 import { 
     defineEvents,
+    deleteMetadata,
     EventRegisterType,
-    getInstanceOptions,
-    hasOptionData,
-    IClassOptions
+    getsertMetadata,
+    hasMetadata,
+    IOptions
 } from "./Gestae";
 import { GestaeError } from "./GestaeError";
 import { 
@@ -37,29 +36,74 @@ import {
     setEventConfig 
 } from "./GestaeEvent";
 import { HttpMethodEnum, IHttpContext } from "./HttpContext";
-import { AbstractPart } from "./Part";
+import { AbstractPart } from "./AbstractPart";
 
 const TASK_OPTION_KEY = "gestaejs:task";
 
 /**
  * @description Options for a resource.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
-export interface ITaskOptions extends IClassOptions {
+export interface ITaskOptions extends IOptions {
     name?: string;
-    method?: string;
-    asynchrounous?: boolean;
     requestMethod?: HttpMethodEnum;
+    $method?: string;
+    $asynchrounous?: boolean;
 };
 
+/**
+ * @description
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface ITask {
     getTakOptions(): ITaskOptions;
 }
 
+/**
+ * @description
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export const TaskEvents = defineEvents(
     ["execute", "cancel", "retry", "error"],
     ["before", "after", "error"]
 );
 
+/**
+ * @description Sets the event configuration for a target.
+ * @param target 
+ * @param event 
+ * @param options 
+ */
+export const setTaskMetadata = <T extends Object>(target: T, property: string, options: ITaskOptions = {}): void => {
+    let _taskName = options.name?.toLowerCase() ?? property.toLowerCase();
+    let _target   = getsertMetadata(target, TASK_OPTION_KEY, {});
+
+    let _task = _target[_taskName];
+    if(!_task) {
+        _task = {};
+        _target[_taskName] = _task;
+    }
+
+    // set the task type info...
+    _task.$method = options.$method ?? property;
+    _task.name = _taskName;
+    _task.requestMethod = options.requestMethod ?? HttpMethodEnum.POST;
+    _task.$asynchrounous = options.$asynchrounous ?? false;
+    _task.$overloads = options.$overloads ?? true;
+};
+
+/**
+ * @description
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class TaskEvent<T> extends HttpEvent<T> {
     public readonly task: ITask;
 
@@ -69,13 +113,23 @@ export class TaskEvent<T> extends HttpEvent<T> {
     }
 }
 
+/**
+ * @description
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export class TaskPart extends AbstractPart<ITaskOptions> {
     
-    constructor(target: new (...args: any[]) => any, context: IApplicationContext, options: ITaskOptions = {}) {
-        super(target, context, options);
-        options.name = options.name ?? target.name.toLowerCase();
-        options.asynchrounous = options.asynchrounous ?? false;
+    constructor(options: ITaskOptions = {}) {
+        super(options);
+        options.name = options.name ?? this.constructor.name.toLowerCase();
+        options.$asynchrounous = options.$asynchrounous ?? false;
         options.requestMethod = options.requestMethod ?? HttpMethodEnum.POST;
+    }
+
+    getInstance<T extends Object>(): T {
+        return {} as T;
     }
 
     async _initialize(): Promise<void> {
@@ -85,21 +139,59 @@ export class TaskPart extends AbstractPart<ITaskOptions> {
     async _finalize(): Promise<void> {
         //
     }
-    
-}
 
-export class TaskFeatureFactory extends AbstractFeatureFactoryChain<TaskPart> {
-    isFeatureFactory<T extends Object>(part: TaskPart, target: T): boolean {
-        return hasOptionData(target, TASK_OPTION_KEY);
+    /**
+     * @description no more processessing or children after a task.
+     * @override
+     */
+    get isEndpoint(): boolean {
+        return true;
     }
 
-    _apply<T extends Object>(part: TaskPart, target: T): void {
-        this.log.debug(`${target.constructor.name} is a Task, adding task parts.`);
-        const options = getInstanceOptions(target, TASK_OPTION_KEY);
-        this.log.debug(`Task options: ${JSON.stringify(options, null, 2)}`);
+    /**
+     * 
+     * @param child 
+     * @override
+     */
+    add(child: AbstractPart<any>): AbstractPart<any> {
+        throw GestaeError.toError("Tasks do not supoport child parts.");
     }
 }
 
+/**
+ * @description
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export class TaskFeatureFactory extends AbstractFeatureFactoryChain<AbstractPart<any>> {
+    isFeatureFactory<T extends Object>(part: AbstractPart<any>, target: T): boolean {
+        return hasMetadata(target, TASK_OPTION_KEY);
+    }
+
+    _apply<T extends Object>(part: AbstractPart<any>, target: T): void {
+        this.log.debug(`'${target.constructor.name}' is decorated with @Task(s), applying task part(s) to '${part.name}'.`);
+        const _config = getsertMetadata(target, TASK_OPTION_KEY);
+        const _keys = Object.keys(_config);
+        this.log.debug(`Creating ${_keys.length} task part(s)...`);
+        for(const _key in _config) {
+            if(_config.hasOwnProperty(_key)) {
+                const _taskConfig = _config[_key];
+                this.log.debug(`Creating task part '${_taskConfig.name}' and adding it to '${part.name}'.`);
+                const _task = new TaskPart(_taskConfig);
+                part.add(_task);
+            }
+        }
+        this.log.debug(`${_keys.length} task part(s) applied.`);
+    }
+}
+
+/**
+ * @description
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export function OnTaskEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: TaskEvent<I>) => void>) {
@@ -107,6 +199,12 @@ export function OnTaskEvent<I>(event: EventRegisterType, options: IEventOptions 
     };
 }
 
+/**
+ * @description
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export function OnAsyncTaskEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: TaskEvent<I>) => Promise<void>>) {
@@ -115,52 +213,18 @@ export function OnAsyncTaskEvent<I>(event: EventRegisterType, options: IEventOpt
 }
 
 /**
- * @description Sets the event configuration for a target.
- * @param target 
- * @param event 
- * @param options 
- */
-export const setTaskConfig = <T extends Object>(target: T, property: string, options: ITaskOptions = {}): void => {
-    let _namespace = target.constructor.name;
-    let _taskName = options.name ?? property;
-    let _config: { [key: string]: any } = getInstanceOptions(target, TASK_OPTION_KEY);
-
-    let _class: { [key: string]: any } = _config[_namespace];
-    if(!_class) {
-        _class = {};
-        _config[_namespace] = _class;
-    }
-
-    // Set up and extensions.
-    const _prototype = Object.getPrototypeOf(target.constructor);
-    if(_prototype?.name) (_class as any).$extends = _prototype?.name;
-
-    let _task = _class[_taskName];
-    if(!_task) {
-        _task = {};
-        _class[_taskName] = _task;
-    }
-
-    // set the task type info...
-    _task.method = property;
-    _task.requestMethod = options.requestMethod ?? HttpMethodEnum.POST;
-    
-    // Default the overloads to true if not specified.
-    if(_task.$overloads === undefined) options.$overloads = true;
-};
-
-export const getTaskConfig = <T extends Object>(target: T, property: string) => {
-
-};
-
-
-/**
- * Utility type to infer `void` return type when omitted.
+ * @description Utility type to infer `void` return type when omitted.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 type InferReturnType<R> = R extends undefined ? void : R;
 
 /**
- * Generic `@Task` decorator for synchronous functions.
+ * @description Generic `@Task` decorator for synchronous functions.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export function Task<I, R = void>(options: ITaskOptions = {}) {
     return function <T extends Object>(target: T, property: string,
@@ -189,12 +253,21 @@ export function Task<I, R = void>(options: ITaskOptions = {}) {
             return originalMethod.apply(this, [firstArg, context]); // Only passing the required arguments
         };
 
-        setTaskConfig(target, property, options);
+        options.name = options.name?.toLowerCase() ?? property.toLowerCase();
+        options.requestMethod = options.requestMethod ?? HttpMethodEnum.POST;
+        options.$asynchrounous = false;
+        options.$method = property;
+        options.$overloads = options.$overloads ?? true;
+
+        setTaskMetadata(target, property, options);
     };
 }
 
 /**
- * Generic `@AsyncTask` decorator for asynchronous functions.
+ * @description Generic `@AsyncTask` decorator for asynchronous functions.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export function AsyncTask<I, R = void>(options: ITaskOptions = {}) {
     return function <T extends Object>(target: T, property: string,
@@ -232,7 +305,13 @@ export function AsyncTask<I, R = void>(options: ITaskOptions = {}) {
             return result;
         };
 
-        setTaskConfig(target, property, options);
+        options.name = options.name?.toLowerCase() ?? property.toLowerCase();
+        options.requestMethod = options.requestMethod ?? HttpMethodEnum.POST;
+        options.$asynchrounous = true;
+        options.$method = property;
+        options.$overloads = options.$overloads ?? true;
+
+        setTaskMetadata(target, property, options);
     };
 }
 

@@ -24,10 +24,9 @@ import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { 
     defineEvents,
     EventRegisterType,
-    hasOptionData, 
-    IClassOptions, 
-    isClassConstructor, 
-    setClassOptions
+    hasMetadata,
+    IOptions,
+    setMetadata
 } from "./Gestae";
 import { 
     IEventOptions, 
@@ -36,12 +35,15 @@ import {
 } from "./GestaeEvent";
 import { IHttpContext } from "./HttpContext";
 import { SchemaObject } from "ajv";
-import { IResourceOptions, ResourcePart } from "./Resource";
+import { AbstractPart } from "./AbstractPart";
 
 const SCHEMA_OPTION_KEY = "gestaejs:schema";
 
 /**
  * @description Input/Output Schema definitions
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export interface IIOSchema {
     input?: SchemaObject;
@@ -50,14 +52,20 @@ export interface IIOSchema {
 
 /**
  * @description Interface for defining the payload schema of a plain-old object in Gestae.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
-export interface ISchemaOptions extends IClassOptions {
+export interface ISchemaOptions extends IOptions {
     scheme?: SchemaObject | IIOSchema;
     validate?: boolean;
 }
 
 /**
  * @description Events emitted by a schema.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export const SchemaEvents = defineEvents(
     ["validate"],
@@ -66,6 +74,9 @@ export const SchemaEvents = defineEvents(
 
 /**
  * @description Event for payload validations.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export class SchemaEvent<T> extends HttpEvent<T> {
     public readonly schema?: SchemaObject;
@@ -81,23 +92,39 @@ export class SchemaEvent<T> extends HttpEvent<T> {
  * @description Decorator for defining the payload schema of a plain-old object in Gestae.
  * @param options 
  * @returns Decorator function
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
  */
 export function Schema(options: ISchemaOptions = {}) {
     return function (target: new (... args: [any]) => any) {
-        setClassOptions(target, SCHEMA_OPTION_KEY, options);
+        options.scheme = options.scheme ?? {};
+        options.validate = (Object.keys(options.scheme).length === 0)? false: options.validate ?? true;
+        options.$overloads = options.$overloads ?? true;
+        setMetadata(target, SCHEMA_OPTION_KEY, options);
     };
 }
 
-export class SchemaFeatureFactory extends AbstractFeatureFactoryChain<ResourcePart> {
-    isFeatureFactory<T extends Object>(part: ResourcePart, target: T): boolean {
-        return hasOptionData(target, SCHEMA_OPTION_KEY);
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export class SchemaFeatureFactory extends AbstractFeatureFactoryChain<AbstractPart<any>> {
+    isFeatureFactory<T extends Object>(part: AbstractPart<any>, target: T): boolean {
+        return hasMetadata(target, SCHEMA_OPTION_KEY);
     }
 
-    _apply<T extends Object>(part: ResourcePart, target: T): void {
-        //
+    _apply<T extends Object>(part: AbstractPart<any>, target: T): void {
+        //deleteMetadata(part.model, SCHEMA_OPTION_KEY);
     }
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export function OnSchemaEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: SchemaEvent<E>) => void>) {
@@ -105,6 +132,11 @@ export function OnSchemaEvent<E>(event: EventRegisterType, options: IEventOption
     };
 }
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export function OnAsyncSchemaEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: SchemaEvent<E>) => Promise<void>>) {

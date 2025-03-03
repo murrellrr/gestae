@@ -29,6 +29,11 @@ export interface IProtectOptions {
 export const anyone = {persona: "anyone"} as IProtectOptions;
 export const noone  = {persona: "noone"}  as IProtectOptions;
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export function Protect(options: IProtectOptions = noone): ClassDecorator & MethodDecorator {
     return function (target: Function | Object, property?: string | symbol, descriptor?: PropertyDescriptor) {
         if(typeof target === "function") {
