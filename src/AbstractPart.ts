@@ -22,6 +22,8 @@
 
 import { InitializationContext } from "./ApplicationContext";
 import { IOptions } from "./Gestae";
+import { NotFoundError } from "./GestaeError";
+import { IHttpContext } from "./HttpContext";
 
 /**
  * @author Robert R Murrell
@@ -84,19 +86,19 @@ export abstract class AbstractPart<O extends IPartOptions> implements IPart {
 
     abstract getInstance<T extends Object>(): T;
 
-    async _beforeInitialize(context: InitializationContext): Promise<void> {
+    protected async _beforeInitialize(context: InitializationContext): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     }
 
-    async _afterInitialize(context: InitializationContext): Promise<void> {
+    protected async _afterInitialize(context: InitializationContext): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     }
 
-    async _beforeFinalize(): Promise<void> {
+    protected async _beforeFinalize(): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     };
 
-    async _afterFinalize(): Promise<void> {
+    protected async _afterFinalize(): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     };
 
@@ -122,7 +124,7 @@ export abstract class AbstractPart<O extends IPartOptions> implements IPart {
         _log.debug(`Features applied to '${this.name}'.`);
     }
 
-    async initialize(context: InitializationContext): Promise<void> {
+    public async initialize(context: InitializationContext): Promise<void> {
         const _log = context.applicationContext.log.child({name: `${this.constructor.name}:${this.name}`});
         _log.debug(`Initializing ${this.constructor.name} '${this.name}'...`);
         await this._beforeInitialize(context);
@@ -136,7 +138,36 @@ export abstract class AbstractPart<O extends IPartOptions> implements IPart {
         _log.debug(`${this.constructor.name} '${this.name}' initialized on path '${this.fullyQualifiedPath}'.`);
     }
 
-    async finalize(): Promise<void> {
+    protected async _beforeDoRequest(context: IHttpContext): Promise<void> {
+        // do nothing, developers, override this method to take custom action.
+    };
+
+    protected async _doRequest(context: IHttpContext): Promise<void> {
+        // do nothing, developers, override this method to take custom action.
+    };
+
+    protected async _afterDoRequest(context: IHttpContext): Promise<void> {
+        // do nothing, developers, override this method to take custom action.
+    };
+
+    public async doRequest(context: IHttpContext): Promise<void> {
+        const _log = context.applicationContext.log.child({name: `${this.constructor.name}:${this.name}.doRequest`});
+
+        if(!context.request.uri.hasNext())
+            throw new NotFoundError(`The requested resource '${this.name}' was not found from path ${context.request.url}.`);
+        let _partName = context.request.uri.next();
+        if(this.name !== _partName)
+            throw new NotFoundError(`The requested resource '${this.name}' was not found from path ${context.request.url}.`);
+
+        _log.debug(`Performing before doRequest actions.`);
+        await this._beforeDoRequest(context);
+        _log.debug(`Performing doRequest actions.`);
+        await this._doRequest(context);
+        _log.debug(`Performing after doRequest actions.`);
+        await this._afterDoRequest(context);
+    }
+
+    public async finalize(): Promise<void> {
         //this.log.debug(`Finalizing ${this.constructor.name} '${this.name}'.`);
         await this._beforeFinalize();
         for(const child of this.children.values()) {

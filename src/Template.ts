@@ -21,13 +21,10 @@
  */
 
 import { InitializationContext } from "./ApplicationContext";
-import { ListenerItem } from "./AsyncEventEmitter";
-import { IAsyncEventQueue } from "./AsyncEventQueue";
 import { 
     ClassType, 
     isClassConstructor 
 } from "./Gestae";
-import { GestaeEvent } from "./GestaeEvent";
 import { AbstractPart } from "./AbstractPart";
 
 /**
@@ -44,7 +41,7 @@ export type PartTemplateType = AbstractPart<any> | ClassType | string;
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export interface ITemplate extends IAsyncEventQueue {
+export interface ITemplate {
     get name(): string;
     add(child: PartTemplateType): ITemplate;
 }
@@ -56,7 +53,6 @@ export interface ITemplate extends IAsyncEventQueue {
  * @copyright 2024 KRI, LLC
  */
 export class Template implements ITemplate {
-    private readonly _listeners: ListenerItem[] = [];
     private readonly _base:     PartTemplateType;
     private readonly _children: Map<string, Template> = new Map();
     private readonly _name:     string;
@@ -66,10 +62,16 @@ export class Template implements ITemplate {
         this._name = name ?? Template.toName(this._base);
     }
 
+    /**
+     * @returns The name of the template derrived from base type or string.
+     */
     get name() {
         return this._name;
     }
 
+    /**
+     * @returns The base object type, Part, or string.
+     */
     get base() {
         return this._base;
     }
@@ -86,46 +88,13 @@ export class Template implements ITemplate {
         return this._base instanceof AbstractPart;
     }
 
-    /**
-     * @description Register an event listener for a specific event type.
-     * @param event - The name of the event.
-     * @param handler - The async function to handle the event.
-     */
-    on<T, E extends GestaeEvent<T>>(event: string | RegExp, method: (event: E) => Promise<void> | void, once: boolean = false) : this {
-        this._listeners.push({event: event, method: method, once: once});
-        return this;
-    }
-
-    /**
-     * @description Register an event listener that will be called only once.
-     * @param event - The name of the event.
-     * @param handler - The async function to handle the event.
-     */
-    once<T, E extends GestaeEvent<T>>(event: string | RegExp, method: (event: E) => Promise<void> | void): this {
-        this.on(event, method, true);
-        return this;
-    }
-
-    /**
-     * @description Remove a specific event listener.
-     * @param event - The name of the event.
-     * @param handler - The handler function to remove.
-     */
-    off<T, E extends GestaeEvent<T>>(event: string, listener: (event: E) => Promise<void> | void): this {
-        //TODO: Do somthing here.
-        return this;
-    }
-
     add(child: PartTemplateType): ITemplate {
         const _name = Template.toName(child);
-        let _template: Template;
-        if(!this._children.has(_name)) {
+        let _template = this._children.get(_name);
+        if(!_template) {
              _template = new Template(child, _name);
              this._children.set(_name, _template);
         }
-        else 
-            _template = this._children.get(_name)!; // Just checked if it existed above.
-
         return _template;
     }
 
@@ -138,16 +107,10 @@ export class Template implements ITemplate {
     async convert(context: InitializationContext): Promise<AbstractPart<any>> {
         const _log = context.applicationContext.log.child({name: `${this.constructor.name}.convert:${this.name}`});
         _log.debug(`Converting template '${this.name}'...`);
+
+        // Checking to see if the base is a part.
         const _result = context.partFactory.create(this);
         const _part   = _result.bottom ?? _result.top;
-
-        // Add all event listeners to context.
-        _log.debug(`Registering ${this._listeners.length} event listeners...`);
-        for(const _item of this._listeners) {
-            _log.debug(`Registering event listener for '${_item.event}'.`);
-            context.applicationContext.eventQueue.on(_item.event, _item.method, _item.once);
-        }
-        _log.debug(`${this._listeners.length} event listeners registered.`);
 
         // Converting child templates.
         _log.debug(`Converting ${this._children.size} child templates...`);
@@ -158,7 +121,7 @@ export class Template implements ITemplate {
         _log.debug(`${this._children.size} child templates converted.`);
 
         _log.debug(`Template '${this.name}' converted to ${_part.constructor.name} '${_part.name}'.`);
-        return _result.top;
+        return _result?.top ?? _part;
     }
 
     /**

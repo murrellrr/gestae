@@ -20,10 +20,8 @@
  *  THE SOFTWARE.
  */
 
-import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { 
     defineEvents,
-    deleteMetadata,
     EventRegisterType,
     getsertMetadata,
     hasMetadata,
@@ -35,8 +33,14 @@ import {
     IEventOptions, 
     setEventConfig 
 } from "./GestaeEvent";
-import { HttpMethodEnum, IHttpContext } from "./HttpContext";
-import { AbstractPart, IPartOptions } from "./AbstractPart";
+import { 
+    HttpMethodEnum, 
+    IHttpContext 
+} from "./HttpContext";
+import { 
+    AbstractPart, 
+    IPartOptions 
+} from "./AbstractPart";
 import { InitializationContext } from "./ApplicationContext";
 
 const TASK_OPTION_KEY = "gestaejs:task";
@@ -71,8 +75,8 @@ export interface ITask {
  * @copyright 2024 KRI, LLC
  */
 export const TaskEvents = defineEvents(
-    ["execute", "cancel", "retry", "error"],
-    ["before", "after", "error"]
+    ["execute"],
+    ["before", "on", "after", "error"]
 );
 
 /**
@@ -165,7 +169,7 @@ export abstract class AbstractTaskablePart<O extends IPartOptions> extends Abstr
      * @description
      * @param context 
      */
-    async _beforeInitialize(context: InitializationContext): Promise<void> {
+    protected async _beforeInitialize(context: InitializationContext): Promise<void> {
         const _target = this.getInstance();
         if(hasMetadata(_target, TASK_OPTION_KEY)) {
             const _log = context.applicationContext.log.child({name: `AbstractTaskablePart:${this.constructor.name}:${this.name}`});

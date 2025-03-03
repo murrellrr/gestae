@@ -24,7 +24,7 @@ import {
     ClassType,
     defineEvents,
     EventRegisterType,
-    getMetadata,
+    getsertMetadata,
     hasMetadata,
     IOptions,
     setMetadata
@@ -103,14 +103,14 @@ export class NamespacePart extends AbstractTaskablePart<INamespaceOptions> imple
         return this.instance as T;
     }
 
-    public static create(aClass: ClassType | string): NamespacePart {
+    public static create(aClass: ClassType | string, options: INamespaceOptions = {}): NamespacePart {
         if(typeof aClass === "string") {
             const _result = NamespacePartFactory.createFromString(aClass);
             return _result.bottom ?? _result.top;
         }
         else {
             const _instance = new aClass([]);
-            return new NamespacePart(_instance, getMetadata(_instance, NAMESPACE_OPTION_KEY));
+            return new NamespacePart(_instance, getsertMetadata(_instance, NAMESPACE_OPTION_KEY, options));
         }
     }
 }

@@ -62,6 +62,8 @@ export abstract class AbstractPartFactoryChain<O extends Object, P extends Abstr
     abstract _create(target: Template): FactoryReturnType<O, P>;
 
     create(target: Template): FactoryReturnType<O, P> {
+        if(target.isAbstractPart)
+            return {top: target.base as P};
         if(this.isPartFactory(target)) 
             return this._create(target);
         else if(this.link) 

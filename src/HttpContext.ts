@@ -72,7 +72,7 @@ export class URI {
         return this._part;
     }
 
-    peek(response: { peek: string }): boolean {
+    peek(response: { peek?: string }): boolean {
         const _peekIndex = this._index + 1;
         if(_peekIndex < this._parts.length) {
             response.peek = this._parts[_peekIndex];

@@ -39,16 +39,38 @@ import {
 } from "./Namespace";
 import { AbstractPart } from "./AbstractPart";
 import { ResourcePartFactory } from "./Resource";
-import http from "node:http";
-import { DefaultLogger, ILogger, ILoggerOptions } from "./Logger";
-import { BaseProperties, IProperties, IPropertyOptions, Properties } from "./Properties";
+import { 
+    DefaultLogger, 
+    ILogger, 
+    ILoggerOptions 
+} from "./Logger";
+import { 
+    BaseProperties, 
+    IProperties, 
+    IPropertyOptions, 
+    Properties 
+} from "./Properties";
 import { GestaeError } from "./GestaeError";
-import { EventFeatureFactory, GestaeEvent } from "./GestaeEvent";
+import { 
+    EventFeatureFactory, 
+    GestaeEvent 
+} from "./GestaeEvent";
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { SchemaFeatureFactory } from "./Schema";
-import { ITemplate, PartTemplateType, Template } from "./Template";
+import { 
+    ITemplate, 
+    PartTemplateType, 
+    Template 
+} from "./Template";
 import { AbstractPartFactoryChain } from "./AbstractPartFactoryChain";
+import http from "node:http";
 
+/**
+ * @description
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export const VERSION = "1.0.0";
 
 const DEFAULT_NAME = "app";
@@ -202,17 +224,17 @@ export class Application {
     }
 
     on<T, E extends GestaeEvent<T>>(event: string | RegExp, listener: (event: E) => Promise<void> | void, once?: boolean) : this {
-        this._template.on(event, listener, once);
+        this.context.eventQueue.on(event, listener, once);
         return this;
     }
 
     once<T, E extends GestaeEvent<T>>(event: string | RegExp, listener: (event: E) => Promise<void> | void): this {
-        this._template.once(event, listener);
+        this.context.eventQueue.once(event, listener);
         return this;
     }
 
     off<T, E extends GestaeEvent<T>>(event: string, listener: (event: E) => Promise<void> | void): this {
-        this._template.off(event, listener);
+        this.context.eventQueue.off(event, listener);
         return this;
     }
 
@@ -252,7 +274,6 @@ export class Application {
         console.log("    Visit https://gestaejs.com for documentation, latest features, and more information.    ");
         console.log("       You can also find us on github at git+https://github.com/murrellrr/gestae.git        ");
         console.log();
-        console.log();
         console.log("Permission is hereby granted, free of charge, to any person obtaining a copy");
         console.log("of this software and associated documentation files (the \"Software\"), to deal");
         console.log("in the Software without restriction, including without limitation the rights");
@@ -273,7 +294,7 @@ export class Application {
         console.log();
         this.log.info(`Starting application '${this.name}'...`);
         await this._initialize();
-        this.log.info(`Application '${this.name}' started.`);
+        this.log.info(`Application '${this.name}' started on port ${this.port}.`);
         return this;
     }
 }

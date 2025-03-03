@@ -135,6 +135,10 @@ export class ResourcePart extends AbstractTaskablePart<IResourceOptions> {
     getInstance<T extends Object>(...args: any[]): T {
         return new this.model(...args) as T;
     }
+
+    static create(aClass: ClassType, options: IResourceOptions = {}): ResourcePart {
+        return new ResourcePart(aClass, getsertMetadata(aClass, RESOURCE_OPTION_KEY, options));
+    }
 }
 
 /**
@@ -149,9 +153,7 @@ export class ResourcePartFactory extends AbstractPartFactoryChain<IResourceOptio
 
     _create(target: Template): FactoryReturnType<IResourceOptions, ResourcePart> {
         this.log.debug(`Creating resource '${target.name}'`);
-        const options: IResourceOptions = getsertMetadata(target.base, RESOURCE_OPTION_KEY);
-        options.name = options.name ?? target.name;
-        return {top: new ResourcePart((target.base as ClassType), options)};
+        return {top: ResourcePart.create((target.base as ClassType))};
     }
 }
 
