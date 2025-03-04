@@ -35,7 +35,7 @@ import {
 } from "./GestaeEvent";
 import { IHttpContext } from "./HttpContext";
 import { SchemaObject } from "ajv";
-import { AbstractPart } from "./AbstractPart";
+import { AbstractNode } from "./AbstractNode";
 
 const SCHEMA_OPTION_KEY = "gestaejs:schema";
 
@@ -110,13 +110,13 @@ export function Schema(options: ISchemaOptions = {}) {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class SchemaFeatureFactory extends AbstractFeatureFactoryChain<AbstractPart<any>> {
-    isFeatureFactory<T extends Object>(part: AbstractPart<any>, target: T): boolean {
+export class SchemaFeatureFactory extends AbstractFeatureFactoryChain<AbstractNode<any>> {
+    isFeatureFactory<T extends Object>(node: AbstractNode<any>, target: T): boolean {
         return hasMetadata(target, SCHEMA_OPTION_KEY);
     }
 
-    _apply<T extends Object>(part: AbstractPart<any>, target: T): void {
-        //deleteMetadata(part.model, SCHEMA_OPTION_KEY);
+    _apply<T extends Object>(node: AbstractNode<any>, target: T): void {
+        //deleteMetadata(node.model, SCHEMA_OPTION_KEY);
     }
 }
 

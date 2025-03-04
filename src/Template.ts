@@ -23,9 +23,11 @@
 import { InitializationContext } from "./ApplicationContext";
 import { 
     ClassType, 
+    IOptions, 
     isClassConstructor 
 } from "./Gestae";
-import { AbstractPart } from "./AbstractPart";
+import { AbstractNode } from "./AbstractNode";
+import { ResourceManager } from "./ResourceManager";
 
 /**
  * @description
@@ -33,7 +35,7 @@ import { AbstractPart } from "./AbstractPart";
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type PartTemplateType = AbstractPart<any> | ClassType | string;
+export type NodeTemplateType = AbstractNode<any> | ClassType | string;
 
 /**
  * @description
@@ -43,7 +45,8 @@ export type PartTemplateType = AbstractPart<any> | ClassType | string;
  */
 export interface ITemplate {
     get name(): string;
-    add(child: PartTemplateType): ITemplate;
+    get bindings(): Record<string, any>;
+    addNode(child: NodeTemplateType, options?: Record<string, any>): ITemplate;
 }
 
 /**
@@ -53,87 +56,85 @@ export interface ITemplate {
  * @copyright 2024 KRI, LLC
  */
 export class Template implements ITemplate {
-    private readonly _base:     PartTemplateType;
+    private readonly _node:     NodeTemplateType;
     private readonly _children: Map<string, Template> = new Map();
-    private readonly _name:     string;
+    public  readonly name:      string;
+    public  readonly bindings:   IOptions = {};
 
-    constructor(base: PartTemplateType, name?: string) {
-        this._base = base;
-        this._name = name ?? Template.toName(this._base);
+    constructor(node: NodeTemplateType, name: string, bindings: Record<string, any> = {}) {
+        this._node = node;
+        this.name = name;
+        this.bindings = bindings;
     }
 
     /**
-     * @returns The name of the template derrived from base type or string.
+     * @returns The node object type, Node, or string.
      */
-    get name() {
-        return this._name;
-    }
-
-    /**
-     * @returns The base object type, Part, or string.
-     */
-    get base() {
-        return this._base;
+    get node() {
+        return this._node;
     }
 
     get isString(): boolean {
-        return typeof this._base === "string"; 
+        return typeof this._node === "string"; 
     }
 
     get isClass(): boolean {
-        return isClassConstructor(this._base);
+        return isClassConstructor(this._node);
     }
 
-    get isAbstractPart(): boolean {
-        return this._base instanceof AbstractPart;
+    get isAbstractNode(): boolean {
+        return this._node instanceof AbstractNode;
     }
 
-    add(child: PartTemplateType): ITemplate {
-        const _name = Template.toName(child);
+    addNode(child: NodeTemplateType, bindings: Record<string, any> = {}): ITemplate {
+        const _name = Template.toNodeName(child);
         let _template = this._children.get(_name);
         if(!_template) {
-             _template = new Template(child, _name);
+             _template = new Template(child, _name, bindings);
              this._children.set(_name, _template);
         }
         return _template;
     }
 
     /**
-     * @description Converta the template to a part using the AbstractPartChainFactory and applies features 
+     * @description Converta the template to a node using the AbstractNodeChainFactory and applies features 
      *              using the AbstractFeatureChainFactory..
      * @param context The initialization context for the application.
-     * @returns The top-level part of the template.
+     * @returns The top-level node of the template.
      */
-    async convert(context: InitializationContext): Promise<AbstractPart<any>> {
-        const _log = context.applicationContext.log.child({name: `${this.constructor.name}.convert:${this.name}`});
-        _log.debug(`Converting template '${this.name}'...`);
+    async convert(context: InitializationContext): Promise<AbstractNode<any>> {
+        context.applicationContext.log.debug(`Converting template '${this.name}'...`);
 
-        // Checking to see if the base is a part.
-        const _result = context.partFactory.create(this);
-        const _part   = _result.bottom ?? _result.top;
+        // Checking to see if the base is a node.
+        const _result = context.nodeFactory.create(this);
+        const _node   = _result.bottom ?? _result.top;
 
         // Converting child templates.
-        _log.debug(`Converting ${this._children.size} child templates...`);
+        context.applicationContext.log.debug(`Converting ${this._children.size} child templates...`);
         for(const child of this._children.values()) {
-            _log.debug(`Converting template ${child.name} and adding to part '${_part.name}'.`);
-            _part.add(await child.convert(context));
+            context.applicationContext.log.debug(`Converting template ${child.name} and adding to node '${_node.name}'.`);
+            _node.add(await child.convert(context));
         }
-        _log.debug(`${this._children.size} child templates converted.`);
+        context.applicationContext.log.debug(`${this._children.size} child templates converted.`);
 
-        _log.debug(`Template '${this.name}' converted to ${_part.constructor.name} '${_part.name}'.`);
-        return _result?.top ?? _part;
+        context.applicationContext.log.debug(`Template '${this.name}' converted to ${_node.constructor.name} '${_node.name}'.`);
+        return _result?.top ?? _node;
+    }
+
+    static create(node: NodeTemplateType) {
+        return new Template(node, Template.toNodeName(node));
     }
 
     /**
-     * @description Conversta a PartTemplateType to a string name. 
-     *              1. If an instance of AbstractPart then AbstractPart.name is used. 
+     * @description Conversta a NodeTemplateType to a string name. 
+     *              1. If an instance of AbstractNode then AbstractNode.name is used. 
      *              2. If a class constructor, the the lower-cased constructor name is used.
      *              3. If a string, then the lower-cased string is used.
-     * @param base The PartTemplateType
-     * @returns a string name for the PartTemplateType.
+     * @param base The NodeTemplateType
+     * @returns a string name for the NodeTemplateType.
      */
-    static toName(base: PartTemplateType): string {
-        if(base instanceof AbstractPart) return base.name;
+    static toNodeName(base: NodeTemplateType): string {
+        if(base instanceof AbstractNode) return base.name;
         else if(isClassConstructor(base)) return base.name.toLowerCase();
         else return base.toLowerCase();
     }

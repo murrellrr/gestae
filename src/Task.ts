@@ -38,9 +38,9 @@ import {
     IHttpContext 
 } from "./HttpContext";
 import { 
-    AbstractPart, 
-    IPartOptions 
-} from "./AbstractPart";
+    AbstractNode, 
+    INodeOptions 
+} from "./AbstractNode";
 import { InitializationContext } from "./ApplicationContext";
 
 const TASK_OPTION_KEY = "gestaejs:task";
@@ -124,7 +124,7 @@ export class TaskEvent<T> extends HttpEvent<T> {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class TaskPart extends AbstractPart<ITaskOptions> {
+export class TaskNode extends AbstractNode<ITaskOptions> {
     constructor(options: ITaskOptions = {}) {
         super(options);
         options.name = options.name ?? this.constructor.name.toLowerCase();
@@ -144,7 +144,7 @@ export class TaskPart extends AbstractPart<ITaskOptions> {
      * @description no more processessing or children after a task.
      * @override
      */
-    get isEndpoint(): boolean {
+    get endpoint(): boolean {
         return true;
     }
 
@@ -153,8 +153,8 @@ export class TaskPart extends AbstractPart<ITaskOptions> {
      * @param child 
      * @override
      */
-    add(child: AbstractPart<any>): AbstractPart<any> {
-        throw GestaeError.toError("Tasks do not supoport child parts.");
+    add(child: AbstractNode<any>): AbstractNode<any> {
+        throw GestaeError.toError("Tasks do not supoport child nodes.");
     }
 }
 
@@ -164,7 +164,7 @@ export class TaskPart extends AbstractPart<ITaskOptions> {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export abstract class AbstractTaskablePart<O extends IPartOptions> extends AbstractPart<O> {
+export abstract class AbstractTaskableNode<O extends INodeOptions> extends AbstractNode<O> {
     /**
      * @description
      * @param context 
@@ -172,20 +172,19 @@ export abstract class AbstractTaskablePart<O extends IPartOptions> extends Abstr
     protected async _beforeInitialize(context: InitializationContext): Promise<void> {
         const _target = this.getInstance();
         if(hasMetadata(_target, TASK_OPTION_KEY)) {
-            const _log = context.applicationContext.log.child({name: `AbstractTaskablePart:${this.constructor.name}:${this.name}`});
-            _log.debug(`'${_target.constructor.name}' is decorated with @Task(s), applying task part(s) to '${this.name}'.`);
+            context.log.debug(`'${_target.constructor.name}' is decorated with @Task(s), applying task node(s) to '${this.name}'.`);
             const _config = getsertMetadata(_target, TASK_OPTION_KEY);
             const _keys = Object.keys(_config);
-            _log.debug(`Creating ${_keys.length} task part(s)...`);
+            context.log.debug(`Creating ${_keys.length} task node(s)...`);
             for(const _key in _config) {
                 if(_config.hasOwnProperty(_key)) {
                     const _taskConfig = _config[_key];
-                    _log.debug(`Creating task part '${_taskConfig.name}' and adding it to '${this.name}'.`);
-                    const _task = new TaskPart(_taskConfig);
+                    context.log.debug(`Creating task node '${_taskConfig.name}' and adding it to '${this.name}'.`);
+                    const _task = new TaskNode(_taskConfig);
                     this.add(_task);
                 }
             }
-            _log.debug(`${_keys.length} task part(s) applied.`);
+            context.log.debug(`${_keys.length} task node(s) applied.`);
         }
     }
 }

@@ -117,8 +117,8 @@ export class ForbiddenError extends GestaeError {
  * @copyright 2024 KRI, LLC
  */
 export class NotFoundError extends GestaeError {
-    constructor(cause?: any) {
-        super("Not Found.", 404, cause);
+    constructor(path?:string, cause?: any) {
+        super(`${path ? path + " " : ""}Not Found.`, 404, cause);
         this.name = this.constructor.name;
     }
 }
@@ -188,7 +188,7 @@ export class UnprocessableEntityError extends GestaeError {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class TooEArlyError extends GestaeError {
+export class TooEarlyError extends GestaeError {
     constructor(cause?: any) {
         super("Too Early.", 425, cause);
         this.name = this.constructor.name;

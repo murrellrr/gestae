@@ -21,7 +21,7 @@
  */
 
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
-import { AbstractPartFactoryChain } from "./AbstractPartFactoryChain";
+import { AbstractNodeFactoryChain } from "./AbstractNodeFactoryChain";
 import { 
     AsyncEventEmitter, 
     IAsyncEventEmitter 
@@ -78,7 +78,7 @@ export class DefaultApplicationContext extends AbstractContext implements IAppli
     constructor(log: ILogger, properties: IProperties, options: IApplicationContextOptions = {}) {
         super();
         this.options    = options;
-        this.log        = log.child({name: this.constructor.name});
+        this.log        = log;
         this.properties = properties;
         this.events     = new AsyncEventEmitter(this.log); 
     }
@@ -97,31 +97,33 @@ export class DefaultApplicationContext extends AbstractContext implements IAppli
 }
 
 /**
- * @description Context used during initialization of the Templates and Parts.
+ * @description Context used during initialization of the Templates and Nodes.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
 export class InitializationContext {
     public readonly applicationContext: IApplicationContext;
-    public readonly partFactory:        AbstractPartFactoryChain<any, any>;
+    public readonly nodeFactory:        AbstractNodeFactoryChain<any, any>;
     public readonly featureFactory:     AbstractFeatureFactoryChain<any>;
     public readonly options:            IInitializationContextOptions;
+    public readonly log:                ILogger;
 
     constructor(context: IApplicationContext, 
-                partChain: AbstractPartFactoryChain<any, any>, 
+                nodeChain: AbstractNodeFactoryChain<any, any>, 
                 featureChain: AbstractFeatureFactoryChain<any>, 
                 options: IInitializationContextOptions = {}) {
         this.applicationContext = context;
-        this.partFactory        = partChain;
+        this.log                = context.log;
+        this.nodeFactory        = nodeChain;
         this.featureFactory     = featureChain;
         this.options            = options;
     }
 
     static create(context: IApplicationContext, 
-                  partChain: AbstractPartFactoryChain<any, any>, 
+                  nodeChain: AbstractNodeFactoryChain<any, any>, 
                   featureChain: AbstractFeatureFactoryChain<any>, 
                   options: IInitializationContextOptions = {}): InitializationContext {
-        return new InitializationContext(context, partChain, featureChain, options);
+        return new InitializationContext(context, nodeChain, featureChain, options);
     }
 }

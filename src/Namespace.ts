@@ -30,18 +30,20 @@ import {
     setMetadata
 } from "./Gestae";
 import { 
+    formatEvent,
     HttpEvent, 
     IEventOptions, 
     setEventConfig 
 } from "./GestaeEvent";
 import { GestaeError } from "./GestaeError";
 import { 
-    AbstractPartFactoryChain, 
+    AbstractNodeFactoryChain, 
     FactoryReturnType 
-} from "./AbstractPartFactoryChain";
+} from "./AbstractNodeFactoryChain";
 import { Template } from "./Template";
-import { AbstractTaskablePart } from "./Task";
+import { AbstractTaskableNode } from "./Task";
 import _ from "lodash";
+import { IHttpContext } from "./HttpContext";
 
 const NAMESPACE_OPTION_KEY = "gestaejs:namespace";
 
@@ -87,7 +89,7 @@ export class NamespaceEvent extends HttpEvent<INamesapce> {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class NamespacePart extends AbstractTaskablePart<INamespaceOptions> implements INamesapce {
+export class NamespaceNode extends AbstractTaskableNode<INamespaceOptions> implements INamesapce {
     constructor(public readonly instance: Object, options: INamespaceOptions = {}) {
         super(options);
         options.name = options.name ?? this.constructor.name.toLowerCase();
@@ -103,14 +105,35 @@ export class NamespacePart extends AbstractTaskablePart<INamespaceOptions> imple
         return this.instance as T;
     }
 
-    public static create(aClass: ClassType | string, options: INamespaceOptions = {}): NamespacePart {
+    protected async _beforeDoRequest(context: IHttpContext): Promise<void> {
+        const _event = new NamespaceEvent(context, this);
+        _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.OnBefore)}`;
+        context.log.debug(`Emitting event '${_event.path}'.`);
+        await this.emitEvent(context, _event, this.instance);
+    }
+
+    protected async _doRequest(context: IHttpContext): Promise<void> {
+        const _event = new NamespaceEvent(context, this);
+        _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.On)}`;
+        context.log.debug(`Emitting event '${_event.path}'.`);
+        await this.emitEvent(context, _event, this.instance);
+    }
+
+    protected async _afterDoRequest(context: IHttpContext): Promise<void> {
+        const _event = new NamespaceEvent(context, this);
+        _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.OnAfter)}`;
+        context.log.debug(`Emitting event '${_event.path}'.`);
+        await this.emitEvent(context, _event, this.instance);
+    }
+
+    public static create(aClass: ClassType | string, options: INamespaceOptions = {}): NamespaceNode {
         if(typeof aClass === "string") {
-            const _result = NamespacePartFactory.createFromString(aClass);
+            const _result = NamespaceNodeFactory.createFromString(aClass);
             return _result.bottom ?? _result.top;
         }
         else {
             const _instance = new aClass([]);
-            return new NamespacePart(_instance, getsertMetadata(_instance, NAMESPACE_OPTION_KEY, options));
+            return new NamespaceNode(_instance, getsertMetadata(_instance, NAMESPACE_OPTION_KEY, options));
         }
     }
 }
@@ -131,30 +154,30 @@ class DefaultNameSpace {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class NamespacePartFactory extends AbstractPartFactoryChain<INamespaceOptions, NamespacePart> {
-    isPartFactory(target: Template): boolean {
+export class NamespaceNodeFactory extends AbstractNodeFactoryChain<INamespaceOptions, NamespaceNode> {
+    isNodeFactory(target: Template): boolean {
         return target.isString || 
-               (target.isClass && hasMetadata(target.base, NAMESPACE_OPTION_KEY));
+               (target.isClass && hasMetadata(target.node, NAMESPACE_OPTION_KEY));
     }
 
-    _create(target: Template): FactoryReturnType<INamespaceOptions, NamespacePart> {
+    _create(target: Template): FactoryReturnType<INamespaceOptions, NamespaceNode> {
         this.log.debug(`Creating namespace '${target.name}'`);
         if(target.isString)
-            return NamespacePartFactory.createFromString((target.base as string));
+            return NamespaceNodeFactory.createFromString((target.node as string));
         else 
-            return { top: NamespacePart.create((target.base as ClassType)) };
+            return { top: NamespaceNode.create((target.node as ClassType)) };
     }
 
-    public static createFromDelimString(target: string, options: INamespaceOptions = {}): FactoryReturnType<INamespaceOptions, NamespacePart> {
-        const _parts = target.split("/").filter(p => p.length > 0);
+    public static createFromDelimString(target: string, options: INamespaceOptions = {}): FactoryReturnType<INamespaceOptions, NamespaceNode> {
+        const _nodes = target.split("/").filter(p => p.length > 0);
 
-        let _parent: NamespacePart | undefined;
-        let _current: NamespacePart | undefined;
-        let _first: NamespacePart | undefined;
-        for(const _part of _parts) {
+        let _parent:  NamespaceNode | undefined;
+        let _current: NamespaceNode | undefined;
+        let _first:   NamespaceNode | undefined;
+        for(const _node of _nodes) {
             let _options = _.cloneDeep(options);
-            _options.name = _part.trim().toLowerCase();
-            _current = new NamespacePart(DefaultNameSpace.getInstance(), _options);
+            _options.name = _node.trim().toLowerCase();
+            _current = new NamespaceNode(DefaultNameSpace.getInstance(), _options);
             if(!_first) _first = _current;
             if(_parent) _parent.add(_current);
             _parent = _current;
@@ -162,11 +185,11 @@ export class NamespacePartFactory extends AbstractPartFactoryChain<INamespaceOpt
         return { top: _first!, bottom: _current };
     }
 
-    public static createFromString(target: string, options: INamespaceOptions = {}): FactoryReturnType<INamespaceOptions, NamespacePart> {
+    public static createFromString(target: string, options: INamespaceOptions = {}): FactoryReturnType<INamespaceOptions, NamespaceNode> {
         target = target.trim();
         if(target.length === 0)
             throw GestaeError.toError("Namespace name cannot be empty.");
-        return NamespacePartFactory.createFromDelimString(target, options);
+        return NamespaceNodeFactory.createFromDelimString(target, options);
     }
 }
 

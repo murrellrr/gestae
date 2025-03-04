@@ -23,7 +23,7 @@
 import { IApplicationContext } from "./ApplicationContext";
 import { GestaeError } from "./GestaeError";
 import { ILogger } from "./Logger";
-import { AbstractPart } from "./AbstractPart";
+import { AbstractNode } from "./AbstractNode";
 import { Template } from "./Template";
 
 /**
@@ -31,7 +31,7 @@ import { Template } from "./Template";
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type FactoryReturnType<O extends Object, P extends AbstractPart<O>> = {
+export type FactoryReturnType<O extends Object, P extends AbstractNode<O>> = {
     top: P;
     bottom?: P;
 };
@@ -41,34 +41,34 @@ export type FactoryReturnType<O extends Object, P extends AbstractPart<O>> = {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export abstract class AbstractPartFactoryChain<O extends Object, P extends AbstractPart<O>> {
+export abstract class AbstractNodeFactoryChain<O extends Object, P extends AbstractNode<O>> {
     protected          context: IApplicationContext;
     protected readonly log:     ILogger;
-    private            link?:   AbstractPartFactoryChain<any, any>;
+    private            link?:   AbstractNodeFactoryChain<any, any>;
 
-    constructor(context: IApplicationContext, link?: AbstractPartFactoryChain<any, any>) {
+    constructor(context: IApplicationContext, link?: AbstractNodeFactoryChain<any, any>) {
         this.context = context;
-        this.log = this.context.log.child({name: this.constructor.name});
-        this.link = link;
+        this.log     = this.context.log;
+        this.link    = link;
     }
 
-    add(link: AbstractPartFactoryChain<any, any>) {
+    add(link: AbstractNodeFactoryChain<any, any>) {
         if(!this.link) this.link = link;
         else this.link.add(link);
     }
 
-    abstract isPartFactory(target: Template): boolean;
+    abstract isNodeFactory(target: Template): boolean;
 
     abstract _create(target: Template): FactoryReturnType<O, P>;
 
     create(target: Template): FactoryReturnType<O, P> {
-        if(target.isAbstractPart)
-            return {top: target.base as P};
-        if(this.isPartFactory(target)) 
+        if(target.isAbstractNode)
+            return {top: target.node as P};
+        if(this.isNodeFactory(target)) 
             return this._create(target);
         else if(this.link) 
             return this.link.create(target);
         else 
-            throw GestaeError.toError("Cannot create part for target.");
+            throw GestaeError.toError("Cannot create node for target.");
     }
 }

@@ -28,6 +28,7 @@ import {
     IContext 
 } from "./Context";
 import http from 'http';
+import { IResourceManager, ResourceManager } from "./ResourceManager";
 
 /**
  * @author Robert R Murrell
@@ -41,7 +42,8 @@ export enum HttpMethodEnum {
     DELETE = "delete",
     PATCH = "patch",
     OPTIONS = "options",
-    HEAD = "head"
+    HEAD = "head",
+    UNSUPPORTED = "unsupported"
 }
 
 /**
@@ -49,45 +51,47 @@ export enum HttpMethodEnum {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class URI {
-    private readonly _parts: string[];
-    private _part: string | null;
+export class URITree {
+    private readonly _nodes: string[];
+    private _node: string | undefined;
     private _index: number = 0;
 
     constructor(uri: string) {
-        // Ensure _parts never contains empty strings
-        this._parts = uri.split("/").map(part => part.trim()).filter(part => part.length > 0);
+        // Ensure _nodes never contains empty strings
+        this._nodes = uri.split("/").map(node => node.trim()).filter(node => node.length > 0);
         this._index = 0;
-        this._part = this._parts.length > 0 ? this._parts[this._index] : null;
+        this._node  = this._nodes.length > 0 ? this._nodes[this._index] : undefined;
     }
 
-    get part(): string {
-        if (this._part === null) throw new GestaeError("No current part available.");
-        return this._part;
+    get node(): string | undefined {
+        if(!this._node) return undefined;
+        return this._node;
     }
 
-    next(): string {
-        if(!this.hasNext()) throw new GestaeError("End of Path");
-        this._part = this._parts[++this._index] ?? null;
-        return this._part;
+    get next(): string | undefined {
+        if(!this.hasNext) return undefined;
+        this._node = this._nodes[++this._index] ?? null;
+        return this._node;
     }
 
-    peek(response: { peek?: string }): boolean {
+    get peek(): string | undefined {
         const _peekIndex = this._index + 1;
-        if(_peekIndex < this._parts.length) {
-            response.peek = this._parts[_peekIndex];
-            return true;
-        }
-        return false; // No more parts to return
+        if(_peekIndex < this._nodes.length)
+            return this._nodes[_peekIndex];
+        return undefined; // No more nodes to return
+    }
+
+    get target(): boolean {
+        return !this.hasNext;
     }
 
     reset(): void {
         this._index = 0;
-        this._part = this._parts.length > 0 ? this._parts[this._index] : null;
+        this._node = this._nodes.length > 0 ? this._nodes[this._index] : undefined;
     }
 
-    hasNext(): boolean {
-        return this._index + 1 < this._parts.length; // Ensure a next element exists
+    get hasNext(): boolean {
+        return this._index + 1 < this._nodes.length; // Ensure a next element exists
     }
 }
 
@@ -113,11 +117,12 @@ export interface Cookie {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export interface IHttpContext extends IContext{
+export interface IHttpContext extends IContext {
     get applicationContext(): IApplicationContext;
+    get resources(): IResourceManager;
     get request(): IHttpRequest;
     get response(): IHttpResponse;
-    get logger(): ILogger;
+    get log(): ILogger;
 }
 
 /**
@@ -134,14 +139,17 @@ type HeaderValue = string[] | string | undefined;
  */
 export interface IHttpRequest {
     get url(): URL;
-    get uri(): URI;
+    get uri(): URITree;
     get http(): http.IncomingMessage;
     get query(): Map<string, string>;
-    get method(): string;
+    get method(): HttpMethodEnum;
+    get canceled(): boolean;
+    get cause(): any;
     getQuery(key: string, defaultValue?:string | undefined): string | undefined;
     hasQueries(): boolean;
     getHeader(key: string, defaultValue?: HeaderValue): HeaderValue;
     isMethod(method: HttpMethodEnum): boolean;
+    cancel(cause?: any): void;
     get isCreate(): boolean;
     get isRead(): boolean;  
     get isUpdate(): boolean;  
@@ -156,20 +164,68 @@ export interface IHttpRequest {
  * @copyright 2024 KRI, LLC
  */
 export class HttpRequest implements IHttpRequest{
-    private readonly _request: http.IncomingMessage;
-    private readonly _cookies: Record<string, Cookie> = {};
-    public readonly url: URL;
-    public readonly uri: URI;
-    public readonly query: Map<string, string> = new Map();
+    private readonly _request:  http.IncomingMessage;
+    private readonly _cookies:  Record<string, Cookie> = {};
+    private          _canceled: boolean = false;
+    private          _cause:    any;
+    private          _method:   HttpMethodEnum = HttpMethodEnum.UNSUPPORTED;
+    public  readonly url:       URL;
+    public  readonly uri:       URITree;
+    public  readonly query:     Map<string, string> = new Map();
 
     constructor(request: http.IncomingMessage) {
         this._request = request;
         
         this.url = new URL(request.url ?? "", `http://${request.headers.host}`);
-        this.uri = new URI(this.url.pathname);
+        this.uri = new URITree(this.url.pathname);
 
         this._parseQueries();
         this._parseCookies();
+        this._parseMethod();
+    }
+
+    cancel(cause?: any): void {
+        if(!this._canceled) {
+            this._canceled = true;
+            this._cause = cause;
+        }
+    }
+
+    get canceled(): boolean {
+        return this._canceled;
+    }
+
+    get cause(): any {
+        return this._cause;
+    }
+
+    private _parseMethod() {
+        if(!this._request.method) return;
+        const method = this._request.method.toLowerCase();
+        switch(method) {
+            case "get": 
+                this._method = HttpMethodEnum.GET; 
+                break;
+            case "post":
+                this._method = HttpMethodEnum.POST; 
+                break;
+            case "put":
+                this._method = HttpMethodEnum.PUT; 
+                break;
+            case "delete":
+                this._method = HttpMethodEnum.DELETE;
+                break;
+            case "patch":
+                this._method = HttpMethodEnum.PATCH;
+                break;
+            case "options":
+                this._method = HttpMethodEnum.OPTIONS;
+                break;
+            case "head":
+                this._method = HttpMethodEnum.HEAD;
+                break;
+            default: this._method = HttpMethodEnum.UNSUPPORTED;
+        }
     }
 
     private _parseQueries() {
@@ -201,8 +257,8 @@ export class HttpRequest implements IHttpRequest{
         return this._request;
     }
 
-    get method(): string {
-        return this._request.method?.toLowerCase() ?? "get";
+    get method(): HttpMethodEnum {
+        return this._method;
     }
 
     isMethod(method: HttpMethodEnum): boolean {
@@ -256,9 +312,9 @@ export class HttpRequest implements IHttpRequest{
  * @copyright 2024 KRI, LLC
  */
 export interface IHttpResponse {
-    set code(code: number);
-    get code(): number;
+    get statusCode(): number;
     get http(): http.ServerResponse;
+    send(msg: object, code?:number): void;
     setHeader(key: string, value: string): void;
     setCookie(key: string, value: Cookie): void;
 }
@@ -269,7 +325,9 @@ export interface IHttpResponse {
  * @copyright 2024 KRI, LLC
  */
 export class HttpResponse implements IHttpResponse {
-    private readonly _response: http.ServerResponse
+    private readonly _response: http.ServerResponse;
+    public           body: object = {};
+    public           code: number = 200;
 
     constructor(response: http.ServerResponse) {
         this._response = response;
@@ -279,20 +337,33 @@ export class HttpResponse implements IHttpResponse {
         return this._response;
     }
 
-    set code(code: number) {
-        this._response.statusCode = code;
-    }
-
-    get code(): number {
+    get statusCode(): number {
         return this._response.statusCode;
     }
 
-    setHeader(key: string, value: string): void {
-        //
+    setHeader(key: string, value: number | string | readonly string[]): void {
+        this._response.setHeader(key, value);
     }
 
     setCookie(key: string, value: Cookie): void {
         //
+    }
+
+    send(body: object, code:number = 200): void {
+        this.code = code;
+        this.body = body;
+    }
+
+    error(error: GestaeError) {
+        this.code = error.code;
+        this.body = error.safe();
+    }
+
+    write() {
+        this._response.statusCode = this.code;
+        this._response.setHeader("Content-Type", "application/json");
+        this._response.write(JSON.stringify(this.body, null, 2));
+        this._response.end();
     }
 }
 
@@ -303,38 +374,30 @@ export class HttpResponse implements IHttpResponse {
  */
 export class DefaultHttpContext extends AbstractContext implements IHttpContext {
     private readonly _applicationContext: IApplicationContext;
-    private readonly _request: HttpRequest;
-    private readonly _response: HttpResponse;
+    public  readonly request:             IHttpRequest;
+    public  readonly response:            IHttpResponse;
+    public  readonly log:                 ILogger;
+    public  readonly _resources:           ResourceManager;
 
-    constructor(applicationContext: IApplicationContext, request: http.IncomingMessage,
-                response: http.ServerResponse, private readonly _logger: ILogger) {
+    constructor(applicationContext: IApplicationContext, request: IHttpRequest, response: IHttpResponse) {
         super();
+        this._resources = new ResourceManager();
         this._applicationContext = applicationContext;
-        this._request = new HttpRequest(request);
-        this._response = new HttpResponse(response);
+        this.request = request;
+        this.response = response;
+        this.log = this.applicationContext.log.child({name: `http`, method: this.request.method,
+                                                      path: this.request.url.pathname });
+    }
+
+    get resources(): IResourceManager {
+        return this._resources;
     }
 
     get applicationContext(): IApplicationContext { // Supports the Interface
         return this._applicationContext;
     }
 
-    get request(): IHttpRequest {
-        return this._request as IHttpRequest;
-    }
-
-    get response(): IHttpResponse {
-        return this._response as IHttpResponse;
-    }
-
-    get logger(): ILogger {
-        return this._logger;
-    }
-
-    static create(options: Record<string, any> = {context: null as unknown as IApplicationContext, 
-            request: null as unknown as http.IncomingMessage, 
-            response: null as unknown as http.ServerResponse, 
-            logger: null as unknown as ILogger}): IHttpContext {
-        return new DefaultHttpContext(options.context, options.request, 
-        options.response, options.logger);
+    static create(context: IApplicationContext, request: IHttpRequest, response: IHttpResponse): IHttpContext {
+        return new DefaultHttpContext(context, request, response);
     }
 }

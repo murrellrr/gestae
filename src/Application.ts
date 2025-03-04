@@ -23,34 +23,34 @@
 import { 
     DefaultApplicationContext,
     IApplicationContext, 
-    IApplicationContextOptions,
-    IInitializationContextOptions,
-    InitializationContext,
+    InitializationContext
 } from "./ApplicationContext";
 import { 
     DefaultHttpContext, 
-    IHttpContext 
+    HttpMethodEnum, 
+    HttpRequest, 
+    HttpResponse,
+    IHttpResponse
 } from "./HttpContext";
 import { 
     IOptions, 
 } from "./Gestae";
 import { 
-    NamespacePartFactory, 
+    NamespaceNodeFactory, 
 } from "./Namespace";
-import { AbstractPart } from "./AbstractPart";
-import { ResourcePartFactory } from "./Resource";
+import { AbstractNode } from "./AbstractNode";
+import { ResourceNodeFactory } from "./Resource";
 import { 
     DefaultLogger, 
     ILogger, 
     ILoggerOptions 
 } from "./Logger";
 import { 
-    BaseProperties, 
-    IProperties, 
+    BaseProperties,
     IPropertyOptions, 
     Properties 
 } from "./Properties";
-import { GestaeError } from "./GestaeError";
+import { GestaeError, MethodNotAllowedError } from "./GestaeError";
 import { 
     EventFeatureFactory, 
     GestaeEvent 
@@ -59,10 +59,10 @@ import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { SchemaFeatureFactory } from "./Schema";
 import { 
     ITemplate, 
-    PartTemplateType, 
+    NodeTemplateType, 
     Template 
 } from "./Template";
-import { AbstractPartFactoryChain } from "./AbstractPartFactoryChain";
+import { AbstractNodeFactoryChain } from "./AbstractNodeFactoryChain";
 import http from "node:http";
 
 /**
@@ -76,31 +76,6 @@ export const VERSION = "1.0.0";
 const DEFAULT_NAME = "app";
 const DEFAULT_PORT = 3000;
 const DEFAULT_ROOT = "/";
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export type ApplicationContextFactoryType = (log: ILogger, properties: IProperties, 
-                                             options?: IApplicationContextOptions) => IApplicationContext;
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export type HttpContextFactoryType        = (request: http.IncomingMessage, response: http.ServerResponse) => IHttpContext;
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export type InitizationContextFactoryType = (context: IApplicationContext, 
-                                             partChain: AbstractPartFactoryChain<any, any>, 
-                                             featureChain: AbstractFeatureFactoryChain<any>, 
-                                             options?: IInitializationContextOptions) => InitializationContext;
 
 /**
  * @author Robert R Murrell
@@ -121,7 +96,7 @@ export type PropertyFactoryType           = (options?: IPropertyOptions) => Prop
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type PartChainFactoryType          = (context: IApplicationContext) => AbstractPartFactoryChain<any, any>;
+export type NodeChainFactoryType          = (context: IApplicationContext) => AbstractNodeFactoryChain<any, any>;
 
 /**
  * @author Robert R Murrell
@@ -136,21 +111,18 @@ export type FeatureChainFactoryType       = (context: IApplicationContext) => Ab
  * @copyright 2024 KRI, LLC
  */
 export interface IApplicationOptions extends IOptions {
-    name?:                         string;
-    port?:                         number;
-    root?:                         string;
-    tls?:                          boolean;
-    privateKeyPath?:               string;
-    publicKeyPath?:                string;
-    applicationContextFactory?:    ApplicationContextFactoryType;
-    httpContextFactory?:           HttpContextFactoryType;
-    initializationContextFactory?: InitizationContextFactoryType;
-    partChainFactory?:             PartChainFactoryType;
-    featureChainFactory?:          FeatureChainFactoryType;
-    loggerOptions?:                ILoggerOptions;
-    loggerFactory?:                LoggerFactoryType;
-    propertyOptions?:              IPropertyOptions;
-    propertyFactory?:              PropertyFactoryType;      
+    name?:                string;
+    port?:                number;
+    root?:                string;
+    tls?:                 boolean;
+    privateKeyPath?:      string;
+    publicKeyPath?:       string;
+    nodeChainFactory?:    NodeChainFactoryType;
+    featureChainFactory?: FeatureChainFactoryType;
+    logger?:              ILoggerOptions;
+    loggerFactory?:       LoggerFactoryType;
+    properties?:          IPropertyOptions;
+    propertyFactory?:     PropertyFactoryType;    
 }
 
 /**
@@ -159,9 +131,9 @@ export interface IApplicationOptions extends IOptions {
  * @copyright 2024 KRI, LLC
  */
 export class Application {
-    // protected readonly _partFactory: AbstractPartFactoryChain<any, any>;
+    protected          _server:      http.Server | undefined;
     protected readonly _template:    Template;
-    protected          _root:        AbstractPart<any> | undefined;
+    protected          _root:        AbstractNode<any> | undefined;
     protected readonly context:      IApplicationContext;
     public    readonly options:      IApplicationOptions;
     public    readonly log:          ILogger;
@@ -178,29 +150,21 @@ export class Application {
 
         // Logger.
         options.loggerFactory = options.loggerFactory ?? DefaultLogger.create;
-        options.loggerOptions = options.loggerOptions ?? {name: options.name};
-        options.loggerOptions = {name: `Application:${options.loggerOptions.name}`}
-        this.log = options.loggerFactory(options.loggerOptions);
+        options.logger = options.logger ?? {name: options.name};
+        options.logger.name = options.logger.name ?? options.name;
+        this.log = options.loggerFactory(options.logger);
 
         // Properties.
         options.propertyFactory = options.propertyFactory ?? BaseProperties.create;
-        options.propertyOptions = options.propertyOptions ?? {cache: false};
-        this.properties = options.propertyFactory(options.propertyOptions);
-        // Application Context and Part Factory.
-        options.applicationContextFactory = options.applicationContextFactory ?? 
-                                             DefaultApplicationContext.create;
-        // HTTP Context Factory.                                     
-        options.httpContextFactory = options.httpContextFactory ??
-                                     DefaultHttpContext.create;
-        // Initialization Context Factory.
-        options.initializationContextFactory = options.initializationContextFactory ??
-                                               InitializationContext.create;
-        this.context = options.applicationContextFactory(this.log, this.properties);
-        options.partChainFactory = options.partChainFactory ?? 
-                                    ((context: IApplicationContext): AbstractPartFactoryChain<any, any> => 
-                                         new NamespacePartFactory(context, 
-                                             new ResourcePartFactory(context)));
-        // this._partFactory = options.partChainFactory(this.context);
+        options.properties = options.properties ?? {cache: false};
+        this.properties = options.propertyFactory(options.properties);                                   
+
+        // Context.
+        this.context = DefaultApplicationContext.create(this.log, this.properties, options);
+        options.nodeChainFactory = options.nodeChainFactory ?? 
+                                    ((context: IApplicationContext): AbstractNodeFactoryChain<any, any> => 
+                                         new NamespaceNodeFactory(context, 
+                                             new ResourceNodeFactory(context)));
         options.featureChainFactory = options.featureChainFactory ?? 
                                    ((context: IApplicationContext): AbstractFeatureFactoryChain<any> => 
                                         new EventFeatureFactory(context,  
@@ -208,7 +172,7 @@ export class Application {
         
         // Application Root.
         options.root = options.root ?? DEFAULT_ROOT;
-        this._template = new Template(options.root);
+        this._template = Template.create(options.root);
     }
 
     get name(): string {
@@ -219,8 +183,12 @@ export class Application {
         return this.options.port!;
     }
 
-    add(child: PartTemplateType): ITemplate {
-        return this._template.add(child);
+    get server(): http.Server | undefined {
+        return this._server;
+    }
+
+    addNode(child: NodeTemplateType, bindings?: Record<string, any>): ITemplate {
+        return this._template.addNode(child);
     }
 
     on<T, E extends GestaeEvent<T>>(event: string | RegExp, listener: (event: E) => Promise<void> | void, once?: boolean) : this {
@@ -242,18 +210,53 @@ export class Application {
         //this.log.warn(`Application '${JSON.stringify(getGestaeMetadata(), null, 2)}'`);
         this.log.debug(`Initializing application '${this.name}'...`);
         const _initContext: InitializationContext = 
-            this.options.initializationContextFactory!(this.context, 
-                this.options.partChainFactory!(this.context), 
-                    this.options.featureChainFactory!(this.context));
-        // Initialize the templates to parts.
+            InitializationContext.create(this.context, this.options.nodeChainFactory!(this.context), 
+                                         this.options.featureChainFactory!(this.context));
+        // Initialize the templates to nodes.
         this.log.debug("Converting templates...");
         this._root = await this._template.convert(_initContext);
         this.log.debug("Templates converted.");
-        // Initialize the parts.
-        this.log.debug("Initializing parts...");
+        // Initialize the nodes.
+        this.log.debug("Initializing nodes...");
         await this._root.initialize(_initContext);
-        this.log.debug("Parts initialized.");
+        this.log.debug("Nodes initialized.");
         this.log.debug(`Application '${this.name}' initialized on root '${this._root.name}'.`);
+    }
+
+    private _handleError(req: HttpRequest, res: HttpResponse, error?: any): void {
+        const _error = GestaeError.toError(error);
+        this.log.error(`Error processing ${req.method} request ${req.url}:`);
+        this.log.error(JSON.stringify(_error, null, 2));
+        res.error(_error);
+    }
+
+    private async _start(): Promise<void> {
+        const _this = this;
+        this._server = http.createServer(async (req, res) => {
+            const _req     = new HttpRequest(req);
+            const _res     = new HttpResponse(res);
+            const _context = DefaultHttpContext.create(this.context, _req, _res);
+            try {
+                if(_req.method === HttpMethodEnum.UNSUPPORTED)
+                    _this._handleError(_req, _res, new MethodNotAllowedError(req.method!));
+                else {
+                    await this._root!.doRequest(_context);
+                    if(_req.canceled) _this._handleError(_req, _res, _req.cause);
+                    else {
+                        _context.log.info(`Request processed with response code ${_res.code}.`);
+                        if(this.context.log.level === "debug")
+                            _context.log.debug(`Response: ${JSON.stringify(_res.body, null, 2)}`);
+                    }
+                }
+            }
+            catch(error) {
+                _this._handleError(_req, _res, _req.cause);
+            }
+            finally {
+                _res.write();
+            }
+        });
+        this._server.listen(this.port);
     }
 
     async start(): Promise<Application> {
@@ -294,6 +297,7 @@ export class Application {
         console.log();
         this.log.info(`Starting application '${this.name}'...`);
         await this._initialize();
+        await this._start();
         this.log.info(`Application '${this.name}' started on port ${this.port}.`);
         return this;
     }

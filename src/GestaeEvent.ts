@@ -30,14 +30,14 @@ import {
     IOptions,
 } from "./Gestae";
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
-import { AbstractPart } from "./AbstractPart";
+import { AbstractNode } from "./AbstractNode";
 
 const EVENT_OPTIONS_KEY = "gestaejs:event";
 
 /**
  * @description Interface for defingin options on an event.
  * @example Event registers are formatted as {method:string | Function, topic?: string, operation: string, action: string};
- * @example The full event format in Gestae is: gestaejs:<part-type>:<path>:<part-name>:<operation>:[<topic>]:<action>
+ * @example The full event format in Gestae is: gestaejs:<node-type>:<path>:<node-name>:<operation>:[<topic>]:<action>
  * @example gestaejs:resource:api:business:employee:read:on
  * @param register The event to register.
  * @param once     If true, the event will be removed after it is called once.
@@ -59,10 +59,10 @@ export interface IEventOptions extends IOptions {
 export class GestaeEvent<T> {
     private _cancled: boolean = false;
     private _casue: any = null;
-    public data: T;
+    public data?: T;
     public path: string = "gestaejs";
 
-    constructor(data: T) {
+    constructor(data?: T) {
         this.data = data;
     }
 
@@ -102,7 +102,7 @@ export class ApplicationEvent<T> extends GestaeEvent<T> {
 export class HttpEvent<T> extends GestaeEvent<T> {
     public readonly context: IHttpContext;
 
-    constructor(context: IHttpContext, data: T, ) {
+    constructor(context: IHttpContext, data?: T, ) {
         super(data);
         this.context = context;
     }
@@ -154,31 +154,32 @@ export function setEventConfig(target: any, event: EventRegisterType, property: 
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class EventFeatureFactory extends AbstractFeatureFactoryChain<AbstractPart<any>> {
-    isFeatureFactory<T extends Object>(part: AbstractPart<any>, target: T): boolean {
+export class EventFeatureFactory extends AbstractFeatureFactoryChain<AbstractNode<any>> {
+    isFeatureFactory<T extends Object>(node: AbstractNode<any>, target: T): boolean {
         return hasMetadata(target, EVENT_OPTIONS_KEY);
     }
 
-    _apply<T extends Object>(part: AbstractPart<any>, target: T): void {
-        this.log.debug(`'${target.constructor.name}' is decorated with @On<Asyn><Type>Event(s), applying event listeners for '${part.name}'...`);
+    _apply<T extends Object>(node: AbstractNode<any>, target: T): void {
+        //const _log = this.log.clone({function: "_apply"});
+        this.log.debug(`'${target.constructor.name}' is decorated with @On<Asyn><Type>Event(s), applying event listeners for '${node.name}'...`);
         const _config = getsertMetadata(target, EVENT_OPTIONS_KEY);
         for(const _key in _config) {
             const _events = _config[_key];
             for(const _event of _events) {
-                const _fullyQualifiedEventPath = `${part.fullyQualifiedPath}:${formatEvent(_event.register)}`;
+                const _fullyQualifiedEventPath = `${node.fullyQualifiedPath}:${formatEvent(_event.register)}`;
                 this.log.debug(`Registering event '${_fullyQualifiedEventPath}'`);
                 const _method = EventFeatureFactory.getMethod(target, _event.register.method);
                 if(_method) {
                     this.context.eventQueue.on(_fullyQualifiedEventPath, 
                         _method as (event: GestaeEvent<unknown>) => void | Promise<void>, 
                         _event.once);
-                    this.log.debug(`Method '${_event.register.method}' of '${target.constructor.name}' registered on '${_fullyQualifiedEventPath}'.`);
+                        this.log.debug(`Method '${_event.register.method}' of '${target.constructor.name}' registered on '${_fullyQualifiedEventPath}'.`);
                 }
                 else 
-                    this.log.warn(`Method '${_event.register.method}' not found on '${target.constructor.name}', skipping event registration.'`);
+                this.log.warn(`Method '${_event.register.method}' not found on '${target.constructor.name}', skipping event registration.'`);
             }
         }
-        this.log.debug(`'Applied event listeners for '${part.name}'.`);
+        this.log.debug(`'Applied event listeners for '${node.name}'.`);
     }
 
     static getMethod(instance: object, method: string): Function | undefined {

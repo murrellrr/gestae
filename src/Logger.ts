@@ -29,6 +29,8 @@ import pino from "pino";
  */
 export interface ILoggerOptions {
     name:string;
+    level?: string;
+    target?: string;
 }
 
 /**
@@ -37,12 +39,16 @@ export interface ILoggerOptions {
  * @copyright 2024 KRI, LLC
  */
 export interface ILogger {
-    log(message: string, ...optionalParams: any[]): void;
-    info(message: string, ...optionalParams: any[]): void;
-    warn(message: string, ...optionalParams: any[]): void;
-    error(message: string, ...optionalParams: any[]): void;
-    debug(message: string, ...optionalParams: any[]): void; // Optional for debug logs
-    child(options?: ILoggerOptions): ILogger;
+    get level(): string;
+    log(message: string,   ...options: any[]): void;
+    info(message: string,  ...options: any[]): void;
+    warn(message: string,  ...options: any[]): void;
+    error(message: string, ...options: any[]): void;
+    debug(message: string, ...options: any[]): void;
+    bindings(): Record<string, any>;
+    flush(): void;
+    child(options?: Record<string, any>): ILogger;
+    clone(options?: Record<string, any>): ILogger;
 }
 
 /**
@@ -53,7 +59,7 @@ export interface ILogger {
 export class DefaultLogger implements ILogger {
     private static instance: DefaultLogger; // Singleton instance
 
-    private readonly logger;
+    private readonly logger: pino.Logger;
 
     constructor(base: pino.Logger) {
         this.logger = base;
@@ -62,15 +68,19 @@ export class DefaultLogger implements ILogger {
     /**
      * Get the global instance of the logger.
      */
-    public static getInstance(context: ILoggerOptions = {name: "My Application"}): DefaultLogger {
-        if(!DefaultLogger.instance)
+    public static getInstance(options: ILoggerOptions): DefaultLogger {
+        if(!DefaultLogger.instance) {
             DefaultLogger.instance = new DefaultLogger(pino({
-                level: "debug",
+                level: options.level ?? "debug",
                 transport: {
-                    target: "pino-pretty",
+                    target: options.target ?? "pino-pretty",
                 },
-                base: {name: context.name}
+                base: {
+                    ...(options ?? {}), // Merge provided base object
+                    name: options.name, // Override `name` if provided
+                }
             }));
+        }
         return DefaultLogger.instance;
     }
 
@@ -94,12 +104,28 @@ export class DefaultLogger implements ILogger {
         this.logger.debug(message, ...optionalParams);
     }
 
+    bindings(): Record<string, any> {
+        return this.logger.bindings();
+    }
+
+    get level(): string {
+        return this.logger.level;
+    }
+
+    flush(): void {
+        this.logger.flush();
+    }
+
     /**
      * Creates a child logger, appending its name to the hierarchical logger string.
      */
-    child(options: ILoggerOptions = {name: "root"}): ILogger {
+    child(options: Record<string, any> = {name: "app"}): ILogger {
         const _child = this.logger.child(options);
         return new DefaultLogger(_child);
+    }
+
+    clone(options: Record<string, any> = {}): ILogger {
+        return this.child({ ...this.bindings(), ...options });
     }
 
     static create(options: ILoggerOptions = {name: "app"}): ILogger {

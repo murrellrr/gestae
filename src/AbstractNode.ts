@@ -23,6 +23,7 @@
 import { InitializationContext } from "./ApplicationContext";
 import { IOptions } from "./Gestae";
 import { NotFoundError } from "./GestaeError";
+import { GestaeEvent } from "./GestaeEvent";
 import { IHttpContext } from "./HttpContext";
 
 /**
@@ -30,9 +31,9 @@ import { IHttpContext } from "./HttpContext";
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export interface IPart {
+export interface INode {
     get name(): string;
-    add(child: AbstractPart<any>): AbstractPart<any>;
+    add(child: AbstractNode<any>): AbstractNode<any>;
 }
 
 /**
@@ -40,7 +41,7 @@ export interface IPart {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export interface IPartOptions extends IOptions {
+export interface INodeOptions extends IOptions {
     name?: string;
 }
 
@@ -49,10 +50,10 @@ export interface IPartOptions extends IOptions {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export abstract class AbstractPart<O extends IPartOptions> implements IPart {
-    private   readonly _children: Map<string, AbstractPart<any>> = new Map<string, AbstractPart<any>>();
-    protected readonly options?:  O;
-    protected          parent?:   AbstractPart<any>;
+export abstract class AbstractNode<O extends INodeOptions> implements INode {
+    private   readonly _children: Map<string, AbstractNode<any>> = new Map<string, AbstractNode<any>>();
+    protected readonly options:   O;
+    protected          parent?:   AbstractNode<any>;
     protected          uri:       string = "";
 
     constructor(options?: O) {
@@ -61,14 +62,14 @@ export abstract class AbstractPart<O extends IPartOptions> implements IPart {
     }
 
     get name(): string {
-        return this.options!.name!;
+        return this.options.name!;
     }
 
-    get children(): Map<string, AbstractPart<any>> {
+    get children(): Map<string, AbstractNode<any>> {
         return this._children;
     }
 
-    get isEndpoint(): boolean {
+    get endpoint(): boolean {
         return false;
     }
 
@@ -76,7 +77,7 @@ export abstract class AbstractPart<O extends IPartOptions> implements IPart {
         return `gestaejs:${this.type}:${this.uri}`;
     }
 
-    add(child: AbstractPart<any>): AbstractPart<any> {
+    add(child: AbstractNode<any>): AbstractNode<any> {
         child.parent = this;
         this._children.set(child.name, child);
         return child;
@@ -117,16 +118,14 @@ export abstract class AbstractPart<O extends IPartOptions> implements IPart {
     }
 
     private async applyFeatures(context: InitializationContext): Promise<void> {
-        // Applying the features to the top-level part.
-        const _log = context.applicationContext.log.child({name: `${this.constructor.name}.applyFeatures:${this.name}`});
-        _log.debug(`Applying features to '${this.name}'...`);
+        // Applying the features to the top-level node.
+        context.log.debug(`Applying features to '${this.name}'...`);
         context.featureFactory.apply(this, this.getInstance());
-        _log.debug(`Features applied to '${this.name}'.`);
+        context.log.debug(`Features applied to '${this.name}'.`);
     }
 
     public async initialize(context: InitializationContext): Promise<void> {
-        const _log = context.applicationContext.log.child({name: `${this.constructor.name}:${this.name}`});
-        _log.debug(`Initializing ${this.constructor.name} '${this.name}'...`);
+        context.log.debug(`Initializing ${this.constructor.name} '${this.name}'...`);
         await this._beforeInitialize(context);
         this.generateURI();
         // Applying features.
@@ -135,7 +134,13 @@ export abstract class AbstractPart<O extends IPartOptions> implements IPart {
             await child.initialize(context);
         }
         await this._afterInitialize(context);
-        _log.debug(`${this.constructor.name} '${this.name}' initialized on path '${this.fullyQualifiedPath}'.`);
+        context.log.debug(`${this.constructor.name} '${this.name}' initialized on path '${this.fullyQualifiedPath}'.`);
+    }
+
+    protected async emitEvent(context: IHttpContext, event: GestaeEvent<any>, instance?: object) {
+        await context.applicationContext.eventEmitter.emit(event);
+        if(event.cancled)
+            context.request.cancel(event.cause);
     }
 
     protected async _beforeDoRequest(context: IHttpContext): Promise<void> {
@@ -151,20 +156,38 @@ export abstract class AbstractPart<O extends IPartOptions> implements IPart {
     };
 
     public async doRequest(context: IHttpContext): Promise<void> {
-        const _log = context.applicationContext.log.child({name: `${this.constructor.name}:${this.name}.doRequest`});
-
-        if(!context.request.uri.hasNext())
+        let _nodeName = context.request.uri.node;
+        // defensive coding.
+        if(this.name !== _nodeName) // Check to see if we are the node.
             throw new NotFoundError(`The requested resource '${this.name}' was not found from path ${context.request.url}.`);
-        let _partName = context.request.uri.next();
-        if(this.name !== _partName)
-            throw new NotFoundError(`The requested resource '${this.name}' was not found from path ${context.request.url}.`);
-
-        _log.debug(`Performing before doRequest actions.`);
+        
         await this._beforeDoRequest(context);
-        _log.debug(`Performing doRequest actions.`);
-        await this._doRequest(context);
-        _log.debug(`Performing after doRequest actions.`);
-        await this._afterDoRequest(context);
+
+        // Checking to see if we have been canceled.
+        if(!context.request.canceled)
+            await this._doRequest(context);
+        else 
+            context.log.warn(`Request was canceled, skipping _doRequest.`);
+        
+        try {
+            if(!context.request.canceled) {
+                if(!context.request.uri.target && context.request.uri.hasNext) {
+                    // We need to continue processing children
+                    let _next = context.request.uri.next;
+                    const _child = this.children.get(_next!); // validated above.
+                    if(!_child)
+                        throw new NotFoundError(_next, `The requested resource '${_next}' was not found from path ${context.request.url}.`);
+                    await _child.doRequest(context);
+                }
+                else if(!this.endpoint)
+                    throw new NotFoundError(this.name, `The ${this.constructor.name} '${this.name}' is not an endpoint.`);
+            }
+            else 
+                context.log.warn(`Request was canceled, skipping child doRequest.`);
+        }
+        finally {
+            await this._afterDoRequest(context);
+        }
     }
 
     public async finalize(): Promise<void> {

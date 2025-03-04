@@ -48,6 +48,7 @@ export type ClassType = new (...args: any[]) => any;
  */
 export interface IOptions {
     $overloads?: boolean;
+    [key: string]: any;
 }
 
 /**
