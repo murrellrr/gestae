@@ -20,9 +20,12 @@
  *  THE SOFTWARE.
  */
 
-import { getsertMetadata } from "./Gestae";
+import { 
+    HttpMethodEnum, 
+    getsertMetadata 
+} from "./Gestae";
 import { GestaeError } from "./GestaeError";
-import { IHttpContext, HttpMethodEnum } from "./HttpContext";
+import { IHttpContext } from "./HttpContext";
 import { ITaskOptions } from "./TaskEvent";
 
 export const TASK_OPTION_KEY = "gestaejs:task";
@@ -101,7 +104,7 @@ export function Task<I, R = void>(options: ITaskOptions = {}) {
 
         setTaskMetadata(target, property, options);
     };
-}
+} // Cant be constant because it is used as a decorator.
 
 /**
  * @description Generic `@AsyncTask` decorator for asynchronous functions.
@@ -154,4 +157,4 @@ export function AsyncTask<I, R = void>(options: ITaskOptions = {}) {
 
         setTaskMetadata(target, property, options);
     };
-}
+} // Cant be constant because it is used as a decorator.

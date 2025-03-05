@@ -21,7 +21,7 @@
  */
 
 import { IOptions, setMetadata } from "./Gestae";
-import { IHttpRequest } from "./HttpContext";
+import { IHttpRequest } from "./HttpRequest";
 
 export const RESOURCE_OPTION_KEY = "gestaejs:resource";
 
@@ -32,11 +32,12 @@ export const RESOURCE_OPTION_KEY = "gestaejs:resource";
  * @copyright 2024 KRI, LLC
  */
 export enum ResourceActionEnum {
-    Create = "create",
-    Read   = "read",
-    Update = "update",
-    Delete = "delete",
-    Search = "search", // TODO: On search response, loop through and update paths not specified relative to resource.
+    Create      = "create",
+    Read        = "read",
+    Update      = "update",
+    Delete      = "delete",
+    MediaSearch = "mediaSearch",
+    Search      = "search", // TODO: On search response, loop through and update paths not specified relative to resource.
 }
 
 /**
@@ -104,7 +105,7 @@ export class SearchResponse<R extends AbstractSearchResult> {
             yield item;
         }
     }
-}
+} // Cant be constant because it is used as a decorator.
 
 /**
  * @description Decorator for configuraing a plain-old object as a resource in Gestae.
@@ -119,4 +120,4 @@ export function Resource(options: IResourceOptions = {}) {
         options.name = options.name ?? target.name;
         setMetadata(target, RESOURCE_OPTION_KEY, options);
     };
-}
+} // Cant be constant because it is used as a decorator.

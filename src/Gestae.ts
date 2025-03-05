@@ -52,56 +52,44 @@ export interface IOptions {
 }
 
 /**
- * @description Interface for defining the event register.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type EventRegisterType = {
-    method?: string,
-    topic?: string, 
-    operation: string, 
-    action: string
-};
+export type HeaderValue = string[] | string | undefined;
 
 /**
- * @description Type for the object structure returned by `defineEvents`.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type EventRegistry = Record<
-    string, // Capitalized operation names
-    Record<
-        `On${Capitalize<string>}`, // Event names like "OnBefore", "OnAfter"
-        EventRegisterType
-    >
->;
+export enum HttpMethodEnum {
+    GET         = "get",
+    POST        = "post",
+    PUT         = "put",
+    DELETE      = "delete",
+    PATCH       = "patch",
+    OPTIONS     = "options",
+    HEAD        = "head",
+    UNSUPPORTED = "unsupported"
+}
 
 /**
- * @description Defines the events for a given set of operations and actions.
- * @param operations - The list of operation names.
- * @param actions - The list of action names.
- * @returns An object mapping operations to their corresponding events.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const defineEvents = (operations: string[], actions: string[]): EventRegistry => {
-    return Object.fromEntries(
-        operations.map(op => [
-            op.charAt(0).toUpperCase() + op.slice(1), // Capitalize operation name
-            Object.fromEntries(
-                actions
-                    .filter(action => action !== op) // Skip if action and operation are the same
-                    .map(action => [
-                        action === "on" ? "On" : `On${action.charAt(0).toUpperCase()}${action.slice(1)}`,
-                        { operation: op, action }
-                    ])
-            )
-        ])
-    ) as EventRegistry;
-};
+export interface Cookie {
+    name: string;
+    value: string;
+    expires?: moment.Moment;
+    maxAge?: number;
+    domain?: string;
+    path?: string;
+    secure?: boolean;
+    httpOnly?: boolean;
+    sameSite?: "Strict" | "Lax" | "None";
+}
 
 /**
  * @author Robert R Murrell

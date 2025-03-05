@@ -24,7 +24,6 @@ import "reflect-metadata";
 import { IHttpContext } from "./HttpContext";
 import { IApplicationContext } from "./ApplicationContext";
 import { 
-    EventRegisterType,
     getsertMetadata,
     hasMetadata,
     IOptions,
@@ -33,6 +32,33 @@ import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { AbstractNode } from "./Node";
 
 const EVENT_OPTIONS_KEY = "gestaejs:event";
+
+/**
+ * @description Interface for defining the event register.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export type EventRegisterType = {
+    method?: string,
+    topic?: string, 
+    operation: string, 
+    action: string
+};
+
+/**
+ * @description Type for the object structure returned by `defineEvents`.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export type EventRegistry = Record<
+    string, // Capitalized operation names
+    Record<
+        `On${Capitalize<string>}`, // Event names like "OnBefore", "OnAfter"
+        EventRegisterType
+    >
+>;
 
 /**
  * @description Interface for defingin options on an event.
@@ -109,6 +135,8 @@ export class HttpEvent<T> extends GestaeEvent<T> {
     }
 }
 
+
+
 /**
  * @description Formats an EventRegisterType to a delimitted string using ':'.
  * @param event The event to format.
@@ -118,7 +146,7 @@ export class HttpEvent<T> extends GestaeEvent<T> {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function formatEvent(event: EventRegisterType): string {
+export const formatEvent = (event: EventRegisterType): string => {
     return (event.topic ? event.topic + ":" : "") + event.operation + ":" + event.action;
 }
 
@@ -131,7 +159,7 @@ export function formatEvent(event: EventRegisterType): string {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function setEventConfig(target: any, event: EventRegisterType, property: string, options: IEventOptions = {}): void {
+export const setEventConfig = (target: any, event: EventRegisterType, property: string, options: IEventOptions = {}): void => {
     let _namesapce = formatEvent(event);
     let _config: Record<string, any> = getsertMetadata(target, EVENT_OPTIONS_KEY);
 
@@ -199,7 +227,7 @@ export function OnEvent(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, descriptor: PropertyDescriptor) {
         setEventConfig(target, event, property, options);
     };
-}
+} // Cant be constant because it is used as a decorator.
 
 /**
  * @author Robert R Murrell
@@ -211,7 +239,7 @@ export function OnApplicationEvent<E>(event: EventRegisterType, options: IEventO
                                        descriptor: TypedPropertyDescriptor<(event: ApplicationEvent<E>) => void>) {
         setEventConfig(target, event, property, options);
     };
-}
+} // Cant be constant because it is used as a decorator.
 
 /**
  * @author Robert R Murrell
@@ -223,7 +251,7 @@ export function OnAsyncApplicationEvent<E>(event: EventRegisterType, options: IE
                                        descriptor: TypedPropertyDescriptor<(event: ApplicationEvent<E>) => Promise<void>>) {
         setEventConfig(target, event, property, options);
     };
-}
+} // Cant be constant because it is used as a decorator.
 
 /**
  * @author Robert R Murrell
@@ -235,7 +263,7 @@ export function OnHttpEvent<E>(event: EventRegisterType, options: IEventOptions 
                                        descriptor: TypedPropertyDescriptor<(event: HttpEvent<E>) => void>) {
         setEventConfig(target, event, property, options);
     };
-}
+} // Cant be constant because it is used as a decorator.
 
 /**
  * @author Robert R Murrell
@@ -247,4 +275,4 @@ export function OnAsyncHttpEvent<E>(event: EventRegisterType, options: IEventOpt
                                        descriptor: TypedPropertyDescriptor<(event: HttpEvent<E>) => Promise<void>>) {
         setEventConfig(target, event, property, options);
     };
-}
+} // Cant be constant because it is used as a decorator.

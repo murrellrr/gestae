@@ -62,7 +62,7 @@ export abstract class AbstractNodeFactoryChain<O extends Object, P extends Abstr
     abstract _create(target: NodeTemplate): FactoryReturnType<O, P>;
 
     create(target: NodeTemplate): FactoryReturnType<O, P> {
-        if(target.isAbstractNode)
+        if(target.isNode)
             return {top: target.node as P};
         if(this.isNodeFactory(target)) 
             return this._create(target);

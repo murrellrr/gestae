@@ -23,16 +23,15 @@
 import { INode } from "./Node";
 import { 
     IOptions, 
-    defineEvents, 
-    EventRegisterType 
+    HttpMethodEnum
 } from "./Gestae";
 import { 
+    EventRegisterType,
     HttpEvent, 
     IEventOptions, 
     setEventConfig 
 } from "./GestaeEvent";
 import { 
-    HttpMethodEnum, 
     IHttpContext 
 } from "./HttpContext";
 
@@ -66,10 +65,18 @@ export interface ITaskNode extends INode {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const TaskEvents = defineEvents(
-    ["execute", "error"],
-    ["before", "on", "after"]
-);
+export const TaskEvents = {
+    Execute: {
+        OnBefore: {operation: "execute", action: "before"} as EventRegisterType,
+        On:       {operation: "execute", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "execute", action: "after" } as EventRegisterType,
+    },
+    Error: {
+        OnBefore: {operation: "error", action: "before"} as EventRegisterType,
+        On:       {operation: "error", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "error", action: "after" } as EventRegisterType,
+    }
+};
 
 /**
  * @description

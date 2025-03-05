@@ -22,10 +22,7 @@
 
 import { INode } from "./Node";
 import { 
-    EventRegisterType, 
-    defineEvents 
-} from "./Gestae";
-import { 
+    EventRegisterType,
     HttpEvent, 
     IEventOptions, 
     setEventConfig 
@@ -43,10 +40,53 @@ import {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const ResourceEvents = defineEvents(
-    ["process", "create", "read", "find", "update", "delete", "error"],
-    ["before", "on", "after"]
-);
+export const ResourceEvents = {
+    Resource: {
+        OnBefore: {operation: "resource", action: "before"} as EventRegisterType,
+        On:       {operation: "resource", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "resource", action: "after" } as EventRegisterType,
+    },
+    Create: {
+        OnBefore: {operation: "create", action: "before"} as EventRegisterType,
+        On:       {operation: "create", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "create", action: "after" } as EventRegisterType,
+    },
+    Traverse: {
+        OnBefore: {operation: "traverse", action: "before"} as EventRegisterType,
+        On:       {operation: "traverse", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "traverse", action: "after" } as EventRegisterType,
+    },
+    Read: {
+        OnBefore: {operation: "read", action: "before"} as EventRegisterType,
+        On:       {operation: "read", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "read", action: "after" } as EventRegisterType,
+    },
+    Search: {
+        OnBefore: {operation: "search", action: "before"} as EventRegisterType,
+        On:       {operation: "search", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "search", action: "after" } as EventRegisterType,
+    },
+    MediaSearch: {
+        OnBefore: {operation: "mediasearch", action: "before"} as EventRegisterType,
+        On:       {operation: "mediasearch", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "mediasearch", action: "after" } as EventRegisterType,
+    },
+    Update: {
+        OnBefore: {operation: "update", action: "before"} as EventRegisterType,
+        On:       {operation: "update", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "update", action: "after" } as EventRegisterType,
+    },
+    Delete: {
+        OnBefore: {operation: "delete", action: "before"} as EventRegisterType,
+        On:       {operation: "delete", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "delete", action: "after" } as EventRegisterType,
+    },
+    Error: {
+        OnBefore: {operation: "error", action: "before"} as EventRegisterType,
+        On:       {operation: "error", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "error", action: "after" } as EventRegisterType,
+    }
+};
 
 /**
  * @author Robert R Murrell
@@ -97,7 +137,7 @@ export function OnResourceEvent<I>(event: EventRegisterType, options: IEventOpti
         options.dataAsTarget = options.dataAsTarget ?? true;
         setEventConfig(target, event, property, options);
     };
-}
+} // Cant be constant because it is used as a decorator.
 
 /**
  * @author Robert R Murrell
@@ -110,4 +150,4 @@ export function OnAsyncResourceEvent<I>(event: EventRegisterType, options: IEven
         options.dataAsTarget = options.dataAsTarget ?? true;
         setEventConfig(target, event, property, options);
     };
-}
+} // Cant be constant because it is used as a decorator.

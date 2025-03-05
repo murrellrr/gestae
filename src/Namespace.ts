@@ -51,4 +51,4 @@ export function Namespace(options: INamespaceOptions = {}) {
         options.name = options.name ?? target.name.toLowerCase();
         setMetadata(target, NAMESPACE_OPTION_KEY, options);
     };
-}
+} // Cant be constant because it is used as a decorator.

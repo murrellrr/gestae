@@ -26,20 +26,15 @@ import {
     InitializationContext
 } from "./ApplicationContext";
 import { 
-    DefaultHttpContext, 
-    HttpMethodEnum, 
-    HttpRequest, 
-    HttpResponse,
-    IHttpResponse
-} from "./HttpContext";
-import { 
-    defineEvents,
     IOptions, 
 } from "./Gestae";
 import { 
     NamespaceNodeFactory, 
 } from "./NamespaceNode";
-import { AbstractNode, INode } from "./Node";
+import { 
+    AbstractNode, 
+    INode 
+} from "./Node";
 import { ResourceNodeFactory } from "./ResourceNode";
 import { 
     DefaultLogger, 
@@ -51,10 +46,11 @@ import {
     IPropertyOptions, 
     Properties 
 } from "./Properties";
-import { GestaeError, MethodNotAllowedError } from "./GestaeError";
+import { GestaeError } from "./GestaeError";
 import { 
     EventFeatureFactory, 
-    GestaeEvent 
+    EventRegisterType, 
+    GestaeEvent
 } from "./GestaeEvent";
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { SchemaFeatureFactory } from "./Schema";
@@ -65,6 +61,10 @@ import {
 } from "./NodeTemplate";
 import { AbstractNodeFactoryChain } from "./AbstractNodeFactoryChain";
 import http from "node:http";
+import { 
+    AbstractHttpRequestHandler, 
+    DefaultHttpRequestHandler 
+} from "./HttpRequestHandler";
 
 /**
  * @description
@@ -84,10 +84,28 @@ const DEFAULT_ROOT = "/";
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const ApplicationEvents = defineEvents(
-    ["initialize", "start", "finalize", "error"],
-    ["before", "on", "after"]
-);
+export const ApplicationEvents = {
+    Initialize: {
+        OnBefore: {operation: "initialize", action: "before"} as EventRegisterType,
+        On:       {operation: "initialize", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "initialize", action: "after" } as EventRegisterType,
+    },
+    Start: {
+        OnBefore: {operation: "start", action: "before"} as EventRegisterType,
+        On:       {operation: "start", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "start", action: "after" } as EventRegisterType,
+    },
+    Finalize: {
+        OnBefore: {operation: "finalize", action: "before"} as EventRegisterType,
+        On:       {operation: "finalize", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "finalize", action: "after" } as EventRegisterType,
+    },
+    Error: {
+        OnBefore: {operation: "error", action: "before"} as EventRegisterType,
+        On:       {operation: "error", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "error", action: "after" } as EventRegisterType,
+    }
+};
 
 /**
  * @author Robert R Murrell
@@ -116,6 +134,13 @@ export type NodeChainFactoryType = (context: IApplicationContext) => AbstractNod
  * @copyright 2024 KRI, LLC
  */
 export type FeatureChainFactoryType = (context: IApplicationContext) => AbstractFeatureFactoryChain<any>;
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export type RequestHandlerFactoryType = (context: IApplicationContext, root: AbstractNode<any>) => AbstractHttpRequestHandler;
 
 /**
  * @author Robert R Murrell
@@ -185,6 +210,9 @@ export class Application {
         // Application Root.
         options.root = options.root ?? DEFAULT_ROOT;
         this._template = NodeTemplate.create(options.root);
+
+        // HTTP Request Processor.
+        options.requestHandlerFactory = options.requestHandlerFactory ?? DefaultHttpRequestHandler.create;
     }
 
     get root(): INode | undefined {
@@ -239,38 +267,11 @@ export class Application {
         this.log.debug(`Application '${this.name}' initialized on root '${this._root.name}'.`);
     }
 
-    private _handleError(req: HttpRequest, res: HttpResponse, error?: any): void {
-        const _error = GestaeError.toError(error);
-        this.log.error(`Error processing ${req.method} request ${req.url}:`);
-        this.log.error(JSON.stringify(_error, null, 2));
-        res.error(_error);
-    }
-
     private async _start(): Promise<void> {
         const _this = this;
+        const _handler = this.options.requestHandlerFactory!(this.context, this._root!);
         this._server = http.createServer(async (req, res) => {
-            const _req     = new HttpRequest(req);
-            const _res     = new HttpResponse(res);
-            const _context = DefaultHttpContext.create(this.context, _req, _res);
-            try {
-                if(_req.method === HttpMethodEnum.UNSUPPORTED)
-                    _this._handleError(_req, _res, new MethodNotAllowedError(req.method!));
-                else {
-                    await this._root!.doRequest(_context);
-                    if(_req.canceled) _this._handleError(_req, _res, _req.cause);
-                    else {
-                        _context.log.info(`Request processed with response code ${_res.code}.`);
-                        if(this.context.log.level === "debug")
-                            _context.log.debug(`Response: ${JSON.stringify(_res.body, null, 2)}`);
-                    }
-                }
-            }
-            catch(error) {
-                _this._handleError(_req, _res, _req.cause);
-            }
-            finally {
-                _res.write();
-            }
+            await _handler.handleRequest(req, res);
         });
         this._server.listen(this.port);
     }

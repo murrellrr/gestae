@@ -21,13 +21,11 @@
  */
 
 import { 
+    HttpMethodEnum,
     getsertMetadata,
     hasMetadata
 } from "./Gestae";
 import { GestaeError } from "./GestaeError";
-import { 
-    HttpMethodEnum
-} from "./HttpContext";
 import { 
     AbstractNode, 
     INodeOptions 

@@ -81,7 +81,7 @@ export class NodeTemplate implements INodeTemplate {
         return isClassConstructor(this._node);
     }
 
-    get isAbstractNode(): boolean {
+    get isNode(): boolean {
         return this._node instanceof AbstractNode;
     }
 

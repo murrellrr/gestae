@@ -21,18 +21,30 @@
  */
 
 import { INode } from "./Node";
-import { defineEvents, EventRegisterType } from "./Gestae";
-import { HttpEvent, IEventOptions, setEventConfig } from "./GestaeEvent";
+import { 
+    EventRegisterType, 
+    HttpEvent, 
+    IEventOptions, 
+    setEventConfig 
+} from "./GestaeEvent";
 
 /**
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const NamespaceEvents = defineEvents(
-    ["traverse", "error"],
-    ["before", "on", "after"]
-);
+export const NamespaceEvents = {
+    Traverse: {
+        OnBefore: {operation: "traverse", action: "before"} as EventRegisterType,
+        On:       {operation: "traverse", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "traverse", action: "after" } as EventRegisterType,
+    },
+    Error: {
+        OnBefore: {operation: "error", action: "before"} as EventRegisterType,
+        On:       {operation: "error", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "error", action: "after" } as EventRegisterType,
+    }
+};
 
 /**
  * @author Robert R Murrell
@@ -62,7 +74,7 @@ export function OnNamespaceEvent(event: EventRegisterType, options: IEventOption
                                        descriptor: TypedPropertyDescriptor<(event: NamespaceEvent) => void>) {
         setEventConfig(target, event, property, options);
     };
-}
+} // Cant be constant because it is used as a decorator.
 
 /**
  * @author Robert R Murrell
@@ -74,4 +86,4 @@ export function OnAsyncNamespaceEvent(event: EventRegisterType, options: IEventO
                                        descriptor: TypedPropertyDescriptor<(event: NamespaceEvent) => Promise<void>>) {
         setEventConfig(target, event, property, options);
     };
-}
+} // Cant be constant because it is used as a decorator.

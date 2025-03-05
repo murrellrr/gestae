@@ -22,8 +22,6 @@
 
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { 
-    defineEvents,
-    EventRegisterType,
     hasMetadata,
     IOptions,
     setMetadata
@@ -31,7 +29,8 @@ import {
 import { 
     IEventOptions, 
     HttpEvent, 
-    setEventConfig
+    setEventConfig,
+    EventRegisterType
 } from "./GestaeEvent";
 import { IHttpContext } from "./HttpContext";
 import { SchemaObject } from "ajv";
@@ -67,10 +66,18 @@ export interface ISchemaOptions extends IOptions {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const SchemaEvents = defineEvents(
-    ["validate", "error"],
-    ["before", "on", "after"]
-);
+export const SchemaEvents = {
+    Validate: {
+        OnBefore: {operation: "validate", action: "before"} as EventRegisterType,
+        On:       {operation: "validate", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "validate", action: "after" } as EventRegisterType,
+    },
+    Error: {
+        OnBefore: {operation: "error", action: "before"} as EventRegisterType,
+        On:       {operation: "error", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "error", action: "after" } as EventRegisterType,
+    }
+};
 
 /**
  * @description Event for payload validations.
@@ -103,7 +110,7 @@ export function Schema(options: ISchemaOptions = {}) {
         options.$overloads = options.$overloads ?? true;
         setMetadata(target, SCHEMA_OPTION_KEY, options);
     };
-}
+} // Cant be constant because it is used as a decorator.
 
 /**
  * @author Robert R Murrell
@@ -130,7 +137,7 @@ export function OnSchemaEvent<E>(event: EventRegisterType, options: IEventOption
                                        descriptor: TypedPropertyDescriptor<(event: SchemaEvent<E>) => void>) {
         setEventConfig(target, event, property, options);
     };
-}
+} // Cant be constant because it is used as a decorator.
 
 /**
  * @author Robert R Murrell
@@ -142,4 +149,4 @@ export function OnAsyncSchemaEvent<E>(event: EventRegisterType, options: IEventO
                                        descriptor: TypedPropertyDescriptor<(event: SchemaEvent<E>) => Promise<void>>) {
         setEventConfig(target, event, property, options);
     };
-}
+} // Cant be constant because it is used as a decorator.

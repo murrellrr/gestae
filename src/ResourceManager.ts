@@ -22,7 +22,6 @@
 
 import { ClassType } from "./Gestae";
 
-
 export interface IResourceManager {
     contains(key: ClassType | string): boolean;
     getResource<T extends Object>(resource: ClassType | string, defaultValue?: T | undefined): T

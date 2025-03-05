@@ -22,16 +22,16 @@
 
 import { 
     ClassType,
-    EventRegisterType,
+    HttpMethodEnum,
     getsertMetadata,
     hasMetadata,
     isClassConstructor,
 } from "./Gestae";
 import { 
+    EventRegisterType,
     formatEvent,
 } from "./GestaeEvent";
 import { 
-    HttpMethodEnum, 
     IHttpContext 
 } from "./HttpContext";
 import { 
@@ -56,9 +56,12 @@ import {
 } from "./Resource";
 
 interface IResourceContext {
-    id?:      string;
-    instance: any;
-    action:   ResourceActionEnum;
+    id?:            string;
+    instance:       any;
+    action:         ResourceActionEnum;
+    event:          ResourceEvent<any>;
+    doBeforeEvents: EventRegisterType[];
+    doAfterEvents:  EventRegisterType[];
 }
 
 /**
@@ -131,7 +134,7 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
         return _instance;
     }
 
-    protected async _emitEvent(context: IHttpContext, event: ResourceEvent<any>, type: EventRegisterType): Promise<void> {
+    protected async emitResourceEvent(context: IHttpContext, event: ResourceEvent<any>, type: EventRegisterType): Promise<void> {
         event.data = context.resources.getResource(this.resourceKey);
         event.path = `${this.fullyQualifiedPath}:${formatEvent(type)}`;
         context.log.debug(`Emitting event '${event.path}'.`);
@@ -142,8 +145,12 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
     protected async _beforeDoRequest(context: IHttpContext): Promise<void> {
         const _id       = context.request.uri.hasNext? context.request.uri.next : undefined;
         const _resource = {
-            id:     _id,
-            action: this.getAction(context.request.method, _id, context.request.uri.target)
+            id:             _id,
+            instance:       (_id)? this.createInstance(_id) : this.getInstance(),
+            action:         this.getAction(context.request.method, _id, context.request.uri.target),
+            event:          new ResourceEvent(context, this),
+            doBeforeEvents: [],
+            doAfterEvents:  []
         } as IResourceContext;
         context.setValue(this.resourceKey, _resource);
 
@@ -154,42 +161,72 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
                 throw new BadRequestError(`Id required for '${_resource.action}' actions on entity '${this.name}'.`);
 
             context.log.debug(`Processing resource '${this.name}' with ID '${_id ?? ''}' using action '${_resource.action}'`);
-            context.resources.setResource(this.resourceKey, (_id)? 
-                this.createInstance(_id) : this.getInstance());
-            const _event = new ResourceEvent(context, this);
-
-            await this._emitEvent(context, _event, ResourceEvents.Process.OnBefore);
+            context.resources.setResource(this.resourceKey, _resource.instance);
+            this.prepareEvents(context, _resource);
         }
         else 
             throw new MethodNotAllowedError(`Resource '${this.name}' does not support action '${_resource.action}'`);
     }
 
-    protected async _performBeginActions(context: IHttpContext, resource: IResourceContext, 
-                                        action: ResourceActionEnum): Promise<void> {
-        // Perform OnBegin
-        switch(action) {
+    protected prepareEvents(context: IHttpContext, resource: IResourceContext): void {
+        switch(resource.action) {
             case ResourceActionEnum.Create:
-            case ResourceActionEnum.Read:
-            case ResourceActionEnum.Update:
-            case ResourceActionEnum.Delete:
-            case ResourceActionEnum.Search:
+                resource.doBeforeEvents.push(ResourceEvents.Create.OnBefore);
+                resource.doBeforeEvents.push(ResourceEvents.Create.On);
+                resource.doAfterEvents.push(ResourceEvents.Create.OnAfter);
                 break;
+            case ResourceActionEnum.Read:
+                resource.doBeforeEvents.push(ResourceEvents.Read.OnBefore);
+                resource.doBeforeEvents.push(ResourceEvents.Read.On);
+                resource.doAfterEvents.push(ResourceEvents.Read.OnAfter);
+                break;
+            case ResourceActionEnum.Update:
+                resource.doBeforeEvents.push(ResourceEvents.Update.OnBefore);
+                resource.doBeforeEvents.push(ResourceEvents.Update.On);
+                resource.doAfterEvents.push(ResourceEvents.Update.OnAfter);
+                break;
+            case ResourceActionEnum.Delete:
+                resource.doBeforeEvents.push(ResourceEvents.Delete.OnBefore);
+                resource.doBeforeEvents.push(ResourceEvents.Delete.On);
+                resource.doAfterEvents.push(ResourceEvents.Delete.OnAfter);
+                break;
+            case ResourceActionEnum.Search:
+                resource.doBeforeEvents.push(ResourceEvents.Search.OnBefore);
+                resource.doBeforeEvents.push(ResourceEvents.Search.On);
+                resource.doAfterEvents.push(ResourceEvents.Search.OnAfter);
+                break;
+            case ResourceActionEnum.MediaSearch:
+                resource.doBeforeEvents.push(ResourceEvents.MediaSearch.OnBefore);
+                resource.doBeforeEvents.push(ResourceEvents.MediaSearch.On);
+                resource.doAfterEvents.push(ResourceEvents.MediaSearch.OnAfter);
+                break;
+            default: 
+                throw new MethodNotAllowedError(`Resource '${this.name}' does not support action '${resource.action}'`);
+        }
+
+        resource.doBeforeEvents.unshift(ResourceEvents.Resource.On);
+        resource.doBeforeEvents.unshift(ResourceEvents.Resource.OnBefore);
+        resource.doAfterEvents.push(ResourceEvents.Resource.OnAfter);
+    }
+
+    protected async loopEvents(context: IHttpContext, event: ResourceEvent<any>, actions: EventRegisterType[]): Promise<void> {
+        // Perform the before events.
+        for(const _action of actions) {
+            if(!event.cancled) await this.emitResourceEvent(context, event, _action);
         }
     }
 
     protected async _doRequest(context: IHttpContext): Promise<void> {
-        const _event = new ResourceEvent(context, this);
-        await this._emitEvent(context, _event, ResourceEvents.Process.On);
-
-        // Check to see which mode this is:
         const _resource = context.getValue<IResourceContext>(this.resourceKey);
-        return this._performBeginActions(context, _resource, _resource.action);
+        // Perform the before events.
+        await this.loopEvents(context, _resource.event, _resource.doBeforeEvents);
+        context.response.send(_resource.instance);
     }
 
     protected async _afterDoRequest(context: IHttpContext): Promise<void> {
-        // Perform OnAfter<Action>
-        const _event = new ResourceEvent(context, this);
-        await this._emitEvent(context, _event, ResourceEvents.Process.OnAfter);
+        const _resource = context.getValue<IResourceContext>(this.resourceKey);
+        // Perform the before events.
+        await this.loopEvents(context, _resource.event, _resource.doAfterEvents);
     }
 
     static create(aClass: ClassType, options: IResourceOptions = {}): ResourceNode {
