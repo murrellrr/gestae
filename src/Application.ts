@@ -33,13 +33,14 @@ import {
     IHttpResponse
 } from "./HttpContext";
 import { 
+    defineEvents,
     IOptions, 
 } from "./Gestae";
 import { 
     NamespaceNodeFactory, 
-} from "./Namespace";
-import { AbstractNode } from "./AbstractNode";
-import { ResourceNodeFactory } from "./Resource";
+} from "./NamespaceNode";
+import { AbstractNode, INode } from "./Node";
+import { ResourceNodeFactory } from "./ResourceNode";
 import { 
     DefaultLogger, 
     ILogger, 
@@ -58,10 +59,10 @@ import {
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { SchemaFeatureFactory } from "./Schema";
 import { 
-    ITemplate, 
+    INodeTemplate, 
     NodeTemplateType, 
-    Template 
-} from "./Template";
+    NodeTemplate 
+} from "./NodeTemplate";
 import { AbstractNodeFactoryChain } from "./AbstractNodeFactoryChain";
 import http from "node:http";
 
@@ -78,32 +79,43 @@ const DEFAULT_PORT = 3000;
 const DEFAULT_ROOT = "/";
 
 /**
+ * @description
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type LoggerFactoryType             = (options?: ILoggerOptions) => ILogger;
+export const ApplicationEvents = defineEvents(
+    ["initialize", "start", "finalize", "error"],
+    ["before", "on", "after"]
+);
 
 /**
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type PropertyFactoryType           = (options?: IPropertyOptions) => Properties;
+export type LoggerFactoryType = (options?: ILoggerOptions) => ILogger;
 
 /**
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type NodeChainFactoryType          = (context: IApplicationContext) => AbstractNodeFactoryChain<any, any>;
+export type PropertyFactoryType = (options?: IPropertyOptions) => Properties;
 
 /**
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type FeatureChainFactoryType       = (context: IApplicationContext) => AbstractFeatureFactoryChain<any>;
+export type NodeChainFactoryType = (context: IApplicationContext) => AbstractNodeFactoryChain<any, any>;
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export type FeatureChainFactoryType = (context: IApplicationContext) => AbstractFeatureFactoryChain<any>;
 
 /**
  * @author Robert R Murrell
@@ -132,7 +144,7 @@ export interface IApplicationOptions extends IOptions {
  */
 export class Application {
     protected          _server:      http.Server | undefined;
-    protected readonly _template:    Template;
+    protected readonly _template:    NodeTemplate;
     protected          _root:        AbstractNode<any> | undefined;
     protected readonly context:      IApplicationContext;
     public    readonly options:      IApplicationOptions;
@@ -172,7 +184,11 @@ export class Application {
         
         // Application Root.
         options.root = options.root ?? DEFAULT_ROOT;
-        this._template = Template.create(options.root);
+        this._template = NodeTemplate.create(options.root);
+    }
+
+    get root(): INode | undefined {
+        return this._root;
     }
 
     get name(): string {
@@ -187,8 +203,8 @@ export class Application {
         return this._server;
     }
 
-    addNode(child: NodeTemplateType, bindings?: Record<string, any>): ITemplate {
-        return this._template.addNode(child);
+    addTemplate(template: NodeTemplateType, bindings?: Record<string, any>): INodeTemplate {
+        return this._template.addTemplate(template);
     }
 
     on<T, E extends GestaeEvent<T>>(event: string | RegExp, listener: (event: E) => Promise<void> | void, once?: boolean) : this {

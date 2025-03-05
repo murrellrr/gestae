@@ -28,10 +28,10 @@ import { GestaeError } from "./GestaeError";
  * @copyright 2024 KRI, LLC
  */
 export interface IContext {
-    getValue(key: string, defaultValue?: any): any;
-    getInstance<T>(_Class: new (...args: any[]) => T, defaultValue?: T): T;
+    getValue<T>(key: string, defaultValue?: T): T;
+    getInstance<T extends Object>(_Class: new (...args: any[]) => T, defaultValue?: T): T;
     setValue(key: string, value: any): void;
-    setInstance<T>(_Class: new (...args: any[]) => T, value: T): void;
+    setInstance<T extends Object>(_Class: new (...args: any[]) => T, value: T): void;
     contains(key: string): boolean;
     remove(key: string): void;
     readonly values: any[];
@@ -47,12 +47,12 @@ export interface IContext {
 export class AbstractContext implements IContext {
     private readonly _values: Record<string, any> = {};
 
-    getValue(key:string, defaultValue?: any): any {
+    getValue<T>(key:string, defaultValue?: T): T {
         return this._values[key] ?? defaultValue;
     }
 
-    getInstance<T>(_Class: new (...args: any[]) => T, defaultValue?: T): T {
-        const _value = this.getValue(_Class.name, defaultValue);
+    getInstance<T extends Object>(_Class: new (...args: any[]) => T, defaultValue?: T): T {
+        const _value = this.getValue<T>(_Class.name, defaultValue);
         if(!(_value instanceof _Class)) 
             throw new GestaeError(`Property ${_value.constructor.name} is not an instance of ${_Class.name}`);
         return _value;
@@ -62,7 +62,7 @@ export class AbstractContext implements IContext {
         this._values[key] = value;
     }
 
-    setInstance<T>(_Class: new (...args: any[]) => T, value: T): void {
+    setInstance<T extends Object>(_Class: new (...args: any[]) => T, value: T): void {
         if(!(value instanceof _Class))
             throw new GestaeError(`Parameter 'value' is not an instance of ${_Class.name}`);
         this.setValue(_Class.name, value);

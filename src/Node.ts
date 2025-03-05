@@ -22,7 +22,7 @@
 
 import { InitializationContext } from "./ApplicationContext";
 import { IOptions } from "./Gestae";
-import { NotFoundError } from "./GestaeError";
+import { GestaeError, NotFoundError } from "./GestaeError";
 import { GestaeEvent } from "./GestaeEvent";
 import { IHttpContext } from "./HttpContext";
 
@@ -31,9 +31,8 @@ import { IHttpContext } from "./HttpContext";
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export interface INode {
-    get name(): string;
-    add(child: AbstractNode<any>): AbstractNode<any>;
+export interface INodeOptions extends IOptions {
+    name?: string;
 }
 
 /**
@@ -41,8 +40,12 @@ export interface INode {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export interface INodeOptions extends IOptions {
-    name?: string;
+export interface INode {
+    get name(): string;
+    get type(): string;
+    get parentNode(): INode | undefined;
+    get childNodes(): Map<string, INode>;
+    get fullyQualifiedPath(): string;
 }
 
 /**
@@ -63,6 +66,14 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
 
     get name(): string {
         return this.options.name!;
+    }
+
+    get parentNode(): INode | undefined {
+        return this.parent;
+    }
+
+    get childNodes(): Map<string, INode> {
+        return this._children as Map<string, INode>;
     }
 
     get children(): Map<string, AbstractNode<any>> {
@@ -155,6 +166,10 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
         // do nothing, developers, override this method to take custom action.
     };
 
+    protected async _doError(context: IHttpContext): Promise<void> {
+        // do nothing, developers, override this method to take custom action.
+    }
+
     public async doRequest(context: IHttpContext): Promise<void> {
         let _nodeName = context.request.uri.node;
         // defensive coding.
@@ -184,6 +199,10 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
             }
             else 
                 context.log.warn(`Request was canceled, skipping child doRequest.`);
+        }
+        catch(error) {
+            const _error = GestaeError.toError(error);
+            
         }
         finally {
             await this._afterDoRequest(context);

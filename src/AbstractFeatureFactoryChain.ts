@@ -22,7 +22,7 @@
 
 import { IApplicationContext } from "./ApplicationContext";
 import { ILogger } from "./Logger";
-import { AbstractNode } from "./AbstractNode";
+import { AbstractNode } from "./Node";
 
 /**
  * @author Robert R Murrell

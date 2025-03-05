@@ -23,8 +23,8 @@
 import { IApplicationContext } from "./ApplicationContext";
 import { GestaeError } from "./GestaeError";
 import { ILogger } from "./Logger";
-import { AbstractNode } from "./AbstractNode";
-import { Template } from "./Template";
+import { AbstractNode } from "./Node";
+import { NodeTemplate } from "./NodeTemplate";
 
 /**
  * @author Robert R Murrell
@@ -57,11 +57,11 @@ export abstract class AbstractNodeFactoryChain<O extends Object, P extends Abstr
         else this.link.add(link);
     }
 
-    abstract isNodeFactory(target: Template): boolean;
+    abstract isNodeFactory(target: NodeTemplate): boolean;
 
-    abstract _create(target: Template): FactoryReturnType<O, P>;
+    abstract _create(target: NodeTemplate): FactoryReturnType<O, P>;
 
-    create(target: Template): FactoryReturnType<O, P> {
+    create(target: NodeTemplate): FactoryReturnType<O, P> {
         if(target.isAbstractNode)
             return {top: target.node as P};
         if(this.isNodeFactory(target)) 

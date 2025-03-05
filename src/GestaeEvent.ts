@@ -30,7 +30,7 @@ import {
     IOptions,
 } from "./Gestae";
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
-import { AbstractNode } from "./AbstractNode";
+import { AbstractNode } from "./Node";
 
 const EVENT_OPTIONS_KEY = "gestaejs:event";
 
@@ -48,6 +48,7 @@ const EVENT_OPTIONS_KEY = "gestaejs:event";
 export interface IEventOptions extends IOptions {
     register?: EventRegisterType;
     once?: boolean;
+    dataAsTarget?: boolean;
 }
 
 /**
@@ -140,8 +141,9 @@ export function setEventConfig(target: any, event: EventRegisterType, property: 
         _config[_namesapce] = _event;
     }
 
-    event.method = property;
-    options.register = event;
+    event.method         = property;
+    options.register     = event;
+    options.dataAsTarget = options.dataAsTarget ?? false;
     
     // Default the overloads to true if not specified.
     if(options.$overloads === undefined) options.$overloads = true;

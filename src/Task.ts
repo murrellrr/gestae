@@ -20,64 +20,20 @@
  *  THE SOFTWARE.
  */
 
-import { 
-    defineEvents,
-    EventRegisterType,
-    getsertMetadata,
-    hasMetadata,
-    IOptions
-} from "./Gestae";
+import { getsertMetadata } from "./Gestae";
 import { GestaeError } from "./GestaeError";
-import { 
-    HttpEvent, 
-    IEventOptions, 
-    setEventConfig 
-} from "./GestaeEvent";
-import { 
-    HttpMethodEnum, 
-    IHttpContext 
-} from "./HttpContext";
-import { 
-    AbstractNode, 
-    INodeOptions 
-} from "./AbstractNode";
-import { InitializationContext } from "./ApplicationContext";
+import { IHttpContext, HttpMethodEnum } from "./HttpContext";
+import { ITaskOptions } from "./TaskEvent";
 
-const TASK_OPTION_KEY = "gestaejs:task";
+export const TASK_OPTION_KEY = "gestaejs:task";
 
 /**
- * @description Options for a resource.
+ * @description Utility type to infer `void` return type when omitted.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export interface ITaskOptions extends IOptions {
-    name?: string;
-    requestMethod?: HttpMethodEnum;
-    $method?: string;
-    $asynchrounous?: boolean;
-};
-
-/**
- * @description
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export interface ITask {
-    getTakOptions(): ITaskOptions;
-}
-
-/**
- * @description
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export const TaskEvents = defineEvents(
-    ["execute"],
-    ["before", "on", "after", "error"]
-);
+type InferReturnType<R> = R extends undefined ? void : R;
 
 /**
  * @description Sets the event configuration for a target.
@@ -104,132 +60,13 @@ export const setTaskMetadata = <T extends Object>(target: T, property: string, o
 };
 
 /**
- * @description
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export class TaskEvent<T> extends HttpEvent<T> {
-    public readonly task: ITask;
-
-    constructor(task: ITask, context: IHttpContext, data: T) {
-        super(context, data);
-        this.task = task;
-    }
-}
-
-/**
- * @description
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export class TaskNode extends AbstractNode<ITaskOptions> {
-    constructor(options: ITaskOptions = {}) {
-        super(options);
-        options.name = options.name ?? this.constructor.name.toLowerCase();
-        options.$asynchrounous = options.$asynchrounous ?? false;
-        options.requestMethod = options.requestMethod ?? HttpMethodEnum.POST;
-    }
-
-    get type(): string {
-        return "task";
-    }
-
-    getInstance<T extends Object>(): T {
-        return {} as T;
-    }
-
-    /**
-     * @description no more processessing or children after a task.
-     * @override
-     */
-    get endpoint(): boolean {
-        return true;
-    }
-
-    /**
-     * 
-     * @param child 
-     * @override
-     */
-    add(child: AbstractNode<any>): AbstractNode<any> {
-        throw GestaeError.toError("Tasks do not supoport child nodes.");
-    }
-}
-
-/**
- * @description
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export abstract class AbstractTaskableNode<O extends INodeOptions> extends AbstractNode<O> {
-    /**
-     * @description
-     * @param context 
-     */
-    protected async _beforeInitialize(context: InitializationContext): Promise<void> {
-        const _target = this.getInstance();
-        if(hasMetadata(_target, TASK_OPTION_KEY)) {
-            context.log.debug(`'${_target.constructor.name}' is decorated with @Task(s), applying task node(s) to '${this.name}'.`);
-            const _config = getsertMetadata(_target, TASK_OPTION_KEY);
-            const _keys = Object.keys(_config);
-            context.log.debug(`Creating ${_keys.length} task node(s)...`);
-            for(const _key in _config) {
-                if(_config.hasOwnProperty(_key)) {
-                    const _taskConfig = _config[_key];
-                    context.log.debug(`Creating task node '${_taskConfig.name}' and adding it to '${this.name}'.`);
-                    const _task = new TaskNode(_taskConfig);
-                    this.add(_task);
-                }
-            }
-            context.log.debug(`${_keys.length} task node(s) applied.`);
-        }
-    }
-}
-
-/**
- * @description
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function OnTaskEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: TaskEvent<I>) => void>) {
-        setEventConfig(target, event, property, options);
-    };
-}
-
-/**
- * @description
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function OnAsyncTaskEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: TaskEvent<I>) => Promise<void>>) {
-        setEventConfig(target, event, property, options);
-    };
-}
-
-/**
- * @description Utility type to infer `void` return type when omitted.
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-type InferReturnType<R> = R extends undefined ? void : R;
-
-/**
  * @description Generic `@Task` decorator for synchronous functions.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
 export function Task<I, R = void>(options: ITaskOptions = {}) {
+    options.dataAsTarget = options.dataAsTarget ?? true;
     return function <T extends Object>(target: T, property: string,
                                        descriptor: TypedPropertyDescriptor<(firstArg: I, context: IHttpContext) => InferReturnType<R>>) {
         const originalMethod = descriptor.value;
@@ -273,6 +110,7 @@ export function Task<I, R = void>(options: ITaskOptions = {}) {
  * @copyright 2024 KRI, LLC
  */
 export function AsyncTask<I, R = void>(options: ITaskOptions = {}) {
+    options.dataAsTarget = options.dataAsTarget ?? true;
     return function <T extends Object>(target: T, property: string,
                                        descriptor: TypedPropertyDescriptor<(firstArg: I, context: IHttpContext) => Promise<InferReturnType<R>>>) {
         const originalMethod = descriptor.value;
@@ -317,5 +155,3 @@ export function AsyncTask<I, R = void>(options: ITaskOptions = {}) {
         setTaskMetadata(target, property, options);
     };
 }
-
-

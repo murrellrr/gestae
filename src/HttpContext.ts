@@ -315,6 +315,7 @@ export interface IHttpResponse {
     get statusCode(): number;
     get http(): http.ServerResponse;
     send(msg: object, code?:number): void;
+    error(error: GestaeError): void;
     setHeader(key: string, value: string): void;
     setCookie(key: string, value: Cookie): void;
 }

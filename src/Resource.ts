@@ -20,38 +20,10 @@
  *  THE SOFTWARE.
  */
 
-import { 
-    ClassType,
-    defineEvents,
-    EventRegisterType,
-    getsertMetadata,
-    hasMetadata,
-    IOptions, 
-    isClassConstructor,
-    setMetadata
-} from "./Gestae";
-import { 
-    formatEvent,
-    HttpEvent, 
-    IEventOptions, 
-    setEventConfig 
-} from "./GestaeEvent";
-import { 
-    HttpMethodEnum, 
-    IHttpContext 
-} from "./HttpContext";
-import { 
-    AbstractNodeFactoryChain, 
-    FactoryReturnType 
-} from "./AbstractNodeFactoryChain";
-import { Template } from "./Template";
-import { AbstractTaskableNode } from "./Task";
-import { 
-    BadRequestError, 
-    MethodNotAllowedError 
-} from "./GestaeError";
+import { IOptions, setMetadata } from "./Gestae";
+import { IHttpRequest } from "./HttpContext";
 
-const RESOURCE_OPTION_KEY = "gestaejs:resource";
+export const RESOURCE_OPTION_KEY = "gestaejs:resource";
 
 /**
  * @description Action types for a resource.
@@ -61,10 +33,10 @@ const RESOURCE_OPTION_KEY = "gestaejs:resource";
  */
 export enum ResourceActionEnum {
     Create = "create",
-    Read = "read",
+    Read   = "read",
     Update = "update",
     Delete = "delete",
-    Find = "find",
+    Search = "search", // TODO: On search response, loop through and update paths not specified relative to resource.
 }
 
 /**
@@ -76,188 +48,61 @@ export enum ResourceActionEnum {
 export interface IResourceOptions extends IOptions {
     name?: string;
     idProperty?: string;
+    resourceId?:string;
     lazyLoad?: boolean;
     supportedActions?: ResourceActionEnum[];
 };
 
 /**
+ * @description Resource Search result.
+ * @abstract
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export interface IResource {
-    getResourceOptions(): IResourceOptions;
-    //getModel(): Model;
-    getInstance(... args: [any]): any
+export abstract class AbstractSearchResult {
+    constructor(
+        public readonly id: string,
+        public readonly path: string
+    ) {}
 }
 
 /**
+ * @description Resource search request.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const ResourceEvents = defineEvents(
-    ["process", "create", "read", "find", "update", "delete", "error"],
-    ["before", "on", "after", "error"]
-);
+export class SearchRequest {
+    constructor(
+        public readonly page: number,
+        public readonly pageSize: number,
+        public readonly filter: Map<string, string>
+    ) {}
 
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export class ResourceEvent<T> extends HttpEvent<T> {
-    public readonly resource: IResource;
-
-    constructor(context: IHttpContext, resource: IResource, data?: T) {
-        super(context, data);
-        this.resource = resource;
-    }
-}
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export class ResourceNode extends AbstractTaskableNode<IResourceOptions> implements IResource {
-    public readonly model: ClassType;
-
-    constructor(target: ClassType, options: IResourceOptions = {}) {
-        super(options);
-        this.model = target;
-        options.name = options.name?.toLowerCase() ?? target.name.toLowerCase();
-        options.idProperty = options.idProperty ?? "id";
-        options.lazyLoad = options.lazyLoad ?? true;
-        options.supportedActions = options.supportedActions ?? [
-            ResourceActionEnum.Create,
-            ResourceActionEnum.Read,
-            ResourceActionEnum.Update,
-            ResourceActionEnum.Delete,
-            ResourceActionEnum.Find
-        ];
-        options.$overloads = options.$overloads ?? true;
-    }
-
-    get type(): string {
-        return "resource";
-    }
-
-    get endpoint(): boolean {
-        return true;
-    }
-
-    getResourceOptions(): IResourceOptions {
-        return this.options;
-    }
-
-    getAction(method: string, id?:string, target?: boolean): ResourceActionEnum {
-        switch(method) {
-            case HttpMethodEnum.GET: 
-                return (id)? ResourceActionEnum.Read : ResourceActionEnum.Find;
-            case HttpMethodEnum.PATCH:
-            case HttpMethodEnum.PUT: 
-                return (target)? ResourceActionEnum.Update : ResourceActionEnum.Read;
-            case HttpMethodEnum.POST:
-                return (target)? ResourceActionEnum.Create : ResourceActionEnum.Read;
-            case HttpMethodEnum.DELETE: 
-                return ResourceActionEnum.Delete;
-            default: 
-                return ResourceActionEnum.Create;
-        }
-    }
-
-    supportsAction(action: ResourceActionEnum): boolean {
-        return this.options.supportedActions!.includes(action) ?? false;
-    }
-
-    getInstance<T extends Object>(...args: any[]): T {
-        return new this.model(...args) as T;
-    }
-
-    createInstance<T extends Object>(id: string): T {
-        const _instance = this.getInstance<T>();
-        (_instance as any)[this.options.idProperty!] = id;
-        return _instance;
-    }
-
-    protected async _emitEvent(context: IHttpContext, event: ResourceEvent<any>, type: EventRegisterType): Promise<void> {
-        event.data = context.resources.getResource(this.fullyQualifiedPath);
-        event.path = `${this.fullyQualifiedPath}:${formatEvent(type)}`;
-        context.log.debug(`Emitting event '${event.path}'.`);
-        await this.emitEvent(context, event);
-        context.resources.setResource(this.fullyQualifiedPath, event.data);
-    }
-
-    protected async _beforeDoRequest(context: IHttpContext): Promise<void> {
-        const _id     = context.request.uri.hasNext? context.request.uri.next : undefined;
-        const _action = this.getAction(context.request.method, _id, context.request.uri.target);
-
-        if(this.supportsAction(_action)) {
-            // If its not a 'find' or a 'create' it MUST have an id.
-            if((_action !== ResourceActionEnum.Find && _action !== ResourceActionEnum.Create) && !_id)
-                throw new BadRequestError(`Id required for '${_action}' actions on entity '${this.name}'.`);
-
-            context.log.debug(`Processing resource '${this.name}' with ID '${_id ?? ''}' using action '${_action}'`);
-            context.resources.setResource(this.fullyQualifiedPath, (_id)? this.createInstance(_id) : this.getInstance());
-            const _event = new ResourceEvent(context, this);
-
-            await this._emitEvent(context, _event, ResourceEvents.Process.OnBefore);
-        }
-        else 
-            throw new MethodNotAllowedError(`Resource '${this.name}' does not support action '${_action}'`);
-    }
-
-    protected async _performBeginActions(context: IHttpContext, action: ResourceActionEnum): Promise<void> {
-        // Perform OnBegin
-        switch(action) {
-            case ResourceActionEnum.Create:
-            case ResourceActionEnum.Read:
-            case ResourceActionEnum.Update:
-            case ResourceActionEnum.Delete:
-            case ResourceActionEnum.Find:
-                break;
-        }
-    }
-
-    protected async _doRequest(context: IHttpContext): Promise<void> {
-        const _event = new ResourceEvent(context, this);
-        await this._emitEvent(context, _event, ResourceEvents.Process.On);
-
-        // Check to see which mode this is:
-        const _resource = context.resources.getResource<any>(this.fullyQualifiedPath);
-        const _action   = this.getAction(context.request.method, _resource[this.options.idProperty!], 
-                                         context.request.uri.target);
-
-        // Perform OnBefore<Action>
-        // Perform On<Action>
-        
-    }
-
-    protected async _afterDoRequest(context: IHttpContext): Promise<void> {
-        // Perform OnAfter<Action>
-        const _event = new ResourceEvent(context, this);
-        await this._emitEvent(context, _event, ResourceEvents.Process.OnAfter);
-    }
-
-    static create(aClass: ClassType, options: IResourceOptions = {}): ResourceNode {
-        return new ResourceNode(aClass, getsertMetadata(aClass, RESOURCE_OPTION_KEY, options));
+    static create(request: IHttpRequest): SearchRequest {
+        return new SearchRequest(1, 10, new Map());
     }
 }
 
 /**
+ * @description Resource search response.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class ResourceNodeFactory extends AbstractNodeFactoryChain<IResourceOptions, ResourceNode> {
-    isNodeFactory(target: Template): boolean {
-        return isClassConstructor(target.node) && hasMetadata(target.node, RESOURCE_OPTION_KEY);
-    }
+export class SearchResponse<R extends AbstractSearchResult> {
+    constructor(
+        public readonly data:     R[],
+        public readonly total:    number,
+        public readonly page:     number,
+        public readonly pageSize: number
+    ) {}
 
-    _create(target: Template): FactoryReturnType<IResourceOptions, ResourceNode> {
-        this.log.debug(`Creating resource '${target.name}'`);
-        return {top: ResourceNode.create((target.node as ClassType))};
+    *[Symbol.iterator](): Iterator<R> {
+        for (const item of this.data) {
+            yield item;
+        }
     }
 }
 
@@ -272,40 +117,6 @@ export class ResourceNodeFactory extends AbstractNodeFactoryChain<IResourceOptio
 export function Resource(options: IResourceOptions = {}) {
     return function (target: new (... args: [any]) => any) {
         options.name = options.name ?? target.name;
-        options.idProperty = options.idProperty ?? "id";
-        options.lazyLoad = options.lazyLoad ?? true;
-        options.supportedActions = options.supportedActions ?? [
-            ResourceActionEnum.Create,
-            ResourceActionEnum.Read,
-            ResourceActionEnum.Update,
-            ResourceActionEnum.Delete,
-            ResourceActionEnum.Find
-        ];
-        options.$overloads = options.$overloads ?? true;
         setMetadata(target, RESOURCE_OPTION_KEY, options);
-    };
-}
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function OnResourceEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: ResourceEvent<I>) => void>) {
-        setEventConfig(target, event, property, options);
-    };
-}
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function OnAsyncResourceEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: ResourceEvent<I>) => Promise<void>>) {
-        setEventConfig(target, event, property, options);
     };
 }

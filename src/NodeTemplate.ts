@@ -26,8 +26,7 @@ import {
     IOptions, 
     isClassConstructor 
 } from "./Gestae";
-import { AbstractNode } from "./AbstractNode";
-import { ResourceManager } from "./ResourceManager";
+import { AbstractNode } from "./Node";
 
 /**
  * @description
@@ -43,10 +42,10 @@ export type NodeTemplateType = AbstractNode<any> | ClassType | string;
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export interface ITemplate {
+export interface INodeTemplate {
     get name(): string;
     get bindings(): Record<string, any>;
-    addNode(child: NodeTemplateType, options?: Record<string, any>): ITemplate;
+    addTemplate(template: NodeTemplateType, options?: Record<string, any>): INodeTemplate;
 }
 
 /**
@@ -55,11 +54,11 @@ export interface ITemplate {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class Template implements ITemplate {
+export class NodeTemplate implements INodeTemplate {
     private readonly _node:     NodeTemplateType;
-    private readonly _children: Map<string, Template> = new Map();
+    private readonly _children: Map<string, NodeTemplate> = new Map();
     public  readonly name:      string;
-    public  readonly bindings:   IOptions = {};
+    public  readonly bindings:  IOptions = {};
 
     constructor(node: NodeTemplateType, name: string, bindings: Record<string, any> = {}) {
         this._node = node;
@@ -86,11 +85,11 @@ export class Template implements ITemplate {
         return this._node instanceof AbstractNode;
     }
 
-    addNode(child: NodeTemplateType, bindings: Record<string, any> = {}): ITemplate {
-        const _name = Template.toNodeName(child);
+    addTemplate(child: NodeTemplateType, bindings: Record<string, any> = {}): INodeTemplate {
+        const _name = NodeTemplate.toNodeName(child);
         let _template = this._children.get(_name);
         if(!_template) {
-             _template = new Template(child, _name, bindings);
+             _template = new NodeTemplate(child, _name, bindings);
              this._children.set(_name, _template);
         }
         return _template;
@@ -122,7 +121,7 @@ export class Template implements ITemplate {
     }
 
     static create(node: NodeTemplateType) {
-        return new Template(node, Template.toNodeName(node));
+        return new NodeTemplate(node, NodeTemplate.toNodeName(node));
     }
 
     /**

@@ -35,7 +35,7 @@ import {
 } from "./GestaeEvent";
 import { IHttpContext } from "./HttpContext";
 import { SchemaObject } from "ajv";
-import { AbstractNode } from "./AbstractNode";
+import { AbstractNode } from "./Node";
 
 const SCHEMA_OPTION_KEY = "gestaejs:schema";
 
@@ -68,8 +68,8 @@ export interface ISchemaOptions extends IOptions {
  * @copyright 2024 KRI, LLC
  */
 export const SchemaEvents = defineEvents(
-    ["validate"],
-    ["before", "on", "after", "error"]
+    ["validate", "error"],
+    ["before", "on", "after"]
 );
 
 /**
