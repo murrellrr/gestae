@@ -20,56 +20,39 @@
  *  THE SOFTWARE.
  */
 
-import { INode } from "./Node";
 import { 
-    IOptions, 
-    HttpMethodEnum
-} from "./Gestae";
-import { 
-    EventRegisterType,
-    HttpEvent, 
+    EventRegisterType, 
     IEventOptions, 
     setEventMetadata 
 } from "./GestaeEvent";
 import { 
-    IHttpContext 
-} from "./HttpContext";
+    AbstractSearchResult, 
+    SearchRequest 
+} from "./Resource";
+import { ResourceEvent } from "./ResourceEvent";
+import { 
+    ISearchOptions
+} from "./Search";
 
-/**
- * @description Options for a resource.
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export interface ITaskOptions extends IOptions {
-    name?: string;
-    requestMethod?: HttpMethodEnum;
-    dataAsTarget?: boolean;
-    $method?: string;
-    $asynchrounous?: boolean;
-};
-
-/**
- * @description
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export interface ITaskNode extends INode {
-    getTakOptions(): ITaskOptions;
+export interface ISearchEventOptions extends IEventOptions {
+    searchOptions?: ISearchOptions;
 }
 
 /**
- * @description
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const TaskEvents = {
-    Execute: {
-        OnBefore: {operation: "execute", action: "before"} as EventRegisterType,
-        On:       {operation: "execute", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "execute", action: "after" } as EventRegisterType,
+export const SearchEvents = {
+    Search: {
+        OnBefore: {operation: "search", action: "before"} as EventRegisterType,
+        On:       {operation: "search", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "search", action: "after" } as EventRegisterType,
+    },
+    MediaSearch: {
+        OnBefore: {operation: "mediasearch", action: "before"} as EventRegisterType,
+        On:       {operation: "mediasearch", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "mediasearch", action: "after" } as EventRegisterType,
     },
     Error: {
         OnBefore: {operation: "error", action: "before"} as EventRegisterType,
@@ -79,44 +62,27 @@ export const TaskEvents = {
 };
 
 /**
- * @description
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class TaskEvent<T> extends HttpEvent<T> {
-    public readonly task: ITaskNode;
-
-    constructor(task: ITaskNode, context: IHttpContext, data: T) {
-        super(context, data);
-        this.task = task;
-    }
-}
-
-/**
- * @description
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function OnTaskEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
+export function OnSearchResource<R extends AbstractSearchResult>(event: EventRegisterType, options: ISearchEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: TaskEvent<I>) => void>) {
-        options.dataAsTarget = options.dataAsTarget ?? true;
+                                       descriptor: TypedPropertyDescriptor<(event: ResourceEvent<SearchRequest<R>>) => void>) {
+        options.dataAsTarget = options.dataAsTarget ?? false;
         setEventMetadata(target, event, property, options);
     };
 }
 
 /**
- * @description
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnAsyncTaskEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
+export function OnAsyncSearchResource<R extends AbstractSearchResult>(event: EventRegisterType, options: ISearchEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: TaskEvent<I>) => Promise<void>>) {
-        options.dataAsTarget = options.dataAsTarget ?? true;
+                                       descriptor: TypedPropertyDescriptor<(event: ResourceEvent<SearchRequest<R>>) => Promise<void>>) {
+        options.dataAsTarget = options.dataAsTarget ?? false;
         setEventMetadata(target, event, property, options);
     };
 }

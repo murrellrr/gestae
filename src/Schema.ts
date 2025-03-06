@@ -29,7 +29,7 @@ import {
 import { 
     IEventOptions, 
     HttpEvent, 
-    setEventConfig,
+    setEventMetadata,
     EventRegisterType
 } from "./GestaeEvent";
 import { IHttpContext } from "./HttpContext";
@@ -135,7 +135,7 @@ export class SchemaFeatureFactory extends AbstractFeatureFactoryChain<AbstractNo
 export function OnSchemaEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: SchemaEvent<E>) => void>) {
-        setEventConfig(target, event, property, options);
+        setEventMetadata(target, event, property, options);
     };
 } // Cant be constant because it is used as a decorator.
 
@@ -147,6 +147,6 @@ export function OnSchemaEvent<E>(event: EventRegisterType, options: IEventOption
 export function OnAsyncSchemaEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: SchemaEvent<E>) => Promise<void>>) {
-        setEventConfig(target, event, property, options);
+        setEventMetadata(target, event, property, options);
     };
 } // Cant be constant because it is used as a decorator.

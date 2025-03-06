@@ -20,7 +20,7 @@
  *  THE SOFTWARE.
  */
 
-import { IApplicationContext } from "./ApplicationContext";
+import { ApplicationContext, IApplicationContext } from "./ApplicationContext";
 import { ILogger } from "./Logger";
 import { 
     AbstractContext, 
@@ -30,10 +30,12 @@ import {
     IResourceManager, 
     ResourceManager 
 } from "./ResourceManager";
-import { IHttpRequest } from "./HttpRequest";
-import { IHttpResponse } from "./HttpResponse";
+import { HttpRequest, IHttpRequest } from "./HttpRequest";
+import { HttpResponse, IHttpResponse } from "./HttpResponse";
+import { AbstractNode, INode } from "./Node";
 
 /**
+ * @description Interface used externally to Gestae to expose safely HttpContext.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
@@ -44,6 +46,12 @@ export interface IHttpContext extends IContext {
     get request():            IHttpRequest;
     get response():           IHttpResponse;
     get log():                ILogger;
+    get currentNode():        INode | undefined;
+    cancel(reason?: any):     void;
+    get canceled():           boolean;
+    get reason():             any;
+    get failed():             boolean;
+    get cause():              any;
 }
 
 /**
@@ -51,21 +59,24 @@ export interface IHttpContext extends IContext {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class DefaultHttpContext extends AbstractContext implements IHttpContext {
-    private readonly _applicationContext: IApplicationContext;
-    public  readonly request:             IHttpRequest;
-    public  readonly response:            IHttpResponse;
-    public  readonly log:                 ILogger;
-    public  readonly _resources:          ResourceManager;
+export class HttpContext extends AbstractContext implements IHttpContext {
+    public readonly _applicationContext: ApplicationContext;
+    public readonly _request:            HttpRequest;
+    public readonly _response:           HttpResponse;
+    public readonly log:                 ILogger;
+    public readonly _resources:          ResourceManager;
+    public          _currentNode?:       AbstractNode<any>;
+    public          _canceled:           boolean = false;
+    public          _reason:             any;
 
-    constructor(applicationContext: IApplicationContext, request: IHttpRequest, response: IHttpResponse) {
+    constructor(applicationContext: ApplicationContext, request: HttpRequest, response: HttpResponse) {
         super();
         this._resources = new ResourceManager();
         this._applicationContext = applicationContext;
-        this.request = request;
-        this.response = response;
-        this.log = this.applicationContext.log.child({name: `http`, method: this.request.method,
-                                                      path: this.request.url.pathname });
+        this._request  = request;
+        this._response = response;
+        this.log = this.applicationContext.log.child({name: `http`, method: this._request.method,
+                                                      path: this._request.url.pathname });
     }
 
     get resources(): IResourceManager {
@@ -76,8 +87,55 @@ export class DefaultHttpContext extends AbstractContext implements IHttpContext 
         return this._applicationContext;
     }
 
-    static create(context: IApplicationContext, request: IHttpRequest, response: IHttpResponse): IHttpContext {
-        return new DefaultHttpContext(context, request, response);
+    get request(): IHttpRequest {
+        return this._request;
+    }
+
+    get response(): IHttpResponse {
+        return this._response;
+    }
+
+    get currentNode(): INode | undefined {
+        return this._currentNode;
+    }
+
+    cancel(reason?: any): void {
+        if(!this._canceled) {
+            this._canceled = true;
+            this._reason   = reason ?? "Request canceled.";
+        }
+    }
+
+    get canceled(): boolean {
+        return this._canceled;
+    }
+
+    get reason(): any {
+        return this._reason;
+    }
+
+    get failed(): boolean {
+        return this._response.failed;
+    }
+
+    get cause(): any {
+        return this._response.body;
+    }
+
+    /**
+     * @description Instructs the node to leap-from the path and move on to the next child node.
+     * @param path 
+     */
+    leap(path: string): void {
+        this.setValue(`gestaejs:leap:${path}`, true);
+    }
+
+    leapt(path: string): boolean {
+        return this.getValue(`gestaejs:leap:${path}`);
+    }
+
+    static create(context: ApplicationContext, request: HttpRequest, response: HttpResponse): HttpContext {
+        return new HttpContext(context, request, response);
     }
 }
 

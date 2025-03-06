@@ -32,14 +32,13 @@ import {
     formatEvent,
 } from "./GestaeEvent";
 import { 
-    IHttpContext 
+    HttpContext 
 } from "./HttpContext";
 import { 
     AbstractNodeFactoryChain, 
     FactoryReturnType 
 } from "./AbstractNodeFactoryChain";
 import { NodeTemplate } from "./NodeTemplate";
-import { AbstractTaskableNode } from "./TaskNode";
 import { 
     BadRequestError, 
     MethodNotAllowedError 
@@ -47,19 +46,21 @@ import {
 import { 
     IResourceNode,
     ResourceEvent, 
-    ResourceEvents 
+    ResourceEvents,
 } from "./ResourceEvent";
 import { 
     ResourceActionEnum, 
     RESOURCE_OPTION_KEY, 
-    IResourceOptions 
+    IResourceOptions
 } from "./Resource";
+import { AbstractSearchableNode } from "./SearchNode";
 
 interface IResourceContext {
     id?:            string;
     instance:       any;
     action:         ResourceActionEnum;
     event:          ResourceEvent<any>;
+    overrideEvent?: ResourceEvent<any>;
     doBeforeEvents: EventRegisterType[];
     doAfterEvents:  EventRegisterType[];
 }
@@ -69,21 +70,25 @@ interface IResourceContext {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class ResourceNode extends AbstractTaskableNode<IResourceOptions> implements IResourceNode {
-    public readonly model: ClassType;
+export class ResourceNode extends AbstractSearchableNode<IResourceOptions> implements IResourceNode {
+    protected readonly idProperty:       string;
+    protected readonly lazyLoad:         boolean;
+    protected readonly supportedActions: ResourceActionEnum[];
+    protected readonly resourceId:       string | undefined;
+    public    readonly model:            ClassType;
 
     constructor(target: ClassType, options: IResourceOptions = {}) {
         super(options);
         this.model = target;
         options.name = options.name?.toLowerCase() ?? target.name.toLowerCase();
-        options.idProperty = options.idProperty ?? "id";
-        options.lazyLoad = options.lazyLoad ?? true;
-        options.supportedActions = options.supportedActions ?? [
+        this.idProperty = options.idProperty ?? "id";
+        this.lazyLoad   = options.lazyLoad ?? true;
+        this.resourceId = options.resourceId;
+        this.supportedActions = options.supportedActions ?? [
             ResourceActionEnum.Create,
             ResourceActionEnum.Read,
             ResourceActionEnum.Update,
-            ResourceActionEnum.Delete,
-            ResourceActionEnum.Search
+            ResourceActionEnum.Delete
         ];
         options.$overloads = options.$overloads ?? true;
     }
@@ -97,44 +102,47 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
     }
 
     get resourceKey(): string {
-        return this.options.resourceId ?? this.model.name;
+        return this.resourceId ?? this.model.name;
     }
 
     getResourceOptions(): IResourceOptions {
         return this.options;
     }
 
-    getAction(method: string, id?:string, target?: boolean): ResourceActionEnum {
+    getSupportedAction(method: string, id?:string, target?: boolean): ResourceActionEnum {
+        let _action: ResourceActionEnum | undefined = undefined;
+
         switch(method) {
             case HttpMethodEnum.GET: 
-                return (id)? ResourceActionEnum.Read : ResourceActionEnum.Search;
+                _action = (id)? ResourceActionEnum.Read : undefined;
+                break;
             case HttpMethodEnum.PATCH:
             case HttpMethodEnum.PUT: 
-                return (target)? ResourceActionEnum.Update : ResourceActionEnum.Read;
+                _action =  (target)? ResourceActionEnum.Update : ResourceActionEnum.Read;
+                break;
             case HttpMethodEnum.POST:
-                return (target)? ResourceActionEnum.Create : ResourceActionEnum.Read;
+                _action =  (target)? ResourceActionEnum.Create : ResourceActionEnum.Read;
+                break;
             case HttpMethodEnum.DELETE: 
-                return ResourceActionEnum.Delete;
-            default: 
-                return ResourceActionEnum.Create;
+                _action =  ResourceActionEnum.Delete;
         }
-    }
 
-    supportsAction(action: ResourceActionEnum): boolean {
-        return this.options.supportedActions!.includes(action) ?? false;
+        if(!_action || !this.supportedActions.includes(_action))
+            throw new MethodNotAllowedError(`Method '${method}' is not supported on resource '${this.name}'.`);
+        return _action;
     }
 
     getInstance<T extends Object>(...args: any[]): T {
         return new this.model(...args) as T;
     }
 
-    createInstance<T extends Object>(id: string): T {
+    createInstance<T extends Object>(id?: string): T {
         const _instance = this.getInstance<T>();
-        (_instance as any)[this.options.idProperty!] = id;
+        if(id) (_instance as any)[this.options.idProperty!] = id;
         return _instance;
     }
 
-    protected async emitResourceEvent(context: IHttpContext, event: ResourceEvent<any>, type: EventRegisterType): Promise<void> {
+    protected async emitResourceEvent(context: HttpContext, event: ResourceEvent<any>, type: EventRegisterType): Promise<void> {
         event.data = context.resources.getResource(this.resourceKey);
         event.path = `${this.fullyQualifiedPath}:${formatEvent(type)}`;
         context.log.debug(`Emitting event '${event.path}'.`);
@@ -142,33 +150,31 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
         context.resources.setResource(this.resourceKey, event.data);
     }
 
-    protected async _beforeDoRequest(context: IHttpContext): Promise<void> {
-        const _id       = context.request.uri.hasNext? context.request.uri.next : undefined;
+    protected async _beforeDoRequest(context: HttpContext): Promise<void> {
+        super._beforeDoRequest(context); // Seeing if we skip ahead to search.
+        if(context.leapt(this.uri)) return;
+
+        // Was not a search request, so we need to process the resource.
+        const _id       = context.request.uri.next;
+        const _action   = this.getSupportedAction(context.request.method, _id, context.request.uri.target);
         const _resource = {
             id:             _id,
-            instance:       (_id)? this.createInstance(_id) : this.getInstance(),
-            action:         this.getAction(context.request.method, _id, context.request.uri.target),
+            instance:       this.createInstance(_id),
+            action:         _action,
             event:          new ResourceEvent(context, this),
             doBeforeEvents: [],
             doAfterEvents:  []
         } as IResourceContext;
         context.setValue(this.resourceKey, _resource);
-
-        if(this.supportsAction(_resource.action)) {
-            // If its not a 'find' or a 'create' it MUST have an id.
-            if((_resource.action !== ResourceActionEnum.Search && 
-                    _resource.action !== ResourceActionEnum.Create) && !_id)
-                throw new BadRequestError(`Id required for '${_resource.action}' actions on entity '${this.name}'.`);
-
-            context.log.debug(`Processing resource '${this.name}' with ID '${_id ?? ''}' using action '${_resource.action}'`);
-            context.resources.setResource(this.resourceKey, _resource.instance);
-            this.prepareEvents(context, _resource);
-        }
-        else 
-            throw new MethodNotAllowedError(`Resource '${this.name}' does not support action '${_resource.action}'`);
+        context.resources.setResource(this.resourceKey, _resource.instance);
+        // Validate whether the ID is required or not..
+        if((_resource.action !== ResourceActionEnum.Create) && !_id)
+            throw new BadRequestError(`Id required for '${_resource.action}' actions on entity '${this.name}'.`);
+        context.log.debug(`Processing resource '${this.name}' with ID '${_id ?? ''}' using action '${_resource.action}'`);
+        this.prepareEvents(_resource);
     }
 
-    protected prepareEvents(context: IHttpContext, resource: IResourceContext): void {
+    protected prepareEvents(resource: IResourceContext): void {
         switch(resource.action) {
             case ResourceActionEnum.Create:
                 resource.doBeforeEvents.push(ResourceEvents.Create.OnBefore);
@@ -190,16 +196,16 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
                 resource.doBeforeEvents.push(ResourceEvents.Delete.On);
                 resource.doAfterEvents.push(ResourceEvents.Delete.OnAfter);
                 break;
-            case ResourceActionEnum.Search:
-                resource.doBeforeEvents.push(ResourceEvents.Search.OnBefore);
-                resource.doBeforeEvents.push(ResourceEvents.Search.On);
-                resource.doAfterEvents.push(ResourceEvents.Search.OnAfter);
-                break;
-            case ResourceActionEnum.MediaSearch:
-                resource.doBeforeEvents.push(ResourceEvents.MediaSearch.OnBefore);
-                resource.doBeforeEvents.push(ResourceEvents.MediaSearch.On);
-                resource.doAfterEvents.push(ResourceEvents.MediaSearch.OnAfter);
-                break;
+            // case ResourceActionEnum.Search:
+            //     resource.doBeforeEvents.push(ResourceEvents.Search.OnBefore);
+            //     resource.doBeforeEvents.push(ResourceEvents.Search.On);
+            //     resource.doAfterEvents.push(ResourceEvents.Search.OnAfter);
+            //     break;
+            // case ResourceActionEnum.MediaSearch:
+            //     resource.doBeforeEvents.push(ResourceEvents.MediaSearch.OnBefore);
+            //     resource.doBeforeEvents.push(ResourceEvents.MediaSearch.On);
+            //     resource.doAfterEvents.push(ResourceEvents.MediaSearch.OnAfter);
+            //     break;
             default: 
                 throw new MethodNotAllowedError(`Resource '${this.name}' does not support action '${resource.action}'`);
         }
@@ -209,21 +215,21 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
         resource.doAfterEvents.push(ResourceEvents.Resource.OnAfter);
     }
 
-    protected async loopEvents(context: IHttpContext, event: ResourceEvent<any>, actions: EventRegisterType[]): Promise<void> {
+    protected async loopEvents(context: HttpContext, event: ResourceEvent<any>, actions: EventRegisterType[]): Promise<void> {
         // Perform the before events.
         for(const _action of actions) {
             if(!event.cancled) await this.emitResourceEvent(context, event, _action);
         }
     }
 
-    protected async _doRequest(context: IHttpContext): Promise<void> {
+    protected async _doRequest(context: HttpContext): Promise<void> {
         const _resource = context.getValue<IResourceContext>(this.resourceKey);
         // Perform the before events.
         await this.loopEvents(context, _resource.event, _resource.doBeforeEvents);
         context.response.send(_resource.instance);
     }
 
-    protected async _afterDoRequest(context: IHttpContext): Promise<void> {
+    protected async _afterDoRequest(context: HttpContext): Promise<void> {
         const _resource = context.getValue<IResourceContext>(this.resourceKey);
         // Perform the before events.
         await this.loopEvents(context, _resource.event, _resource.doAfterEvents);
@@ -249,4 +255,3 @@ export class ResourceNodeFactory extends AbstractNodeFactoryChain<IResourceOptio
         return {top: ResourceNode.create((target.node as ClassType))};
     }
 }
-

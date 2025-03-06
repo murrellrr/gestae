@@ -34,6 +34,7 @@ export interface IHttpResponse {
     get http(): http.ServerResponse;
     get code(): number;
     get body(): object;
+    get failed(): boolean;
     send(msg: object, code?:number): void;
     error(error: GestaeError): void;
     setHeader(key: string, value: string): void;
@@ -46,9 +47,10 @@ export interface IHttpResponse {
  * @copyright 2024 KRI, LLC
  */
 export class HttpResponse implements IHttpResponse {
-    private readonly _response: http.ServerResponse;
-    public           body: object = {};
-    public           code: number = 200;
+    private         _failed: boolean = false;
+    public readonly _response: http.ServerResponse;
+    public          body: object = {};
+    public          code: number = 200;
 
     constructor(response: http.ServerResponse) {
         this._response = response;
@@ -62,6 +64,10 @@ export class HttpResponse implements IHttpResponse {
         return this._response.statusCode;
     }
 
+    get failed(): boolean {
+        return this._failed;
+    }
+
     setHeader(key: string, value: number | string | readonly string[]): void {
         this._response.setHeader(key, value);
     }
@@ -71,11 +77,14 @@ export class HttpResponse implements IHttpResponse {
     }
 
     send(body: object, code:number = 200): void {
-        this.code = code;
-        this.body = body;
+        if(!this._failed) {
+            this.code = code;
+            this.body = body;
+        }
     }
 
     error(error: GestaeError) {
+        this._failed = true;
         this.code = error.code;
         this.body = error.safe();
     }

@@ -69,7 +69,7 @@ export interface IApplicationContext extends IContext {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class DefaultApplicationContext extends AbstractContext implements IApplicationContext {
+export class ApplicationContext extends AbstractContext implements IApplicationContext {
     public    readonly properties: IProperties;
     public    readonly log:        ILogger;
     private   readonly events:     AsyncEventEmitter;
@@ -92,7 +92,7 @@ export class DefaultApplicationContext extends AbstractContext implements IAppli
     }
 
     static create(log: ILogger, properties: IProperties, options: IApplicationContextOptions = {}) {
-        return new DefaultApplicationContext(log, properties, options);
+        return new ApplicationContext(log, properties, options);
     }
 }
 

@@ -25,14 +25,11 @@ import {
     EventRegisterType,
     HttpEvent, 
     IEventOptions, 
-    setEventConfig 
+    setEventMetadata 
 } from "./GestaeEvent";
 import { IHttpContext } from "./HttpContext";
 import { 
-    AbstractSearchResult, 
-    IResourceOptions, 
-    SearchRequest, 
-    SearchResponse 
+    IResourceOptions,
 } from "./Resource";
 
 /**
@@ -118,24 +115,11 @@ export class ResourceEvent<T> extends HttpEvent<T> {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class SearchEvent<R extends AbstractSearchResult> extends ResourceEvent<SearchResponse<R>> {
-    public readonly request: SearchRequest;
-    constructor(context: IHttpContext, resource: IResourceNode, data?: SearchResponse<R>) {
-        super(context, resource, data);
-        this.request = SearchRequest.create(context.request);
-    }
-}
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
 export function OnResourceEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: ResourceEvent<I>) => void>) {
         options.dataAsTarget = options.dataAsTarget ?? true;
-        setEventConfig(target, event, property, options);
+        setEventMetadata(target, event, property, options);
     };
 } // Cant be constant because it is used as a decorator.
 
@@ -148,6 +132,6 @@ export function OnAsyncResourceEvent<I>(event: EventRegisterType, options: IEven
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: ResourceEvent<I>) => Promise<void>>) {
         options.dataAsTarget = options.dataAsTarget ?? true;
-        setEventConfig(target, event, property, options);
+        setEventMetadata(target, event, property, options);
     };
 } // Cant be constant because it is used as a decorator.

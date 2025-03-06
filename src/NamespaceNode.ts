@@ -36,7 +36,7 @@ import {
 import { NodeTemplate } from "./NodeTemplate";
 import { AbstractTaskableNode } from "./TaskNode";
 import _ from "lodash";
-import { IHttpContext } from "./HttpContext";
+import { HttpContext } from "./HttpContext";
 import { 
     INamespaceOptions, 
     NAMESPACE_OPTION_KEY 
@@ -68,21 +68,21 @@ export class NamespaceNode extends AbstractTaskableNode<INamespaceOptions> imple
         return this.instance as T;
     }
 
-    protected async _beforeDoRequest(context: IHttpContext): Promise<void> {
+    protected async _beforeDoRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
         _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.OnBefore)}`;
         context.log.debug(`Emitting event '${_event.path}'.`);
         await this.emitEvent(context, _event, this.instance);
     }
 
-    protected async _doRequest(context: IHttpContext): Promise<void> {
+    protected async _doRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
         _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.On)}`;
         context.log.debug(`Emitting event '${_event.path}'.`);
         await this.emitEvent(context, _event, this.instance);
     }
 
-    protected async _afterDoRequest(context: IHttpContext): Promise<void> {
+    protected async _afterDoRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
         _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.OnAfter)}`;
         context.log.debug(`Emitting event '${_event.path}'.`);

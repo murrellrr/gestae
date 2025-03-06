@@ -159,7 +159,7 @@ export const formatEvent = (event: EventRegisterType): string => {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const setEventConfig = (target: any, event: EventRegisterType, property: string, options: IEventOptions = {}): void => {
+export const setEventMetadata = (target: any, event: EventRegisterType, property: string, options: IEventOptions = {}): void => {
     let _namesapce = formatEvent(event);
     let _config: Record<string, any> = getsertMetadata(target, EVENT_OPTIONS_KEY);
 
@@ -225,7 +225,7 @@ export class EventFeatureFactory extends AbstractFeatureFactoryChain<AbstractNod
  */
 export function OnEvent(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, descriptor: PropertyDescriptor) {
-        setEventConfig(target, event, property, options);
+        setEventMetadata(target, event, property, options);
     };
 } // Cant be constant because it is used as a decorator.
 
@@ -237,7 +237,7 @@ export function OnEvent(event: EventRegisterType, options: IEventOptions = {}) {
 export function OnApplicationEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: ApplicationEvent<E>) => void>) {
-        setEventConfig(target, event, property, options);
+        setEventMetadata(target, event, property, options);
     };
 } // Cant be constant because it is used as a decorator.
 
@@ -249,7 +249,7 @@ export function OnApplicationEvent<E>(event: EventRegisterType, options: IEventO
 export function OnAsyncApplicationEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: ApplicationEvent<E>) => Promise<void>>) {
-        setEventConfig(target, event, property, options);
+        setEventMetadata(target, event, property, options);
     };
 } // Cant be constant because it is used as a decorator.
 
@@ -261,7 +261,7 @@ export function OnAsyncApplicationEvent<E>(event: EventRegisterType, options: IE
 export function OnHttpEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: HttpEvent<E>) => void>) {
-        setEventConfig(target, event, property, options);
+        setEventMetadata(target, event, property, options);
     };
 } // Cant be constant because it is used as a decorator.
 
@@ -273,6 +273,6 @@ export function OnHttpEvent<E>(event: EventRegisterType, options: IEventOptions 
 export function OnAsyncHttpEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: HttpEvent<E>) => Promise<void>>) {
-        setEventConfig(target, event, property, options);
+        setEventMetadata(target, event, property, options);
     };
 } // Cant be constant because it is used as a decorator.

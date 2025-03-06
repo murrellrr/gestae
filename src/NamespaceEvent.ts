@@ -25,7 +25,7 @@ import {
     EventRegisterType, 
     HttpEvent, 
     IEventOptions, 
-    setEventConfig 
+    setEventMetadata 
 } from "./GestaeEvent";
 
 /**
@@ -72,7 +72,7 @@ export class NamespaceEvent extends HttpEvent<INamesapceNode> {
 export function OnNamespaceEvent(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: NamespaceEvent) => void>) {
-        setEventConfig(target, event, property, options);
+        setEventMetadata(target, event, property, options);
     };
 } // Cant be constant because it is used as a decorator.
 
@@ -84,6 +84,6 @@ export function OnNamespaceEvent(event: EventRegisterType, options: IEventOption
 export function OnAsyncNamespaceEvent(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: NamespaceEvent) => Promise<void>>) {
-        setEventConfig(target, event, property, options);
+        setEventMetadata(target, event, property, options);
     };
 } // Cant be constant because it is used as a decorator.

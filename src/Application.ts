@@ -21,7 +21,7 @@
  */
 
 import { 
-    DefaultApplicationContext,
+    ApplicationContext,
     IApplicationContext, 
     InitializationContext
 } from "./ApplicationContext";
@@ -63,7 +63,7 @@ import { AbstractNodeFactoryChain } from "./AbstractNodeFactoryChain";
 import http from "node:http";
 import { 
     AbstractHttpRequestHandler, 
-    DefaultHttpRequestHandler 
+    HttpRequestHandler 
 } from "./HttpRequestHandler";
 
 /**
@@ -140,13 +140,6 @@ export type FeatureChainFactoryType = (context: IApplicationContext) => Abstract
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type RequestHandlerFactoryType = (context: IApplicationContext, root: AbstractNode<any>) => AbstractHttpRequestHandler;
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
 export interface IApplicationOptions extends IOptions {
     name?:                string;
     port?:                number;
@@ -171,10 +164,10 @@ export class Application {
     protected          _server:      http.Server | undefined;
     protected readonly _template:    NodeTemplate;
     protected          _root:        AbstractNode<any> | undefined;
-    protected readonly context:      IApplicationContext;
+    protected readonly _context:     ApplicationContext;
+    protected readonly _properties:  Properties; 
     public    readonly options:      IApplicationOptions;
     public    readonly log:          ILogger;
-    public    readonly properties:   Properties; 
     
     constructor(options: IApplicationOptions = {}) {
         this.options = options;
@@ -194,10 +187,10 @@ export class Application {
         // Properties.
         options.propertyFactory = options.propertyFactory ?? BaseProperties.create;
         options.properties = options.properties ?? {cache: false};
-        this.properties = options.propertyFactory(options.properties);                                   
+        this._properties = options.propertyFactory(options.properties);                                   
 
         // Context.
-        this.context = DefaultApplicationContext.create(this.log, this.properties, options);
+        this._context = ApplicationContext.create(this.log, this._properties, options);
         options.nodeChainFactory = options.nodeChainFactory ?? 
                                     ((context: IApplicationContext): AbstractNodeFactoryChain<any, any> => 
                                          new NamespaceNodeFactory(context, 
@@ -210,9 +203,6 @@ export class Application {
         // Application Root.
         options.root = options.root ?? DEFAULT_ROOT;
         this._template = NodeTemplate.create(options.root);
-
-        // HTTP Request Processor.
-        options.requestHandlerFactory = options.requestHandlerFactory ?? DefaultHttpRequestHandler.create;
     }
 
     get root(): INode | undefined {
@@ -229,6 +219,10 @@ export class Application {
 
     get server(): http.Server | undefined {
         return this._server;
+    }
+
+    get context(): IApplicationContext {
+        return this._context;
     }
 
     addTemplate(template: NodeTemplateType, bindings?: Record<string, any>): INodeTemplate {
@@ -269,7 +263,7 @@ export class Application {
 
     private async _start(): Promise<void> {
         const _this = this;
-        const _handler = this.options.requestHandlerFactory!(this.context, this._root!);
+        const _handler = HttpRequestHandler.create(this._context, this._root!);
         this._server = http.createServer(async (req, res) => {
             await _handler.handleRequest(req, res);
         });

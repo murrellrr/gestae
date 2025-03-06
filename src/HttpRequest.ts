@@ -26,6 +26,7 @@ import {
     HttpMethodEnum 
 } from "./Gestae";
 import http from "node:http";
+import { SearchParams } from "./SearchParams";
 
 /**
  * @author Robert R Murrell
@@ -51,7 +52,7 @@ export class URITree {
 
     get next(): string | undefined {
         if(!this.hasNext) return undefined;
-        this._node = this._nodes[++this._index] ?? null;
+        this._node = this._nodes[++this._index] ?? undefined;
         return this._node;
     }
 
@@ -85,15 +86,11 @@ export interface IHttpRequest {
     get url(): URL;
     get uri(): URITree;
     get http(): http.IncomingMessage;
-    get query(): Map<string, string>;
     get method(): HttpMethodEnum;
-    get canceled(): boolean;
-    get cause(): any;
-    getQuery(key: string, defaultValue?:string | undefined): string | undefined;
-    hasQueries(): boolean;
+    get searchParams(): SearchParams;
     getHeader(key: string, defaultValue?: HeaderValue): HeaderValue;
     isMethod(method: HttpMethodEnum): boolean;
-    cancel(cause?: any): void;
+    
     get isCreate(): boolean;
     get isRead(): boolean;  
     get isUpdate(): boolean;  
@@ -108,40 +105,23 @@ export interface IHttpRequest {
  * @copyright 2024 KRI, LLC
  */
 export class HttpRequest implements IHttpRequest{
-    private readonly _request:  http.IncomingMessage;
-    private readonly _cookies:  Record<string, Cookie> = {};
-    private          _canceled: boolean = false;
-    private          _cause:    any;
-    private          _method:   HttpMethodEnum = HttpMethodEnum.UNSUPPORTED;
-    public  readonly url:       URL;
-    public  readonly uri:       URITree;
-    public  readonly query:     Map<string, string> = new Map();
+    public readonly  _request:     http.IncomingMessage;
+    public readonly  _cookies:     Record<string, Cookie> = {};
+    public           _method:      HttpMethodEnum = HttpMethodEnum.UNSUPPORTED;
+    public  readonly searchParams: SearchParams;
+    public  readonly url:          URL;
+    public  readonly uri:          URITree;
 
     constructor(request: http.IncomingMessage) {
-        this._request = request;
-        
-        this.url = new URL(request.url ?? "", `http://${request.headers.host}`);
-        this.uri = new URITree(this.url.pathname);
-
-        this._parseQueries();
+        this._request     = request;
+        this.url          = new URL(request.url ?? "", `http://${request.headers.host}`);
+        this.uri          = new URITree(this.url.pathname);
+        this.searchParams = new SearchParams(this.url);
         this._parseCookies();
         this._parseMethod();
     }
 
-    cancel(cause?: any): void {
-        if(!this._canceled) {
-            this._canceled = true;
-            this._cause = cause;
-        }
-    }
-
-    get canceled(): boolean {
-        return this._canceled;
-    }
-
-    get cause(): any {
-        return this._cause;
-    }
+    
 
     private _parseMethod() {
         if(!this._request.method) return;
@@ -170,13 +150,6 @@ export class HttpRequest implements IHttpRequest{
                 break;
             default: this._method = HttpMethodEnum.UNSUPPORTED;
         }
-    }
-
-    private _parseQueries() {
-        // set the query params
-        this.url.searchParams.forEach((value, key) => {
-            this.query.set(key, value);
-        });
     }
 
     private _parseCookies() {
@@ -214,7 +187,7 @@ export class HttpRequest implements IHttpRequest{
     }
 
     get isRead(): boolean {
-        return this.isMethod(HttpMethodEnum.GET) && !this.hasQueries();
+        return this.isMethod(HttpMethodEnum.GET) && !this.searchParams.hasParams;
     }   
 
     get isUpdate(): boolean {
@@ -226,19 +199,11 @@ export class HttpRequest implements IHttpRequest{
     }
 
     get isFind(): boolean {
-        return this.isMethod(HttpMethodEnum.GET) && this.hasQueries();
+        return this.isMethod(HttpMethodEnum.GET) && this.searchParams.hasParams;
     }
 
     get isPatch(): boolean {
         return this.isMethod(HttpMethodEnum.PATCH);
-    }
-
-    hasQueries(): boolean {
-        return this.query.size > 0;
-    }
-
-    getQuery(key: string, defaultValue?:string | undefined): string | undefined {
-        return this.query.get(key) ?? defaultValue;
     }
 
     getHeader(key: string, defaultValue?: HeaderValue): HeaderValue {
@@ -246,6 +211,6 @@ export class HttpRequest implements IHttpRequest{
     }
 
     getCookie(key: string, defaultValue?: Cookie | undefined): Cookie | undefined {
-        return undefined
+        return undefined; // TODO: Implement cookie retrieval.
     }
 }

@@ -20,18 +20,18 @@
  *  THE SOFTWARE.
  */
 
-import { IApplicationContext } from "./ApplicationContext";
+import { ApplicationContext } from "./ApplicationContext";
 import { HttpMethodEnum } from "./Gestae";
 import { 
+    CancelError,
     GestaeError, 
     MethodNotAllowedError 
 } from "./GestaeError";
 import { 
-    DefaultHttpContext,
-    IHttpContext
+    HttpContext,
 } from "./HttpContext";
-import { IHttpRequest, HttpRequest } from "./HttpRequest";
-import { IHttpResponse, HttpResponse } from "./HttpResponse";
+import { HttpRequest } from "./HttpRequest";
+import { HttpResponse } from "./HttpResponse";
 import { AbstractNode } from "./Node";
 import http from "node:http";
 
@@ -42,15 +42,15 @@ import http from "node:http";
  */
 export abstract class AbstractHttpRequestHandler {
     constructor(
-        public readonly context: IApplicationContext,
+        public readonly context: ApplicationContext,
         public readonly root:    AbstractNode<any>
     ) {}
 
-    protected abstract createHttpContext(req: IHttpRequest, res: IHttpResponse): IHttpContext;
+    protected abstract createHttpContext(req: HttpRequest, res: HttpResponse): HttpContext;
 
-    protected abstract handleError(httpc: IHttpContext, error?: any): Promise<void>;
+    protected abstract handleError(httpc: HttpContext, error?: any): Promise<void>;
 
-    protected abstract processRequest(httpc: IHttpContext): Promise<void>;
+    protected abstract processRequest(httpc: HttpContext): Promise<void>;
 
     async handleRequest(req: http.IncomingMessage, 
                         res: http.ServerResponse): Promise<void> {
@@ -63,7 +63,7 @@ export abstract class AbstractHttpRequestHandler {
             await this.processRequest(_https);
         }
         catch(error) {
-            await this.handleError(_https);
+            await this.handleError(_https, error);
         }
         finally {
             _res.write();
@@ -71,25 +71,26 @@ export abstract class AbstractHttpRequestHandler {
     }
 }
 
-export class DefaultHttpRequestHandler extends AbstractHttpRequestHandler {
+export class HttpRequestHandler extends AbstractHttpRequestHandler {
 
-    createHttpContext(req: IHttpRequest, res: IHttpResponse): IHttpContext {
-        return DefaultHttpContext.create(this.context, req, res);
+    createHttpContext(req: HttpRequest, res: HttpResponse): HttpContext {
+        return HttpContext.create(this.context, req, res);
     }
 
-    protected async handleError(httpc: IHttpContext, error?: any): Promise<void> {
+    protected async handleError(httpc: HttpContext, error?: any): Promise<void> {
         const _error = GestaeError.toError(error);
         httpc.log.error(`Error processing ${httpc.request.method} request ${httpc.request.url}:`);
-        httpc.log.error(JSON.stringify(_error, null, 2));
+        httpc.log.error(`\r\n${JSON.stringify(error, null, 2)}`);
         httpc.response.error(_error);
     }
 
-    protected async processRequest(httpc: IHttpContext): Promise<void> {
+    protected async processRequest(httpc: HttpContext): Promise<void> {
         if(httpc.request.method === HttpMethodEnum.UNSUPPORTED)
-            this.handleError(httpc, new MethodNotAllowedError(httpc.request.method));
+            throw new MethodNotAllowedError(httpc.request.method);
         else {
             await this.root.doRequest(httpc);
-            if(httpc.request.canceled) this.handleError(httpc, httpc.request.cause);
+            if(httpc.canceled) 
+                throw new CancelError(httpc.reason);
             else {
                 httpc.log.info(`Request processed with response code ${httpc.response.code}.`);
                 if(this.context.log.level === "debug")
@@ -98,7 +99,7 @@ export class DefaultHttpRequestHandler extends AbstractHttpRequestHandler {
         }
     }
 
-    static create(context: IApplicationContext, root: AbstractNode<any>): AbstractHttpRequestHandler {
-        return new DefaultHttpRequestHandler(context, root);
+    static create(context: ApplicationContext, root: AbstractNode<any>): AbstractHttpRequestHandler {
+        return new HttpRequestHandler(context, root);
     }
 }

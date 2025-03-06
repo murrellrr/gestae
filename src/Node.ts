@@ -22,9 +22,9 @@
 
 import { InitializationContext } from "./ApplicationContext";
 import { IOptions } from "./Gestae";
-import { GestaeError, NotFoundError } from "./GestaeError";
+import { CancelError, GestaeError, NotFoundError } from "./GestaeError";
 import { GestaeEvent } from "./GestaeEvent";
-import { IHttpContext } from "./HttpContext";
+import { HttpContext } from "./HttpContext";
 
 /**
  * @author Robert R Murrell
@@ -58,14 +58,15 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
     protected readonly options:   O;
     protected          parent?:   AbstractNode<any>;
     protected          uri:       string = "";
+    protected readonly _name:     string;
 
     constructor(options?: O) {
         this.options = (options ?? {}) as O;
-        this.options.name = this.options.name?.toLowerCase() ?? this.constructor.name.toLowerCase();
+        this._name = this.options.name?.toLowerCase() ?? this.constructor.name.toLowerCase();
     }
 
     get name(): string {
-        return this.options.name!;
+        return this._name;
     }
 
     get parentNode(): INode | undefined {
@@ -148,63 +149,61 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
         context.log.debug(`${this.constructor.name} '${this.name}' initialized on path '${this.fullyQualifiedPath}'.`);
     }
 
-    protected async emitEvent(context: IHttpContext, event: GestaeEvent<any>, instance?: object) {
+    protected async emitEvent(context: HttpContext, event: GestaeEvent<any>, instance?: object) {
         await context.applicationContext.eventEmitter.emit(event);
         if(event.cancled)
-            context.request.cancel(event.cause);
+            context.cancel(event.cause);
     }
 
-    protected async _beforeDoRequest(context: IHttpContext): Promise<void> {
+    protected async _beforeDoRequest(context: HttpContext): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     };
 
-    protected async _doRequest(context: IHttpContext): Promise<void> {
+    protected async _doRequest(context: HttpContext): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     };
 
-    protected async _afterDoRequest(context: IHttpContext): Promise<void> {
+    protected async _afterDoRequest(context: HttpContext): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     };
 
-    protected async _doError(context: IHttpContext): Promise<void> {
+    protected async _doError(context: HttpContext, error: GestaeError): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     }
 
-    public async doRequest(context: IHttpContext): Promise<void> {
+    public async doRequest(context: HttpContext): Promise<void> {
         let _nodeName = context.request.uri.node;
         // defensive coding.
         if(this.name !== _nodeName) // Check to see if we are the node.
             throw new NotFoundError(`The requested resource '${this.name}' was not found from path ${context.request.url}.`);
+
+        context._currentNode = this; // set us as the current node.
         
         await this._beforeDoRequest(context);
-
-        // Checking to see if we have been canceled.
-        if(!context.request.canceled)
-            await this._doRequest(context);
-        else 
-            context.log.warn(`Request was canceled, skipping _doRequest.`);
+        if(context.canceled) throw new CancelError(context.reason);
         
-        try {
-            if(!context.request.canceled) {
-                if(!context.request.uri.target && context.request.uri.hasNext) {
-                    // We need to continue processing children
-                    let _next = context.request.uri.next;
-                    const _child = this.children.get(_next!); // validated above.
-                    if(!_child)
-                        throw new NotFoundError(_next, `The requested resource '${_next}' was not found from path ${context.request.url}.`);
-                    await _child.doRequest(context);
-                }
-                else if(!this.endpoint)
-                    throw new NotFoundError(this.name, `The ${this.constructor.name} '${this.name}' is not an endpoint.`);
-            }
-            else 
-                context.log.warn(`Request was canceled, skipping child doRequest.`);
+        if(!context.leapt(this.uri)) {
+            await this._doRequest(context);
+            if(context.canceled) throw new CancelError(context.reason);
         }
-        catch(error) {
-            const _error = GestaeError.toError(error);
-            
+        else 
+            context.log.debug(`Leap-frogging from ${this.name} on ${this.uri} to ${context.request.uri.peek}.`);
+        
+        if(!context.request.uri.target && context.request.uri.hasNext) {
+            // We need to continue processing children
+            let _next = context.request.uri.next;
+            const _child = this.children.get(_next!); // validated above.
+            if(!_child)
+                throw new NotFoundError(_next, `The requested resource '${_next}' was not found from path ${context.request.url}.`);
+            await _child.doRequest(context);
         }
-        finally {
+        else if(!this.endpoint)
+            throw new NotFoundError(this.name, `The ${this.constructor.name} '${this.name}' is not an endpoint.`);
+
+        if(context.canceled) throw new CancelError(context.reason);
+
+        if(!context.canceled) {
+            context._currentNode = this; // set us as the current node.
             await this._afterDoRequest(context);
         }
     }

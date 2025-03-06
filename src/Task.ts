@@ -25,7 +25,7 @@ import {
     getsertMetadata 
 } from "./Gestae";
 import { GestaeError } from "./GestaeError";
-import { IHttpContext } from "./HttpContext";
+import { HttpContext } from "./HttpContext";
 import { ITaskOptions } from "./TaskEvent";
 
 export const TASK_OPTION_KEY = "gestaejs:task";
@@ -46,7 +46,7 @@ type InferReturnType<R> = R extends undefined ? void : R;
  */
 export const setTaskMetadata = <T extends Object>(target: T, property: string, options: ITaskOptions = {}): void => {
     let _taskName = options.name?.toLowerCase() ?? property.toLowerCase();
-    let _target   = getsertMetadata(target, TASK_OPTION_KEY, {});
+    let _target   = getsertMetadata(target, TASK_OPTION_KEY);
 
     let _task = _target[_taskName];
     if(!_task) {
@@ -63,15 +63,15 @@ export const setTaskMetadata = <T extends Object>(target: T, property: string, o
 };
 
 /**
- * @description Generic `@Task` decorator for synchronous functions.
+ * @description `@Task` decorator for synchronous functions.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
 export function Task<I, R = void>(options: ITaskOptions = {}) {
-    options.dataAsTarget = options.dataAsTarget ?? true;
+                                  options.dataAsTarget = options.dataAsTarget ?? true;
     return function <T extends Object>(target: T, property: string,
-                                       descriptor: TypedPropertyDescriptor<(firstArg: I, context: IHttpContext) => InferReturnType<R>>) {
+                                       descriptor: TypedPropertyDescriptor<(firstArg: I, context: HttpContext) => InferReturnType<R>>) {
         const originalMethod = descriptor.value;
         if (!originalMethod) return;
 
@@ -82,7 +82,7 @@ export function Task<I, R = void>(options: ITaskOptions = {}) {
         const FirstArgType = paramTypes[0];
         const ContextType = paramTypes[1];
 
-        descriptor.value = function (firstArg: I, context: IHttpContext) {
+        descriptor.value = function (firstArg: I, context: HttpContext) {
             if(!(firstArg instanceof FirstArgType))
                 throw GestaeError.toError(
                     `@Task method '${property}' expected first argument of type ${FirstArgType.name}, but received ${typeof firstArg}`
@@ -115,7 +115,7 @@ export function Task<I, R = void>(options: ITaskOptions = {}) {
 export function AsyncTask<I, R = void>(options: ITaskOptions = {}) {
     options.dataAsTarget = options.dataAsTarget ?? true;
     return function <T extends Object>(target: T, property: string,
-                                       descriptor: TypedPropertyDescriptor<(firstArg: I, context: IHttpContext) => Promise<InferReturnType<R>>>) {
+                                       descriptor: TypedPropertyDescriptor<(firstArg: I, context: HttpContext) => Promise<InferReturnType<R>>>) {
         const originalMethod = descriptor.value;
         if (!originalMethod) return;
 
@@ -128,7 +128,7 @@ export function AsyncTask<I, R = void>(options: ITaskOptions = {}) {
         const FirstArgType = paramTypes[0];
         const ContextType = paramTypes[1];
 
-        descriptor.value = async function (firstArg: I, context: IHttpContext) {
+        descriptor.value = async function (firstArg: I, context: HttpContext) {
             if (!(firstArg instanceof FirstArgType))
                 throw GestaeError.toError(
                     `@AsyncTask method '${property}' expected first argument of type ${FirstArgType.name}, but received ${typeof firstArg}`
