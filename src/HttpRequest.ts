@@ -27,6 +27,9 @@ import {
 } from "./Gestae";
 import http from "node:http";
 import { SearchParams } from "./SearchParams";
+import { HttpRequestBody, JSONRequestBody } from "./HttpBody";
+
+const DEFAULT_CONTENT_TYPE_HEADER = "content-type";
 
 /**
  * @author Robert R Murrell
@@ -45,17 +48,29 @@ export class URITree {
         this._node  = this._nodes.length > 0 ? this._nodes[this._index] : undefined;
     }
 
+    /**
+     * @description Gets the current node in the tree.
+     * @returns The current node in the tree or undefined if no more nodes exist.
+     */
     get node(): string | undefined {
         if(!this._node) return undefined;
         return this._node;
     }
 
+    /**
+     * @description Advanced the inde on the tree and returns the next node.
+     * @returns The next node in the tree or undefined if no more nodes exist.
+     */
     get next(): string | undefined {
         if(!this.hasNext) return undefined;
         this._node = this._nodes[++this._index] ?? undefined;
         return this._node;
     }
 
+    /**
+     * @description Looks at the next path node in the tree without advancing the index.
+     * @returns The next path node in the tree or undefined if no more nodes exist.
+     */
     get peek(): string | undefined {
         const _peekIndex = this._index + 1;
         if(_peekIndex < this._nodes.length)
@@ -63,10 +78,19 @@ export class URITree {
         return undefined; // No more nodes to return
     }
 
+    /**
+     * @description Determines if the current node is the target node in question be determining
+     *              if there are any remaining nodes on the tree.
+     * @returns True if the current node is the target node, false otherwise.
+     * @see URITree#hasNext
+     */
     get target(): boolean {
         return !this.hasNext;
     }
 
+    /**
+     * @description Resets the index of the tree to the root node.
+     */
     reset(): void {
         this._index = 0;
         this._node = this._nodes.length > 0 ? this._nodes[this._index] : undefined;
@@ -88,9 +112,10 @@ export interface IHttpRequest {
     get http(): http.IncomingMessage;
     get method(): HttpMethodEnum;
     get searchParams(): SearchParams;
+    getContentType(): string;
     getHeader(key: string, defaultValue?: HeaderValue): HeaderValue;
     isMethod(method: HttpMethodEnum): boolean;
-    
+    getBody(parser?:HttpRequestBody<any>): Promise<any>;
     get isCreate(): boolean;
     get isRead(): boolean;  
     get isUpdate(): boolean;  
@@ -107,48 +132,49 @@ export interface IHttpRequest {
 export class HttpRequest implements IHttpRequest{
     public readonly  _request:     http.IncomingMessage;
     public readonly  _cookies:     Record<string, Cookie> = {};
-    public           _method:      HttpMethodEnum = HttpMethodEnum.UNSUPPORTED;
+    public           _method:      HttpMethodEnum = HttpMethodEnum.Unsupported;
     public  readonly searchParams: SearchParams;
     public  readonly url:          URL;
     public  readonly uri:          URITree;
+
+    protected content: HttpRequestBody<any>;
 
     constructor(request: http.IncomingMessage) {
         this._request     = request;
         this.url          = new URL(request.url ?? "", `http://${request.headers.host}`);
         this.uri          = new URITree(this.url.pathname);
         this.searchParams = new SearchParams(this.url);
+        this.content      = new JSONRequestBody();
         this._parseCookies();
         this._parseMethod();
     }
-
-    
 
     private _parseMethod() {
         if(!this._request.method) return;
         const method = this._request.method.toLowerCase();
         switch(method) {
             case "get": 
-                this._method = HttpMethodEnum.GET; 
+                this._method = HttpMethodEnum.Get; 
                 break;
             case "post":
-                this._method = HttpMethodEnum.POST; 
+                this._method = HttpMethodEnum.Post; 
                 break;
             case "put":
-                this._method = HttpMethodEnum.PUT; 
+                this._method = HttpMethodEnum.Put; 
                 break;
             case "delete":
-                this._method = HttpMethodEnum.DELETE;
+                this._method = HttpMethodEnum.Delete;
                 break;
             case "patch":
-                this._method = HttpMethodEnum.PATCH;
+                this._method = HttpMethodEnum.Patch;
                 break;
             case "options":
-                this._method = HttpMethodEnum.OPTIONS;
+                this._method = HttpMethodEnum.Options;
                 break;
             case "head":
-                this._method = HttpMethodEnum.HEAD;
+                this._method = HttpMethodEnum.Head;
                 break;
-            default: this._method = HttpMethodEnum.UNSUPPORTED;
+            default: this._method = HttpMethodEnum.Unsupported;
         }
     }
 
@@ -174,6 +200,11 @@ export class HttpRequest implements IHttpRequest{
         return this._request;
     }
 
+    async getBody<T>(content?: HttpRequestBody<T>): Promise<T> {
+        const _content = content ?? this.content;
+        return _content.read(this._request);
+    }
+
     get method(): HttpMethodEnum {
         return this._method;
     }
@@ -183,27 +214,31 @@ export class HttpRequest implements IHttpRequest{
     }
 
     get isCreate(): boolean {
-        return this.isMethod(HttpMethodEnum.POST);
+        return this.isMethod(HttpMethodEnum.Post);
     }
 
     get isRead(): boolean {
-        return this.isMethod(HttpMethodEnum.GET) && !this.searchParams.hasParams;
+        return this.isMethod(HttpMethodEnum.Get) && !this.searchParams.hasParams;
     }   
 
     get isUpdate(): boolean {
-        return this.isMethod(HttpMethodEnum.PUT);
+        return this.isMethod(HttpMethodEnum.Put);
     }   
 
     get isDelete(): boolean {
-        return this.isMethod(HttpMethodEnum.DELETE);
+        return this.isMethod(HttpMethodEnum.Delete);
     }
 
     get isFind(): boolean {
-        return this.isMethod(HttpMethodEnum.GET) && this.searchParams.hasParams;
+        return this.isMethod(HttpMethodEnum.Get) && this.searchParams.hasParams;
     }
 
     get isPatch(): boolean {
-        return this.isMethod(HttpMethodEnum.PATCH);
+        return this.isMethod(HttpMethodEnum.Patch);
+    }
+
+    getContentType(): string {
+        return this.getHeader(DEFAULT_CONTENT_TYPE_HEADER) as string;
     }
 
     getHeader(key: string, defaultValue?: HeaderValue): HeaderValue {

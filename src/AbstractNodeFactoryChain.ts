@@ -23,7 +23,7 @@
 import { IApplicationContext } from "./ApplicationContext";
 import { GestaeError } from "./GestaeError";
 import { ILogger } from "./Logger";
-import { AbstractNode } from "./Node";
+import { AbstractNode, INodeOptions } from "./Node";
 import { NodeTemplate } from "./NodeTemplate";
 
 /**
@@ -31,7 +31,7 @@ import { NodeTemplate } from "./NodeTemplate";
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type FactoryReturnType<O extends Object, P extends AbstractNode<O>> = {
+export type FactoryReturnType<O extends INodeOptions, P extends AbstractNode<O>> = {
     top: P;
     bottom?: P;
 };
@@ -41,7 +41,7 @@ export type FactoryReturnType<O extends Object, P extends AbstractNode<O>> = {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export abstract class AbstractNodeFactoryChain<O extends Object, P extends AbstractNode<O>> {
+export abstract class AbstractNodeFactoryChain<O extends INodeOptions, P extends AbstractNode<O>> {
     protected          context: IApplicationContext;
     protected readonly log:     ILogger;
     private            link?:   AbstractNodeFactoryChain<any, any>;
@@ -59,13 +59,13 @@ export abstract class AbstractNodeFactoryChain<O extends Object, P extends Abstr
 
     abstract isNodeFactory(target: NodeTemplate): boolean;
 
-    abstract _create(target: NodeTemplate): FactoryReturnType<O, P>;
+    abstract onCreate(target: NodeTemplate): FactoryReturnType<O, P>;
 
     create(target: NodeTemplate): FactoryReturnType<O, P> {
         if(target.isNode)
             return {top: target.node as P};
         if(this.isNodeFactory(target)) 
-            return this._create(target);
+            return this.onCreate(target);
         else if(this.link) 
             return this.link.create(target);
         else 

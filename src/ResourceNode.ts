@@ -53,7 +53,7 @@ import {
     RESOURCE_OPTION_KEY, 
     IResourceOptions
 } from "./Resource";
-import { AbstractSearchableNode } from "./SearchNode";
+import { AbstractTaskableNode } from "./TaskNode";
 
 interface IResourceContext {
     id?:            string;
@@ -70,7 +70,7 @@ interface IResourceContext {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class ResourceNode extends AbstractSearchableNode<IResourceOptions> implements IResourceNode {
+export class ResourceNode extends AbstractTaskableNode<IResourceOptions> implements IResourceNode {
     protected readonly idProperty:       string;
     protected readonly lazyLoad:         boolean;
     protected readonly supportedActions: ResourceActionEnum[];
@@ -113,17 +113,17 @@ export class ResourceNode extends AbstractSearchableNode<IResourceOptions> imple
         let _action: ResourceActionEnum | undefined = undefined;
 
         switch(method) {
-            case HttpMethodEnum.GET: 
+            case HttpMethodEnum.Get: 
                 _action = (id)? ResourceActionEnum.Read : undefined;
                 break;
-            case HttpMethodEnum.PATCH:
-            case HttpMethodEnum.PUT: 
+            case HttpMethodEnum.Patch:
+            case HttpMethodEnum.Put: 
                 _action =  (target)? ResourceActionEnum.Update : ResourceActionEnum.Read;
                 break;
-            case HttpMethodEnum.POST:
+            case HttpMethodEnum.Post:
                 _action =  (target)? ResourceActionEnum.Create : ResourceActionEnum.Read;
                 break;
-            case HttpMethodEnum.DELETE: 
+            case HttpMethodEnum.Delete: 
                 _action =  ResourceActionEnum.Delete;
         }
 
@@ -142,7 +142,7 @@ export class ResourceNode extends AbstractSearchableNode<IResourceOptions> imple
         return _instance;
     }
 
-    protected async emitResourceEvent(context: HttpContext, event: ResourceEvent<any>, type: EventRegisterType): Promise<void> {
+    public async emitResourceEvent(context: HttpContext, event: ResourceEvent<any>, type: EventRegisterType): Promise<void> {
         event.data = context.resources.getResource(this.resourceKey);
         event.path = `${this.fullyQualifiedPath}:${formatEvent(type)}`;
         context.log.debug(`Emitting event '${event.path}'.`);
@@ -150,11 +150,7 @@ export class ResourceNode extends AbstractSearchableNode<IResourceOptions> imple
         context.resources.setResource(this.resourceKey, event.data);
     }
 
-    protected async _beforeDoRequest(context: HttpContext): Promise<void> {
-        super._beforeDoRequest(context); // Seeing if we skip ahead to search.
-        if(context.leapt(this.uri)) return;
-
-        // Was not a search request, so we need to process the resource.
+    public async beforeRequest(context: HttpContext): Promise<void> {
         const _id       = context.request.uri.next;
         const _action   = this.getSupportedAction(context.request.method, _id, context.request.uri.target);
         const _resource = {
@@ -196,16 +192,6 @@ export class ResourceNode extends AbstractSearchableNode<IResourceOptions> imple
                 resource.doBeforeEvents.push(ResourceEvents.Delete.On);
                 resource.doAfterEvents.push(ResourceEvents.Delete.OnAfter);
                 break;
-            // case ResourceActionEnum.Search:
-            //     resource.doBeforeEvents.push(ResourceEvents.Search.OnBefore);
-            //     resource.doBeforeEvents.push(ResourceEvents.Search.On);
-            //     resource.doAfterEvents.push(ResourceEvents.Search.OnAfter);
-            //     break;
-            // case ResourceActionEnum.MediaSearch:
-            //     resource.doBeforeEvents.push(ResourceEvents.MediaSearch.OnBefore);
-            //     resource.doBeforeEvents.push(ResourceEvents.MediaSearch.On);
-            //     resource.doAfterEvents.push(ResourceEvents.MediaSearch.OnAfter);
-            //     break;
             default: 
                 throw new MethodNotAllowedError(`Resource '${this.name}' does not support action '${resource.action}'`);
         }
@@ -222,14 +208,14 @@ export class ResourceNode extends AbstractSearchableNode<IResourceOptions> imple
         }
     }
 
-    protected async _doRequest(context: HttpContext): Promise<void> {
+    public async onRequest(context: HttpContext): Promise<void> {
         const _resource = context.getValue<IResourceContext>(this.resourceKey);
         // Perform the before events.
         await this.loopEvents(context, _resource.event, _resource.doBeforeEvents);
         context.response.send(_resource.instance);
     }
 
-    protected async _afterDoRequest(context: HttpContext): Promise<void> {
+    public async afterRequest(context: HttpContext): Promise<void> {
         const _resource = context.getValue<IResourceContext>(this.resourceKey);
         // Perform the before events.
         await this.loopEvents(context, _resource.event, _resource.doAfterEvents);
@@ -250,7 +236,7 @@ export class ResourceNodeFactory extends AbstractNodeFactoryChain<IResourceOptio
         return isClassConstructor(target.node) && hasMetadata(target.node, RESOURCE_OPTION_KEY);
     }
 
-    _create(target: NodeTemplate): FactoryReturnType<IResourceOptions, ResourceNode> {
+    onCreate(target: NodeTemplate): FactoryReturnType<IResourceOptions, ResourceNode> {
         this.log.debug(`Creating resource '${target.name}'`);
         return {top: ResourceNode.create((target.node as ClassType))};
     }

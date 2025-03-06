@@ -23,6 +23,7 @@
 import { GestaeError } from "./GestaeError";
 import { Cookie } from "./Gestae";
 import http from 'http';
+import { HttpResponseBody, JSONResponseBody } from "./HttpBody";
 
 /**
  * @author Robert R Murrell
@@ -47,13 +48,16 @@ export interface IHttpResponse {
  * @copyright 2024 KRI, LLC
  */
 export class HttpResponse implements IHttpResponse {
-    private         _failed: boolean = false;
+    private         _failed:   boolean = false;
     public readonly _response: http.ServerResponse;
-    public          body: object = {};
-    public          code: number = 200;
+    public          body:      any;
+    public          code:      number = 200;
 
-    constructor(response: http.ServerResponse) {
+    protected readonly content: HttpResponseBody<any>;
+
+    constructor(response: http.ServerResponse, content?: HttpResponseBody<any>) {
         this._response = response;
+        this.content = content ?? new JSONResponseBody();
     }
 
     get http(): http.ServerResponse {
@@ -76,23 +80,22 @@ export class HttpResponse implements IHttpResponse {
         //
     }
 
-    send(body: object, code:number = 200): void {
+    send(body: any, code:number = 200): void {
         if(!this._failed) {
             this.code = code;
             this.body = body;
         }
     }
 
-    error(error: GestaeError) {
+    error(error: any, code?:number) {
+        const _error = GestaeError.toError(error, code);
         this._failed = true;
-        this.code = error.code;
-        this.body = error.safe();
+        this.code = _error.code;
+        this.body = _error.safe();
     }
 
-    write() {
-        this._response.statusCode = this.code;
-        this._response.setHeader("Content-Type", "application/json");
-        this._response.write(JSON.stringify(this.body, null, 2));
-        this._response.end();
+    async write(content?: HttpResponseBody<any>): Promise<boolean> {
+        const _content = content ?? this.content;
+        return _content.write(this._response, this.body, this.code);
     }
 }

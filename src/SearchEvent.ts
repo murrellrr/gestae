@@ -25,13 +25,11 @@ import {
     IEventOptions, 
     setEventMetadata 
 } from "./GestaeEvent";
-import { 
-    AbstractSearchResult, 
-    SearchRequest 
-} from "./Resource";
 import { ResourceEvent } from "./ResourceEvent";
 import { 
-    ISearchOptions
+    AbstractSearchResult,
+    ISearchOptions,
+    SearchRequest
 } from "./Search";
 
 export interface ISearchEventOptions extends IEventOptions {

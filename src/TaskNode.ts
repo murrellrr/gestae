@@ -45,7 +45,7 @@ export class TaskNode extends AbstractNode<ITaskOptions> {
         super(options);
         options.name = options.name ?? this.constructor.name.toLowerCase();
         options.$asynchrounous = options.$asynchrounous ?? false;
-        options.requestMethod = options.requestMethod ?? HttpMethodEnum.POST;
+        options.requestMethod = options.requestMethod ?? HttpMethodEnum.Post;
     }
 
     get type(): string {
@@ -85,16 +85,16 @@ export abstract class AbstractTaskableNode<O extends INodeOptions> extends Abstr
      * @description
      * @param context 
      */
-    protected async _beforeInitialize(context: InitializationContext): Promise<void> {
+    public async beforeInitialize(context: InitializationContext): Promise<void> {
         const _target = this.getInstance();
         if(hasMetadata(_target, TASK_OPTION_KEY)) {
             context.log.debug(`'${_target.constructor.name}' is decorated with @Task(s), applying task node(s) to '${this.name}'.`);
-            const _config = getsertMetadata(_target, TASK_OPTION_KEY);
-            const _keys = Object.keys(_config);
+            const _metadata = getsertMetadata(_target, TASK_OPTION_KEY);
+            const _keys = Object.keys(_metadata);
             context.log.debug(`Creating ${_keys.length} task node(s)...`);
-            for(const _key in _config) {
-                if(_config.hasOwnProperty(_key)) {
-                    const _taskConfig = _config[_key];
+            for(const _key in _metadata) {
+                if(_metadata.hasOwnProperty(_key)) {
+                    const _taskConfig = _metadata[_key];
                     context.log.debug(`Creating task node '${_taskConfig.name}' and adding it to '${this.name}'.`);
                     const _task = new TaskNode(_taskConfig);
                     this.add(_task);

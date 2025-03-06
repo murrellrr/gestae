@@ -31,9 +31,9 @@ import { ILogger } from "./Logger";
  * @copyright 2024 KRI, LLC
  */
 export interface ListenerItem {
-    event: string | RegExp;
+    event:  string | RegExp;
     method: any;
-    once: boolean;
+    once:   boolean;
 }
 
 /**
@@ -51,8 +51,8 @@ export interface IAsyncEventEmitter {
  * @copyright 2024 KRI, LLC
  */
 export class AsyncEventEmitter implements IAsyncEventEmitter, IAsyncEventQueue {
-    private listeners: ListenerItem[] = [];
-    private readonly _logger: ILogger;
+    private          listeners: ListenerItem[] = [];
+    private readonly _logger:   ILogger;
 
     constructor(logger: ILogger) {
         this._logger = logger;

@@ -57,7 +57,7 @@ export const setTaskMetadata = <T extends Object>(target: T, property: string, o
     // set the task type info...
     _task.$method = options.$method ?? property;
     _task.name = _taskName;
-    _task.requestMethod = options.requestMethod ?? HttpMethodEnum.POST;
+    _task.requestMethod = options.requestMethod ?? HttpMethodEnum.Post;
     _task.$asynchrounous = options.$asynchrounous ?? false;
     _task.$overloads = options.$overloads ?? true;
 };
@@ -97,7 +97,7 @@ export function Task<I, R = void>(options: ITaskOptions = {}) {
         };
 
         options.name = options.name?.toLowerCase() ?? property.toLowerCase();
-        options.requestMethod = options.requestMethod ?? HttpMethodEnum.POST;
+        options.requestMethod = options.requestMethod ?? HttpMethodEnum.Post;
         options.$asynchrounous = false;
         options.$method = property;
         options.$overloads = options.$overloads ?? true;
@@ -150,7 +150,7 @@ export function AsyncTask<I, R = void>(options: ITaskOptions = {}) {
         };
 
         options.name = options.name?.toLowerCase() ?? property.toLowerCase();
-        options.requestMethod = options.requestMethod ?? HttpMethodEnum.POST;
+        options.requestMethod = options.requestMethod ?? HttpMethodEnum.Post;
         options.$asynchrounous = true;
         options.$method = property;
         options.$overloads = options.$overloads ?? true;

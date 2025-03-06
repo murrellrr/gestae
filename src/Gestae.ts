@@ -39,7 +39,7 @@ export const getGestaeMetadata = (): Record<string, any> => {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type ClassType = new (...args: any[]) => any;
+export type ClassType<T = {}> = new (...args: any[]) => T;
 
 /**
  * @author Robert R Murrell
@@ -64,14 +64,14 @@ export type HeaderValue = string[] | string | undefined;
  * @copyright 2024 KRI, LLC
  */
 export enum HttpMethodEnum {
-    GET         = "get",
-    POST        = "post",
-    PUT         = "put",
-    DELETE      = "delete",
-    PATCH       = "patch",
-    OPTIONS     = "options",
-    HEAD        = "head",
-    UNSUPPORTED = "unsupported"
+    Get         = "get",
+    Post        = "post",
+    Put         = "put",
+    Delete      = "delete",
+    Patch       = "patch",
+    Options     = "options",
+    Head        = "head",
+    Unsupported = "unsupported"
 }
 
 /**

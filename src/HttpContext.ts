@@ -34,6 +34,8 @@ import { HttpRequest, IHttpRequest } from "./HttpRequest";
 import { HttpResponse, IHttpResponse } from "./HttpResponse";
 import { AbstractNode, INode } from "./Node";
 
+const LEAP_PATH_PREFIX = `gestaejs:leap:`;
+
 /**
  * @description Interface used externally to Gestae to expose safely HttpContext.
  * @author Robert R Murrell
@@ -127,11 +129,11 @@ export class HttpContext extends AbstractContext implements IHttpContext {
      * @param path 
      */
     leap(path: string): void {
-        this.setValue(`gestaejs:leap:${path}`, true);
+        this.setValue(`${LEAP_PATH_PREFIX}${path}`, true);
     }
 
     leapt(path: string): boolean {
-        return this.getValue(`gestaejs:leap:${path}`);
+        return this.getValue(`${LEAP_PATH_PREFIX}${path}`);
     }
 
     static create(context: ApplicationContext, request: HttpRequest, response: HttpResponse): HttpContext {

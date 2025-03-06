@@ -122,7 +122,7 @@ export class SchemaFeatureFactory extends AbstractFeatureFactoryChain<AbstractNo
         return hasMetadata(target, SCHEMA_OPTION_KEY);
     }
 
-    _apply<T extends Object>(node: AbstractNode<any>, target: T): void {
+    onApply<T extends Object>(node: AbstractNode<any>, target: T): void {
         //deleteMetadata(node.model, SCHEMA_OPTION_KEY);
     }
 }

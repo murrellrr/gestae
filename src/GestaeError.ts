@@ -52,13 +52,13 @@ export class GestaeError extends Error {
         return {message: this.message, code: this._code};
     }
 
-    static toError(error?: any): GestaeError {
+    static toError(error?: any, code: number = 500): GestaeError {
         if(!error) return new InternalServerError();
         if(error instanceof GestaeError) return error;
-        if(error instanceof Error || typeof error === "string") return new InternalServerError(error);
-        if(typeof error === "number") return new GestaeError("Unhandled Error.", error);
+        if(error instanceof Error || typeof error === "string") return new GestaeError("Unhandled Error.", code, error);
+        if(typeof error === "number") return new GestaeError("Unhandled Error.", error ?? code);
         if(typeof error === "object")
-            return new GestaeError(error?.message ?? "Unhandled Error.", error?.code ?? 500, error);
+            return new GestaeError(error?.message ?? "Unhandled Error.", error?.code ?? code, error);
         return new InternalServerError();
     }
 }
@@ -118,7 +118,7 @@ export class ForbiddenError extends GestaeError {
  */
 export class NotFoundError extends GestaeError {
     constructor(path?:string, cause?: any) {
-        super(`${path ? path + " " : ""}Not Found.`, 404, cause);
+        super(`${path ? "'" + path + "' " : ""}Not Found.`, 404, cause);
         this.name = this.constructor.name;
     }
 }
@@ -167,6 +167,30 @@ export class RequestTimeoutError extends GestaeError {
 export class ConflictError extends GestaeError {
     constructor(cause?: any) {
         super("Conflict.", 409, cause);
+        this.name = this.constructor.name;
+    }
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export class RequestEntityTooLargeError extends GestaeError {
+    constructor(cause?: any) {
+        super("Request Entity Too Large.", 413, cause);
+        this.name = this.constructor.name;
+    }
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export class UnsupportedMediaTypeError extends GestaeError {
+    constructor(cause?: any) {
+        super("Unsupported Media Type.", 415, cause);
         this.name = this.constructor.name;
     }
 }

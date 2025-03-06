@@ -60,11 +60,18 @@ import {
     NodeTemplate 
 } from "./NodeTemplate";
 import { AbstractNodeFactoryChain } from "./AbstractNodeFactoryChain";
-import http from "node:http";
+
 import { 
-    AbstractHttpRequestHandler, 
     HttpRequestHandler 
 } from "./HttpRequestHandler";
+import { SearchableResourceFeatureFactory } from "./Search";
+import { 
+    HttpResponseBody, 
+    HttpRequestBody, 
+    JSONRequestBody,
+    JSONResponseBody
+} from "./HttpBody";
+import http from "node:http";
 
 /**
  * @description
@@ -74,9 +81,10 @@ import {
  */
 export const VERSION = "1.0.0";
 
-const DEFAULT_NAME = "app";
-const DEFAULT_PORT = 3000;
-const DEFAULT_ROOT = "/";
+const DEFAULT_NAME                = "app";
+const DEFAULT_PORT                = 3000;
+const DEFAULT_ROOT                = "/";
+const DEFAULT_MAX_REQUEST_SIZE_MB = 5;
 
 /**
  * @description
@@ -147,12 +155,16 @@ export interface IApplicationOptions extends IOptions {
     tls?:                 boolean;
     privateKeyPath?:      string;
     publicKeyPath?:       string;
+    maxRequestSizeMB?:    number;
     nodeChainFactory?:    NodeChainFactoryType;
     featureChainFactory?: FeatureChainFactoryType;
     logger?:              ILoggerOptions;
     loggerFactory?:       LoggerFactoryType;
     properties?:          IPropertyOptions;
-    propertyFactory?:     PropertyFactoryType;    
+    propertyFactory?:     PropertyFactoryType;
+    requestBody?:         HttpRequestBody<any>; 
+    responseBody?:        HttpResponseBody<any>;
+    maxJsonSizeMB?:       number;   
 }
 
 /**
@@ -178,11 +190,17 @@ export class Application {
         if(options.tls && (!options.privateKeyPath || !options.publicKeyPath))
             throw GestaeError.toError(`TLS is enabled but no key paths are provided. Please set privateKeyPath and publicKeyPath in options.`);
 
+        // Request
+        options.maxRequestSizeMB = options.maxRequestSizeMB ?? DEFAULT_MAX_REQUEST_SIZE_MB;
+        options.maxJsonSizeMB    = options.maxJsonSizeMB    ?? options.maxRequestSizeMB;
+        options.requestBody      = options.requestBody      ?? new JSONRequestBody(options.maxJsonSizeMB);
+        options.responseBody     = options.responseBody     ?? new JSONResponseBody();
+
         // Logger.
         options.loggerFactory = options.loggerFactory ?? DefaultLogger.create;
-        options.logger = options.logger ?? {name: options.name};
-        options.logger.name = options.logger.name ?? options.name;
-        this.log = options.loggerFactory(options.logger);
+        options.logger        = options.logger ?? {name: options.name};
+        options.logger.name   = options.logger.name ?? options.name;
+        this.log              = options.loggerFactory(options.logger);
 
         // Properties.
         options.propertyFactory = options.propertyFactory ?? BaseProperties.create;
@@ -191,6 +209,8 @@ export class Application {
 
         // Context.
         this._context = ApplicationContext.create(this.log, this._properties, options);
+
+        // Node factories and features.
         options.nodeChainFactory = options.nodeChainFactory ?? 
                                     ((context: IApplicationContext): AbstractNodeFactoryChain<any, any> => 
                                          new NamespaceNodeFactory(context, 
@@ -198,7 +218,8 @@ export class Application {
         options.featureChainFactory = options.featureChainFactory ?? 
                                    ((context: IApplicationContext): AbstractFeatureFactoryChain<any> => 
                                         new EventFeatureFactory(context,  
-                                            new SchemaFeatureFactory(context)));
+                                            new SchemaFeatureFactory(context, 
+                                                new SearchableResourceFeatureFactory(context))));
         
         // Application Root.
         options.root = options.root ?? DEFAULT_ROOT;
@@ -244,7 +265,7 @@ export class Application {
         return this;
     }
 
-    private async _initialize(): Promise<void> {
+    private async onInitialize(): Promise<void> {
         //this.log.warn(`Application '${JSON.stringify(getGestaeMetadata(), null, 2)}'`);
         this.log.debug(`Initializing application '${this.name}'...`);
         const _initContext: InitializationContext = 
@@ -261,9 +282,9 @@ export class Application {
         this.log.debug(`Application '${this.name}' initialized on root '${this._root.name}'.`);
     }
 
-    private async _start(): Promise<void> {
-        const _this = this;
-        const _handler = HttpRequestHandler.create(this._context, this._root!);
+    private async onStart(): Promise<void> {
+        const _handler = HttpRequestHandler.create(this._context, this._root!, 
+                                                   this.options.maxRequestSizeMB); // Setting up the request handler.
         this._server = http.createServer(async (req, res) => {
             await _handler.handleRequest(req, res);
         });
@@ -307,8 +328,8 @@ export class Application {
         console.log("THE SOFTWARE.");
         console.log();
         this.log.info(`Starting application '${this.name}'...`);
-        await this._initialize();
-        await this._start();
+        await this.onInitialize();
+        await this.onStart();
         this.log.info(`Application '${this.name}' started on port ${this.port}.`);
         return this;
     }

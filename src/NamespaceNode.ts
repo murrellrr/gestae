@@ -68,21 +68,21 @@ export class NamespaceNode extends AbstractTaskableNode<INamespaceOptions> imple
         return this.instance as T;
     }
 
-    protected async _beforeDoRequest(context: HttpContext): Promise<void> {
+    public async beforeRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
         _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.OnBefore)}`;
         context.log.debug(`Emitting event '${_event.path}'.`);
         await this.emitEvent(context, _event, this.instance);
     }
 
-    protected async _doRequest(context: HttpContext): Promise<void> {
+    public async onRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
         _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.On)}`;
         context.log.debug(`Emitting event '${_event.path}'.`);
         await this.emitEvent(context, _event, this.instance);
     }
 
-    protected async _afterDoRequest(context: HttpContext): Promise<void> {
+    public async afterRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
         _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.OnAfter)}`;
         context.log.debug(`Emitting event '${_event.path}'.`);
@@ -123,7 +123,7 @@ export class NamespaceNodeFactory extends AbstractNodeFactoryChain<INamespaceOpt
                (target.isClass && hasMetadata(target.node, NAMESPACE_OPTION_KEY));
     }
 
-    _create(target: NodeTemplate): FactoryReturnType<INamespaceOptions, NamespaceNode> {
+    onCreate(target: NodeTemplate): FactoryReturnType<INamespaceOptions, NamespaceNode> {
         this.log.debug(`Creating namespace '${target.name}'`);
         if(target.isString)
             return NamespaceNodeFactory.createFromString((target.node as string));

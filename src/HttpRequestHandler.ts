@@ -25,7 +25,8 @@ import { HttpMethodEnum } from "./Gestae";
 import { 
     CancelError,
     GestaeError, 
-    MethodNotAllowedError 
+    MethodNotAllowedError, 
+    RequestEntityTooLargeError
 } from "./GestaeError";
 import { 
     HttpContext,
@@ -35,16 +36,23 @@ import { HttpResponse } from "./HttpResponse";
 import { AbstractNode } from "./Node";
 import http from "node:http";
 
+const DEFAULT_MAX_REQUEST_SIZE_MB = 5;
+
 /**
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
 export abstract class AbstractHttpRequestHandler {
+    protected maxSize: number;
     constructor(
         public readonly context: ApplicationContext,
-        public readonly root:    AbstractNode<any>
-    ) {}
+        public readonly root:    AbstractNode<any>,
+        maxSizeMB?: number
+    ) {
+        this.maxSize = maxSizeMB ? maxSizeMB * 1024 * 1024 : 
+                                   DEFAULT_MAX_REQUEST_SIZE_MB * 1024 * 1024;
+    }
 
     protected abstract createHttpContext(req: HttpRequest, res: HttpResponse): HttpContext;
 
@@ -54,52 +62,78 @@ export abstract class AbstractHttpRequestHandler {
 
     async handleRequest(req: http.IncomingMessage, 
                         res: http.ServerResponse): Promise<void> {
+        // Add listener to enfource max request size.
+        let _totalLength   = 0;
+        let _limitExceeded = false;
+
+        // Monitor the incomming request to ensure it doesnt exceed the max size.
+        req.on("data", (chunk: Buffer | string) => {
+            // Determine the byte length of the chunk
+            const chunkSize = typeof chunk === "string" ? Buffer.byteLength(chunk, "utf8") : chunk.length;
+            _totalLength += chunkSize;
+            if(_totalLength > this.maxSize && !_limitExceeded) {
+                _limitExceeded = true;
+                // Exceeded maximum size: send error response and pause the request stream.
+                if(!res.headersSent) {
+                    const err = new RequestEntityTooLargeError("Request body exceeds maximum allowed size");
+                    res.writeHead(err.code, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify(err, null, 2));
+                }
+                req.pause();
+            }
+        });
+
+        // defensive coding.
+        if(_limitExceeded) return; // checking in case the stream was read before we get out of the event regoister.
+
         // handle the incomming request like a champ!
         const _req   = new HttpRequest(req);
         const _res   = new HttpResponse(res);
-        const _https = this.createHttpContext(_req, _res);
+        const _httpc = this.createHttpContext(_req, _res);
 
         try {
-            await this.processRequest(_https);
+            await this.processRequest(_httpc);
         }
         catch(error) {
-            await this.handleError(_https, error);
+            await this.handleError(_httpc, error);
         }
         finally {
-            _res.write();
+            if(await _res.write()) 
+                _httpc.log.debug("Response written to client.");
+            else 
+                _httpc.log.warn("Failed to write response to client.");
         }
     }
 }
 
 export class HttpRequestHandler extends AbstractHttpRequestHandler {
-
     createHttpContext(req: HttpRequest, res: HttpResponse): HttpContext {
         return HttpContext.create(this.context, req, res);
     }
 
     protected async handleError(httpc: HttpContext, error?: any): Promise<void> {
         const _error = GestaeError.toError(error);
-        httpc.log.error(`Error processing ${httpc.request.method} request ${httpc.request.url}:`);
-        httpc.log.error(`\r\n${JSON.stringify(error, null, 2)}`);
+        httpc.log.error(`Error processing ${httpc.request.method} request ${httpc.request.url}:\r\n${JSON.stringify(error, null, 2)}`);
         httpc.response.error(_error);
     }
 
     protected async processRequest(httpc: HttpContext): Promise<void> {
-        if(httpc.request.method === HttpMethodEnum.UNSUPPORTED)
+        if(httpc.request.method === HttpMethodEnum.Unsupported)
             throw new MethodNotAllowedError(httpc.request.method);
         else {
             await this.root.doRequest(httpc);
             if(httpc.canceled) 
                 throw new CancelError(httpc.reason);
             else {
-                httpc.log.info(`Request processed with response code ${httpc.response.code}.`);
+                httpc.log.info(`Request processed with response code ${httpc.response.code} and pending write to client.`);
                 if(this.context.log.level === "debug")
                     httpc.log.debug(`Response: \r\n${JSON.stringify(httpc.response.body, null, 2)}`);
             }
         }
     }
 
-    static create(context: ApplicationContext, root: AbstractNode<any>): AbstractHttpRequestHandler {
-        return new HttpRequestHandler(context, root);
+    static create(context: ApplicationContext, root: AbstractNode<any>, 
+                  maxSizeMB: number = DEFAULT_MAX_REQUEST_SIZE_MB): AbstractHttpRequestHandler {
+        return new HttpRequestHandler(context, root, maxSizeMB);
     }
 }

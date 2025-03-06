@@ -99,19 +99,19 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
 
     abstract getInstance<T extends Object>(): T;
 
-    protected async _beforeInitialize(context: InitializationContext): Promise<void> {
+    public async beforeInitialize(context: InitializationContext): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     }
 
-    protected async _afterInitialize(context: InitializationContext): Promise<void> {
+    public async afterInitialize(context: InitializationContext): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     }
 
-    protected async _beforeFinalize(): Promise<void> {
+    public async beforeFinalize(): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     };
 
-    protected async _afterFinalize(): Promise<void> {
+    public async afterFinalize(): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     };
 
@@ -138,14 +138,14 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
 
     public async initialize(context: InitializationContext): Promise<void> {
         context.log.debug(`Initializing ${this.constructor.name} '${this.name}'...`);
-        await this._beforeInitialize(context);
+        await this.beforeInitialize(context);
         this.generateURI();
         // Applying features.
         await this.applyFeatures(context);
         for(const child of this.children.values()) {
             await child.initialize(context);
         }
-        await this._afterInitialize(context);
+        await this.afterInitialize(context);
         context.log.debug(`${this.constructor.name} '${this.name}' initialized on path '${this.fullyQualifiedPath}'.`);
     }
 
@@ -155,19 +155,19 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
             context.cancel(event.cause);
     }
 
-    protected async _beforeDoRequest(context: HttpContext): Promise<void> {
+    public async beforeRequest(context: HttpContext): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     };
 
-    protected async _doRequest(context: HttpContext): Promise<void> {
+    public async onRequest(context: HttpContext): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     };
 
-    protected async _afterDoRequest(context: HttpContext): Promise<void> {
+    public async afterRequest(context: HttpContext): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     };
 
-    protected async _doError(context: HttpContext, error: GestaeError): Promise<void> {
+    public async doError(context: HttpContext, error: GestaeError): Promise<void> {
         // do nothing, developers, override this method to take custom action.
     }
 
@@ -179,11 +179,11 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
 
         context._currentNode = this; // set us as the current node.
         
-        await this._beforeDoRequest(context);
+        await this.beforeRequest(context);
         if(context.canceled) throw new CancelError(context.reason);
         
         if(!context.leapt(this.uri)) {
-            await this._doRequest(context);
+            await this.onRequest(context);
             if(context.canceled) throw new CancelError(context.reason);
         }
         else 
@@ -204,17 +204,17 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
 
         if(!context.canceled) {
             context._currentNode = this; // set us as the current node.
-            await this._afterDoRequest(context);
+            await this.afterRequest(context);
         }
     }
 
     public async finalize(): Promise<void> {
         //this.log.debug(`Finalizing ${this.constructor.name} '${this.name}'.`);
-        await this._beforeFinalize();
+        await this.beforeFinalize();
         for(const child of this.children.values()) {
             await child.finalize();
         }
-        await this._afterFinalize();
+        await this.afterFinalize();
         //this.log.debug(`${this.constructor.name} '${this.name}' finalized.`);
     }
 }
