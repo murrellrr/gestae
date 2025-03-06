@@ -72,6 +72,7 @@ import {
     JSONResponseBody
 } from "./HttpBody";
 import http from "node:http";
+import { ResourceFeatureFactory } from "./ResourceActions";
 
 /**
  * @description
@@ -219,7 +220,8 @@ export class Application {
                                    ((context: IApplicationContext): AbstractFeatureFactoryChain<any> => 
                                         new EventFeatureFactory(context,  
                                             new SchemaFeatureFactory(context, 
-                                                new SearchableResourceFeatureFactory(context))));
+                                                new SearchableResourceFeatureFactory(context, 
+                                                    new ResourceFeatureFactory(context)))));
         
         // Application Root.
         options.root = options.root ?? DEFAULT_ROOT;

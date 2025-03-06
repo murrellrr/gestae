@@ -39,7 +39,7 @@ import _ from "lodash";
 import { HttpContext } from "./HttpContext";
 import { 
     INamespaceOptions, 
-    NAMESPACE_OPTION_KEY 
+    NAMESPACE_METADATA_KEY 
 } from "./Namespace";
 import { 
     INamesapceNode, 
@@ -96,7 +96,7 @@ export class NamespaceNode extends AbstractTaskableNode<INamespaceOptions> imple
         }
         else {
             const _instance = new aClass([]);
-            return new NamespaceNode(_instance, getsertMetadata(_instance, NAMESPACE_OPTION_KEY, options));
+            return new NamespaceNode(_instance, getsertMetadata(_instance, NAMESPACE_METADATA_KEY, options));
         }
     }
 }
@@ -120,7 +120,7 @@ class DefaultNameSpace {
 export class NamespaceNodeFactory extends AbstractNodeFactoryChain<INamespaceOptions, NamespaceNode> {
     isNodeFactory(target: NodeTemplate): boolean {
         return target.isString || 
-               (target.isClass && hasMetadata(target.node, NAMESPACE_OPTION_KEY));
+               (target.isClass && hasMetadata(target.node, NAMESPACE_METADATA_KEY));
     }
 
     onCreate(target: NodeTemplate): FactoryReturnType<INamespaceOptions, NamespaceNode> {

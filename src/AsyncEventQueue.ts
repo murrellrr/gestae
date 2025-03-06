@@ -28,7 +28,19 @@ import { GestaeEvent } from "./GestaeEvent";
  * @copyright 2024 KRI, LLC
  */
 export interface IAsyncEventQueue {
-    on<T, E extends GestaeEvent<T>>(event: string | RegExp, listener: (event: E) => Promise<void> | void, once?: boolean) : this;
-    once<T, E extends GestaeEvent<T>>(event: string | RegExp, listener: (event: E) => Promise<void> | void): this;
-    off<T, E extends GestaeEvent<T>>(event: string, listener: (event: E) => Promise<void> | void): this;
+    /**
+     * @description Emit an event to all listeners.
+     * @param event           The event to listen for.
+     * @param listener        The listener to call when the event is emitted.
+     * @param once            If true, the listener will only be called once.
+     * @param useDataAsTarget If true, the event data will be used as the target of the method invoked. 
+     *                        This allows for the use of 'this' and maintaining reference to other 
+     *                        properties of the target method.
+     * @returns               The event queue to daisychain calls.
+     */
+    on<T, E extends GestaeEvent<T>>(event: string | RegExp, listener: (event: E) => Promise<void> | void, 
+                                    once?: boolean, useDataAsTarget?: boolean) : IAsyncEventQueue;
+    once<T, E extends GestaeEvent<T>>(event: string | RegExp, listener: (event: E) => Promise<void> | void, 
+                                      useDataAsTarget?: boolean): IAsyncEventQueue;
+    off<T, E extends GestaeEvent<T>>(event: string, listener: (event: E) => Promise<void> | void): IAsyncEventQueue;
 }

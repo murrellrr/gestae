@@ -32,7 +32,7 @@ import {
 } from "./Node";
 import { InitializationContext } from "./ApplicationContext";
 import { ITaskOptions } from "./TaskEvent";
-import { TASK_OPTION_KEY } from "./Task";
+import { TASK_METDADATA_KEY } from "./Task";
 
 /**
  * @description
@@ -87,9 +87,9 @@ export abstract class AbstractTaskableNode<O extends INodeOptions> extends Abstr
      */
     public async beforeInitialize(context: InitializationContext): Promise<void> {
         const _target = this.getInstance();
-        if(hasMetadata(_target, TASK_OPTION_KEY)) {
+        if(hasMetadata(_target, TASK_METDADATA_KEY)) {
             context.log.debug(`'${_target.constructor.name}' is decorated with @Task(s), applying task node(s) to '${this.name}'.`);
-            const _metadata = getsertMetadata(_target, TASK_OPTION_KEY);
+            const _metadata = getsertMetadata(_target, TASK_METDADATA_KEY);
             const _keys = Object.keys(_metadata);
             context.log.debug(`Creating ${_keys.length} task node(s)...`);
             for(const _key in _metadata) {

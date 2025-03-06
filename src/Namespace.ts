@@ -25,7 +25,7 @@ import {
     setMetadata 
 } from "./Gestae";
 
-export const NAMESPACE_OPTION_KEY = "gestaejs:namespace";
+export const NAMESPACE_METADATA_KEY = "gestaejs:namespace";
 
 /**
  * @author Robert R Murrell
@@ -49,6 +49,6 @@ export interface INamespaceOptions extends IOptions {
 export function Namespace(options: INamespaceOptions = {}) {
     return function (target: new (... args: [any]) => any) {
         options.name = options.name ?? target.name.toLowerCase();
-        setMetadata(target, NAMESPACE_OPTION_KEY, options);
+        setMetadata(target, NAMESPACE_METADATA_KEY, options);
     };
 } // Cant be constant because it is used as a decorator.

@@ -28,7 +28,7 @@ import { GestaeError } from "./GestaeError";
 import { HttpContext } from "./HttpContext";
 import { ITaskOptions } from "./TaskEvent";
 
-export const TASK_OPTION_KEY = "gestaejs:task";
+export const TASK_METDADATA_KEY = "gestaejs:task";
 
 /**
  * @description Utility type to infer `void` return type when omitted.
@@ -46,7 +46,7 @@ type InferReturnType<R> = R extends undefined ? void : R;
  */
 export const setTaskMetadata = <T extends Object>(target: T, property: string, options: ITaskOptions = {}): void => {
     let _taskName = options.name?.toLowerCase() ?? property.toLowerCase();
-    let _target   = getsertMetadata(target, TASK_OPTION_KEY);
+    let _target   = getsertMetadata(target, TASK_METDADATA_KEY);
 
     let _task = _target[_taskName];
     if(!_task) {

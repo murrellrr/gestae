@@ -50,7 +50,7 @@ import {
 } from "./ResourceEvent";
 import { 
     ResourceActionEnum, 
-    RESOURCE_OPTION_KEY, 
+    RESOURCE_METADATA_KEY, 
     IResourceOptions
 } from "./Resource";
 import { AbstractTaskableNode } from "./TaskNode";
@@ -222,7 +222,7 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
     }
 
     static create(aClass: ClassType, options: IResourceOptions = {}): ResourceNode {
-        return new ResourceNode(aClass, getsertMetadata(aClass, RESOURCE_OPTION_KEY, options));
+        return new ResourceNode(aClass, getsertMetadata(aClass, RESOURCE_METADATA_KEY, options));
     }
 }
 
@@ -233,7 +233,7 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
  */
 export class ResourceNodeFactory extends AbstractNodeFactoryChain<IResourceOptions, ResourceNode> {
     isNodeFactory(target: NodeTemplate): boolean {
-        return isClassConstructor(target.node) && hasMetadata(target.node, RESOURCE_OPTION_KEY);
+        return isClassConstructor(target.node) && hasMetadata(target.node, RESOURCE_METADATA_KEY);
     }
 
     onCreate(target: NodeTemplate): FactoryReturnType<IResourceOptions, ResourceNode> {

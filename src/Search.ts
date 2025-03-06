@@ -41,7 +41,7 @@ import { ResourceNode } from "./ResourceNode";
 import { SearchParams } from "./SearchParams";
 import { ITaskOptions } from "./TaskEvent";
 
-export const SEARCH_OPTION_KEY   = "gestaejs:search";
+export const SEARCH_METADATA_KEY = "gestaejs:search";
 const        DEFAULT_SEARCH_NAME = "search";
 
 interface SearchResourceContext {
@@ -156,18 +156,18 @@ export class SearchRequest<R extends AbstractSearchResult> {
 
 export class SearchableResourceFeatureFactory extends AbstractFeatureFactoryChain<AbstractNode<any>> {
     isFeatureFactory<T extends Object>(node: AbstractNode<any>, target: T): boolean {
-        return hasMetadata(target, SEARCH_OPTION_KEY);
+        return hasMetadata(target, SEARCH_METADATA_KEY);
     }
 
     onApply<T extends Object>(node: ResourceNode, target: T): void {
-        const _metatdata: ISearchOptions = getsertMetadata(target, SEARCH_OPTION_KEY);
+        const _metatdata: ISearchOptions = getsertMetadata(target, SEARCH_METADATA_KEY);
         this.log.debug(`${node.constructor.name} '${node.name}' decorated with @<sync>SearchResource, adding virtual search node '${_metatdata.pathName}'.`);
 
         // check to see if the target implements the search method.
         if(!(target as any)[_metatdata.method!]) 
             throw new Error(`@SearchResource method '${_metatdata.method}' not implemented in '${target.constructor.name}'.`);
         makeResourceSearchable(node, _metatdata);
-        
+
         const _method    = (target as any)[_metatdata.method!] as (firstArg: SearchRequest<any>, context: IHttpContext) => void;
         const _eventName = `${node.fullyQualifiedPath}:${formatEvent(ResourceEvents.Search.On)}`;
         this.log.debug(`Binding search event '${_eventName}' to method '${_metatdata.method}' on target '${target.constructor.name}'.`);
@@ -178,7 +178,7 @@ export class SearchableResourceFeatureFactory extends AbstractFeatureFactoryChai
 }
 
 export const setSearchMetadata = <T extends Object>(target: T, property: string, options: ISearchOptions = {}) => {
-    let _target = getsertMetadata(target, SEARCH_OPTION_KEY, options);
+    let _target = getsertMetadata(target, SEARCH_METADATA_KEY, options);
     _target.pathName      = options.pathName ?? DEFAULT_SEARCH_NAME;
     _target.requestMethod = options.requestMethod ?? HttpMethodEnum.Get;
     _target.method        = property;

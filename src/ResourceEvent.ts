@@ -29,7 +29,7 @@ import {
 } from "./GestaeEvent";
 import { IHttpContext } from "./HttpContext";
 import { 
-    IResourceOptions,
+    IResourceOptions
 } from "./Resource";
 
 /**

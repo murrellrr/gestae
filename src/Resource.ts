@@ -20,11 +20,12 @@
  *  THE SOFTWARE.
  */
 
-import { IOptions, setMetadata } from "./Gestae";
-import { HttpRequest } from "./HttpRequest";
-import { SearchParams } from "./SearchParams";
+import { 
+    IOptions, 
+    setMetadata 
+} from "./Gestae";
 
-export const RESOURCE_OPTION_KEY = "gestaejs:resource";
+export const RESOURCE_METADATA_KEY = "gestaejs:resource";
 
 /**
  * @description Action types for a resource.
@@ -66,6 +67,7 @@ export interface IResourceOptions extends IOptions {
 export function Resource(options: IResourceOptions = {}) {
     return function (target: new (... args: [any]) => any) {
         options.name = options.name ?? target.name;
-        setMetadata(target, RESOURCE_OPTION_KEY, options);
+        setMetadata(target, RESOURCE_METADATA_KEY, options);
     };
 } // Cant be constant because it is used as a decorator.
+

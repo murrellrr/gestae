@@ -36,7 +36,7 @@ import { IHttpContext } from "./HttpContext";
 import { SchemaObject } from "ajv";
 import { AbstractNode } from "./Node";
 
-const SCHEMA_OPTION_KEY = "gestaejs:schema";
+const SCHEMA_METADATA_KEY = "gestaejs:schema";
 
 /**
  * @description Input/Output Schema definitions
@@ -108,7 +108,7 @@ export function Schema(options: ISchemaOptions = {}) {
         options.scheme = options.scheme ?? {};
         options.validate = (Object.keys(options.scheme).length === 0)? false: options.validate ?? true;
         options.$overloads = options.$overloads ?? true;
-        setMetadata(target, SCHEMA_OPTION_KEY, options);
+        setMetadata(target, SCHEMA_METADATA_KEY, options);
     };
 } // Cant be constant because it is used as a decorator.
 
@@ -119,7 +119,7 @@ export function Schema(options: ISchemaOptions = {}) {
  */
 export class SchemaFeatureFactory extends AbstractFeatureFactoryChain<AbstractNode<any>> {
     isFeatureFactory<T extends Object>(node: AbstractNode<any>, target: T): boolean {
-        return hasMetadata(target, SCHEMA_OPTION_KEY);
+        return hasMetadata(target, SCHEMA_METADATA_KEY);
     }
 
     onApply<T extends Object>(node: AbstractNode<any>, target: T): void {

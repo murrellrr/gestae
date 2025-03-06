@@ -31,9 +31,10 @@ import { ILogger } from "./Logger";
  * @copyright 2024 KRI, LLC
  */
 export interface ListenerItem {
-    event:  string | RegExp;
-    method: any;
-    once:   boolean;
+    event:           string | RegExp;
+    method:          any;
+    once:            boolean;
+    useDataAsTarget: boolean;
 }
 
 /**
@@ -52,10 +53,10 @@ export interface IAsyncEventEmitter {
  */
 export class AsyncEventEmitter implements IAsyncEventEmitter, IAsyncEventQueue {
     private          listeners: ListenerItem[] = [];
-    private readonly _logger:   ILogger;
+    private readonly log:       ILogger;
 
     constructor(logger: ILogger) {
-        this._logger = logger;
+        this.log = logger;
     }
 
     /**
@@ -69,7 +70,9 @@ export class AsyncEventEmitter implements IAsyncEventEmitter, IAsyncEventQueue {
         
         for(const _item of this.listeners) {
             if(this._isMatched(_item, event.path)) {
-                await this._processListener(_item, event, target);
+                let _target = target;
+                if(!_target && _item.useDataAsTarget) _target = event.data!;
+                await this._processListener(_item, event, _target);
                 if(!_item.once) _remaining.push(_item);
                 if(event.cancled) throw GestaeError.toError(event.cause);
             } 
@@ -86,8 +89,9 @@ export class AsyncEventEmitter implements IAsyncEventEmitter, IAsyncEventQueue {
 
     private async _processListener(_item: ListenerItem, event: GestaeEvent<any>, target?: object): Promise<void> {
         let _method = _item.method;
-        if(target) _method = _method.bind(target); // bind the method to the target object if specified.
-        await _method(event); // Ensure sequential execution
+        if(target)
+            _method = _method.bind(target); // bind the method to the target object if specified.
+        await _method(event);
     }
 
     /**
@@ -95,8 +99,9 @@ export class AsyncEventEmitter implements IAsyncEventEmitter, IAsyncEventQueue {
      * @param event - The name of the event.
      * @param handler - The async function to handle the event.
      */
-    on<T, E extends GestaeEvent<T>>(event: string | RegExp, method: (event: E) => Promise<void> | void, once: boolean = false) : this {
-        this.listeners.push({event: event, method: method, once: once});
+    on<T, E extends GestaeEvent<T>>(event: string | RegExp, method: (event: E) => Promise<void> | void, once: boolean = false, 
+                                    useDataAsTarget: boolean = false) : this {
+        this.listeners.push({event: event, method: method, once: once, useDataAsTarget: useDataAsTarget});
         return this;
     }
 
@@ -105,8 +110,9 @@ export class AsyncEventEmitter implements IAsyncEventEmitter, IAsyncEventQueue {
      * @param event - The name of the event.
      * @param handler - The async function to handle the event.
      */
-    once<T, E extends GestaeEvent<T>>(event: string | RegExp, method: (event: E) => Promise<void> | void): this {
-        this.on(event, method, true);
+    once<T, E extends GestaeEvent<T>>(event: string | RegExp, method: (event: E) => Promise<void> | void, 
+                                      useDataAsTarget: boolean = false): this {
+        this.on(event, method, true, useDataAsTarget);
         return this;
     }
 
