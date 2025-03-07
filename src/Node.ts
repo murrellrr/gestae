@@ -22,7 +22,11 @@
 
 import { InitializationContext } from "./ApplicationContext";
 import { IOptions } from "./Gestae";
-import { CancelError, GestaeError, MethodNotAllowedError, NotFoundError } from "./GestaeError";
+import { 
+    GestaeError, 
+    MethodNotAllowedError, 
+    NotFoundError 
+} from "./GestaeError";
 import { GestaeEvent } from "./GestaeEvent";
 import { HttpContext } from "./HttpContext";
 

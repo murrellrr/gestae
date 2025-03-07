@@ -45,7 +45,7 @@ import {
     AbstractNode, 
     INode 
 } from "./Node";
-import { CancelError, GestaeError } from "./GestaeError";
+import { CancelError } from "./GestaeError";
 
 const LEAP_PATH_PREFIX = `gestaejs:leap:`;
 
