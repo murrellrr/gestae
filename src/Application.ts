@@ -70,7 +70,7 @@ import {
     HttpRequestBody, 
     JSONRequestBody,
     JSONResponseBody
-} from "./HttpRequestBody";
+} from "./HttpBody";
 import http from "node:http";
 import { ResourceFeatureFactory } from "./ResourceActions";
 

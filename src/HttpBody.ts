@@ -21,8 +21,8 @@
  */
 
 import http from "node:http";
-import { GestaeError, UnsupportedMediaTypeError } from './GestaeError';
-import { PassThrough } from "stream";
+import { GestaeError, InternalServerError, UnsupportedMediaTypeError } from './GestaeError';
+import { HttpPassThrough } from "./HttpPassThrough";
 
 const CONTENT_TYPE_REQUEST_HEADER  = "content-type";
 const CONTENT_TYPE_RESPONSE_HEADER = "Content-Type";
@@ -34,7 +34,7 @@ const DEFAULT_JSON_CONTENT_TYPE    = "application/json";
  * @copyright 2024 KRI, LLC
  */
 export abstract class HttpRequestBody<T> {
-    abstract read(request: http.IncomingMessage, pipe: PassThrough): Promise<T>;
+    abstract read(request: http.IncomingMessage, passThrough: HttpPassThrough): Promise<T>;
 }
 
 /**
@@ -43,7 +43,8 @@ export abstract class HttpRequestBody<T> {
  * @copyright 2024 KRI, LLC
  */
 export abstract class HttpResponseBody<T> {
-    abstract write(response: http.ServerResponse, body: object, code: number, contentType?:string): Promise<boolean>;
+    abstract write(response: http.ServerResponse, body: object, code: number, 
+                   contentType?:string): Promise<boolean>;
 }
 
 /**
@@ -55,31 +56,46 @@ export class JSONRequestBody extends HttpRequestBody<object> {
     /**
      * @description
      * @param request 
-     * @param pipe 
+     * @param passThrough 
      * @returns 
      */
-    async read(request: http.IncomingMessage, pipe: PassThrough): Promise<Object> {
+    async getBody(request: http.IncomingMessage, passThrough: HttpPassThrough): Promise<Object> {
         const _contentType = request.headers[CONTENT_TYPE_REQUEST_HEADER] ?? "";
         if(!(/^application\/.*json$/.test(_contentType)))
             throw new UnsupportedMediaTypeError(_contentType);
 
         let _body = "";
         return new Promise<Object>((resolve, reject) => {
-            pipe.on("data", (chunk: Buffer | string) => {
+            passThrough.pipe.on("data", (chunk: Buffer | string) => {
                 _body += typeof chunk === "string" ? chunk : chunk.toString("utf8");
             });
 
-            pipe.on("end", () => {
-                if(_body.trim().length === 0) 
-                    resolve({});
-                else
-                    resolve(JSON.parse(_body));
+            passThrough.pipe.on("end", () => {
+                let _requestBody = {};
+                try {
+                    if(_body.trim().length > 0) _requestBody = JSON.parse(_body);
+                    resolve(_requestBody);
+                }
+                catch(error) {
+                    reject(GestaeError.toError(error)); // we just set it above.
+                }
             });
       
-            pipe.on("error", (err) => {
-                reject(new GestaeError("Error reading request", 500, err));
+            passThrough.pipe.on("error", (error) => {
+                reject(GestaeError.toError(error)); // we just set it above.
             });
         });
+    }
+
+    async read(request: http.IncomingMessage, passThrough: HttpPassThrough): Promise<Object> {
+        try {
+            let _body = await this.getBody(request, passThrough);
+            return _body;
+        }
+        catch(error) {
+            // handle any rejections not handled by the passThrough.
+            throw GestaeError.toError(error);
+        }
     }
 }
 
@@ -90,7 +106,7 @@ export class JSONRequestBody extends HttpRequestBody<object> {
  */
 export class JSONResponseBody extends HttpResponseBody<object> {
     async write(response: http.ServerResponse, body: object, code: number, contentType?:string): Promise<boolean> {
-        if(response.writable && !response.headersSent){
+        if(response.writable && !response.headersSent) {
             response.setHeader(CONTENT_TYPE_RESPONSE_HEADER, 
                                contentType ?? (body as any).$contentType ?? DEFAULT_JSON_CONTENT_TYPE);
             response.writeHead(code);

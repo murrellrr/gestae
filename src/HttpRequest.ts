@@ -26,14 +26,11 @@ import {
     HttpMethodEnum 
 } from "./Gestae";
 import { SearchParams } from "./SearchParams";
-import { 
-    HttpRequestBody, 
-    JSONRequestBody 
-} from "./HttpRequestBody";
+import { HttpRequestBody } from "./HttpBody";
+import { ILogger } from "./Logger";
+import { HttpPassThrough } from "./HttpPassThrough";
 import _ from "lodash";
 import http from "node:http";
-import { PassThrough } from "node:stream";
-import { ILogger } from "./Logger";
 
 const DEFAULT_CONTENT_TYPE_HEADER = "content-type";
 
@@ -153,7 +150,7 @@ export interface IHttpRequest {
 export class HttpRequest implements IHttpRequest{
     private            _body?:       unknown; // Will usually be an object from JSON but could be anything.
     private            _bodyMutex?:  Promise<unknown>;
-    private   readonly _pipe:        PassThrough;
+    private   readonly _passThrough: HttpPassThrough;
     protected          content:      HttpRequestBody<any>;
     protected readonly log:          ILogger;
     public    readonly _request:     http.IncomingMessage;
@@ -163,10 +160,10 @@ export class HttpRequest implements IHttpRequest{
     public    readonly url:          URL;
     public    readonly uri:          URITree;
     
-    constructor(request: http.IncomingMessage, pipe: PassThrough, 
+    constructor(request: http.IncomingMessage, passThrough: HttpPassThrough, 
                 requestBody: HttpRequestBody<any>, log: ILogger) {
         this._request     = request;
-        this._pipe        = pipe;
+        this._passThrough = passThrough;
         this.log          = log;
         this.url          = new URL(request.url ?? "", `http://${request.headers.host}`);
         this.uri          = new URITree(this.url.pathname);
@@ -241,10 +238,10 @@ export class HttpRequest implements IHttpRequest{
 
                 // Prep the pipe to read the body
                 this.log.debug(`Getting read promise from HttpRequestBody '${_content.constructor.name}'.`);
-                const _promise = _content.read(this._request, this._pipe);
+                const _promise = _content.read(this._request, this._passThrough);
                 // pipe the request to our passthrough.
                 this.log.debug("Piping request to PassThrough.");
-                this._request.pipe(this._pipe);
+                this._request.pipe(this._passThrough.pipe);
                 // wait for the body to be read.
                 this._body = await _promise;
                 return this._body; // return the body.

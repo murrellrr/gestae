@@ -20,14 +20,13 @@
  *  THE SOFTWARE.
  */
 
-import { PassThrough } from "node:stream";
 import { ApplicationContext } from "./ApplicationContext";
 import { HttpMethodEnum } from "./Gestae";
 import { 
     CancelError,
     GestaeError, 
-    MethodNotAllowedError, 
-    RequestEntityTooLargeError
+    MethodNotAllowedError,
+    RequestTimeoutError,
 } from "./GestaeError";
 import { 
     HttpContext,
@@ -35,37 +34,12 @@ import {
 import { HttpRequest } from "./HttpRequest";
 import { HttpResponse } from "./HttpResponse";
 import { AbstractNode } from "./Node";
+import { 
+    HttpRequestBody, 
+    HttpResponseBody 
+} from "./HttpBody";
 import http from "node:http";
-import { HttpRequestBody, HttpResponseBody } from "./HttpRequestBody";
-
-enum RequestStatus {
-    SizeLimitExceeded,
-    TimedOut,
-    Ok
-}
-
-/**
- * 
- * @param maxSize 
- */
-const createSizeLimitPassthroug = (maxSize: number, onOversizedLoad: (total: number) => boolean): PassThrough => {
-    // Add listener to enfource max request size.
-    let   _totalLength = 0;
-    const _pass        = new PassThrough();
-
-    // Monitor the incomming request to ensure it doesnt exceed the max size.
-    _pass.on("data", (chunk: Buffer | string) => {
-        // Determine the byte length of the chunk
-        const chunkSize = typeof chunk === "string" ? Buffer.byteLength(chunk, "utf8") : chunk.length;
-        _totalLength += chunkSize;
-        if(_totalLength > maxSize) {
-            if(onOversizedLoad(_totalLength))
-                throw new RequestEntityTooLargeError("Request body exceeds maximum allowed size");
-        }
-    });
-
-    return _pass;
-};
+import { HttpPassThrough } from "./HttpPassThrough";
 
 /**
  * @author Robert R Murrell
@@ -74,7 +48,7 @@ const createSizeLimitPassthroug = (maxSize: number, onOversizedLoad: (total: num
  */
 export abstract class AbstractHttpRequestHandler {
     protected readonly size:         number;
-    protected readonly timeout:      number = 10000;
+    protected readonly timeout:      number;
     protected readonly context:      ApplicationContext;
     protected readonly root:         AbstractNode<any>;
     protected readonly requestBody:  HttpRequestBody<any>;
@@ -100,19 +74,18 @@ export abstract class AbstractHttpRequestHandler {
 
     async handleRequest(req: http.IncomingMessage, 
                         res: http.ServerResponse): Promise<void> {
+        const _this = this;
         // Set up the request size limitter.
-        let _limitPipe = createSizeLimitPassthroug(this.size, (total: number) => {
-            // Exceeded maximum size: send error response and pause the request stream.
-            req.pause();
-            return true;
-        });
+        const _limitter = new HttpPassThrough(this.size);
+        _limitter.addSizeLimitter();
 
+        // Setting up the timout action
         req.setTimeout(this.timeout, () => {
-            req.pause();
+            req.destroy(new RequestTimeoutError(_this.timeout));
         });
 
         // handle the incomming request like a champ!
-        const _req   = new HttpRequest(req, _limitPipe, this.requestBody, 
+        const _req   = new HttpRequest(req, _limitter, this.requestBody, 
                                        this.context.log.child({name: HttpRequest.name}));
         const _res   = new HttpResponse(res, this.responseBody);
         const _httpc = this.createHttpContext(_req, _res);

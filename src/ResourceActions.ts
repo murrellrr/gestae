@@ -182,9 +182,8 @@ export class ResourceFeatureFactory extends AbstractFeatureFactoryChain<Resource
 
             this.log.debug(`Binding resource action event '${_eventName}' to method '${_config.method}' on target '${target.constructor.name}'.`);
             this.context.eventQueue.on(_eventName, async (event: ResourceEvent<T>) => {
-                if(!event.data) throw new GestaeError(`ResourceEvent must have data.`);
-                _method = _method.bind(event.data);
-                await _method(event.context);
+                if(!event.data) throw new GestaeError(`ResourceEvent must have data.`); // Defensive coding.
+                await _method.call(event.data, event.context);
             });
         }
     }
