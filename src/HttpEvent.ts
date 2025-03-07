@@ -21,7 +21,10 @@
  */
 
 import { HttpMethodEnum } from "./Gestae";
-import { EventRegisterType, HttpEvent } from "./GestaeEvent";
+import { 
+    EventRegisterType, 
+    HttpEvent 
+} from "./GestaeEvent";
 
 /**
  * @description

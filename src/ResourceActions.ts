@@ -1,6 +1,5 @@
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { 
-    getGestaeMetadata,
     getsertMetadata,
     hasMetadata, 
     IOptions 

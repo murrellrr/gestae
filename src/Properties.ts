@@ -32,7 +32,6 @@ export interface IPropertyOptions {
     cacheExpirySec?: number;
 }
     
-
 /**
  * @description Interface for managing properties.
  * @author Robert R Murrell

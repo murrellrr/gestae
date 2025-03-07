@@ -21,7 +21,10 @@
  */
 
 import http from "node:http";
-import { GestaeError, InternalServerError, UnsupportedMediaTypeError } from './GestaeError';
+import { 
+    GestaeError, 
+    UnsupportedMediaTypeError 
+} from './GestaeError';
 import { HttpPassThrough } from "./HttpPassThrough";
 
 const CONTENT_TYPE_REQUEST_HEADER  = "content-type";

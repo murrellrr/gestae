@@ -38,8 +38,8 @@ import {
     HttpRequestBody, 
     HttpResponseBody 
 } from "./HttpBody";
-import http from "node:http";
 import { HttpPassThrough } from "./HttpPassThrough";
+import http from "http";
 
 /**
  * @author Robert R Murrell

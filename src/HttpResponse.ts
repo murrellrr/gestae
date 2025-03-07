@@ -23,7 +23,7 @@
 import { GestaeError } from "./GestaeError";
 import { Cookie } from "./Gestae";
 import http from 'http';
-import { HttpResponseBody, JSONResponseBody } from "./HttpBody";
+import { HttpResponseBody } from "./HttpBody";
 
 /**
  * @author Robert R Murrell
