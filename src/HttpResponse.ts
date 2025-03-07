@@ -23,7 +23,7 @@
 import { GestaeError } from "./GestaeError";
 import { Cookie } from "./Gestae";
 import http from 'http';
-import { HttpResponseBody, JSONResponseBody } from "./HttpBody";
+import { HttpResponseBody, JSONResponseBody } from "./HttpRequestBody";
 
 /**
  * @author Robert R Murrell
@@ -48,16 +48,15 @@ export interface IHttpResponse {
  * @copyright 2024 KRI, LLC
  */
 export class HttpResponse implements IHttpResponse {
-    private         _failed:   boolean = false;
-    public readonly _response: http.ServerResponse;
-    public          body:      any;
-    public          code:      number = 200;
+    private            _failed:   boolean = false;
+    public    readonly _response: http.ServerResponse;
+    public             body:      any;
+    public             code:      number = 200;
+    protected readonly content:   HttpResponseBody<any>;
 
-    protected readonly content: HttpResponseBody<any>;
-
-    constructor(response: http.ServerResponse, content?: HttpResponseBody<any>) {
+    constructor(response: http.ServerResponse, responseBody:HttpResponseBody<any>) {
         this._response = response;
-        this.content = content ?? new JSONResponseBody();
+        this.content   = responseBody;
     }
 
     get http(): http.ServerResponse {

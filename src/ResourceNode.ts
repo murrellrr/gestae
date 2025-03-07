@@ -179,7 +179,7 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
                 resource.action === ResourceActionEnum.Update || 
                 resource.action === ResourceActionEnum.Delete) {
             // Update the body and reset into the resource and events.
-            resource.instance   = context.request.mergeBody(resource.instance);
+            resource.instance   = await context.request.mergeBody(resource.instance);
             resource.event.data = resource.instance;
             context.resources.setResource(this.resourceKey, resource.instance);
         }

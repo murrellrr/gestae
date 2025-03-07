@@ -70,7 +70,7 @@ import {
     HttpRequestBody, 
     JSONRequestBody,
     JSONResponseBody
-} from "./HttpBody";
+} from "./HttpRequestBody";
 import http from "node:http";
 import { ResourceFeatureFactory } from "./ResourceActions";
 
@@ -82,10 +82,11 @@ import { ResourceFeatureFactory } from "./ResourceActions";
  */
 export const VERSION = "1.0.0";
 
-const DEFAULT_NAME                = "app";
-const DEFAULT_PORT                = 3000;
-const DEFAULT_ROOT                = "/";
-const DEFAULT_MAX_REQUEST_SIZE_MB = 5;
+const DEFAULT_NAME               = "app";
+const DEFAULT_PORT               = 3000;
+const DEFAULT_ROOT               = "/";
+const DEFAULT_REQUEST_SIZE_MB    = 5;
+const DEFAULT_REQUEST_TIMEOUT_MS = 5;
 
 /**
  * @description
@@ -156,7 +157,8 @@ export interface IApplicationOptions extends IOptions {
     tls?:                 boolean;
     privateKeyPath?:      string;
     publicKeyPath?:       string;
-    maxRequestSizeMB?:    number;
+    requestSizeMB?:       number;
+    requestTimeoutMS?:    number;
     nodeChainFactory?:    NodeChainFactoryType;
     featureChainFactory?: FeatureChainFactoryType;
     logger?:              ILoggerOptions;
@@ -165,7 +167,6 @@ export interface IApplicationOptions extends IOptions {
     propertyFactory?:     PropertyFactoryType;
     requestBody?:         HttpRequestBody<any>; 
     responseBody?:        HttpResponseBody<any>;
-    maxJsonSizeMB?:       number;   
 }
 
 /**
@@ -179,6 +180,10 @@ export class Application {
     protected          _root:        AbstractNode<any> | undefined;
     protected readonly _context:     ApplicationContext;
     protected readonly _properties:  Properties; 
+    protected readonly sizeMB:       number;
+    protected readonly timeoutMS:    number;
+    protected readonly requestBody:  HttpRequestBody<any>;
+    protected readonly responseBody: HttpResponseBody<any>;
     public    readonly options:      IApplicationOptions;
     public    readonly log:          ILogger;
     
@@ -192,9 +197,14 @@ export class Application {
             throw GestaeError.toError(`TLS is enabled but no key paths are provided. Please set privateKeyPath and publicKeyPath in options.`);
 
         // Request
-        options.maxRequestSizeMB = options.maxRequestSizeMB ?? DEFAULT_MAX_REQUEST_SIZE_MB;
-        options.maxJsonSizeMB    = options.maxJsonSizeMB    ?? options.maxRequestSizeMB;
+        options.requestSizeMB    = options.requestSizeMB    ?? DEFAULT_REQUEST_SIZE_MB;
+        options.requestTimeoutMS = options.requestTimeoutMS ?? DEFAULT_REQUEST_TIMEOUT_MS;
+        options.requestBody      = options.requestBody      ?? new JSONRequestBody();
         options.responseBody     = options.responseBody     ?? new JSONResponseBody();
+        this.sizeMB              = options.requestSizeMB;
+        this.timeoutMS           = options.requestTimeoutMS;
+        this.requestBody         = options.requestBody;
+        this.responseBody        = options.responseBody;
 
         // Logger.
         options.loggerFactory = options.loggerFactory ?? DefaultLogger.create;
@@ -266,7 +276,7 @@ export class Application {
         return this;
     }
 
-    private async onInitialize(): Promise<void> {
+    protected async onInitialize(): Promise<void> {
         //this.log.warn(`Application '${JSON.stringify(getGestaeMetadata(), null, 2)}'`);
         this.log.debug(`Initializing application '${this.name}'...`);
         const _initContext: InitializationContext = 
@@ -283,9 +293,10 @@ export class Application {
         this.log.debug(`Application '${this.name}' initialized on root '${this._root.name}'.`);
     }
 
-    private async onStart(): Promise<void> {
-        const _handler = HttpRequestHandler.create(this._context, this._root!, 
-                                                   this.options.maxRequestSizeMB); // Setting up the request handler.
+    protected async onStart(): Promise<void> {
+        const _handler = HttpRequestHandler.create(this._context, this._root!,
+                                                   this.requestBody, this.responseBody, 
+                                                   this.sizeMB, this.timeoutMS); // Setting up the request handler.
         this._server = http.createServer(async (req, res) => {
             await _handler.handleRequest(req, res);
         });

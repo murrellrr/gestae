@@ -36,8 +36,13 @@ import { HttpRequest } from "./HttpRequest";
 import { HttpResponse } from "./HttpResponse";
 import { AbstractNode } from "./Node";
 import http from "node:http";
+import { HttpRequestBody, HttpResponseBody } from "./HttpRequestBody";
 
-const DEFAULT_MAX_REQUEST_SIZE_MB = 5;
+enum RequestStatus {
+    SizeLimitExceeded,
+    TimedOut,
+    Ok
+}
 
 /**
  * 
@@ -68,14 +73,23 @@ const createSizeLimitPassthroug = (maxSize: number, onOversizedLoad: (total: num
  * @copyright 2024 KRI, LLC
  */
 export abstract class AbstractHttpRequestHandler {
-    protected maxSize: number;
-    constructor(
-        public readonly context: ApplicationContext,
-        public readonly root:    AbstractNode<any>,
-        maxSizeMB?: number
-    ) {
-        this.maxSize = maxSizeMB ? maxSizeMB * 1024 * 1024 : 
-                                   DEFAULT_MAX_REQUEST_SIZE_MB * 1024 * 1024;
+    protected readonly size:         number;
+    protected readonly timeout:      number = 10000;
+    protected readonly context:      ApplicationContext;
+    protected readonly root:         AbstractNode<any>;
+    protected readonly requestBody:  HttpRequestBody<any>;
+    protected readonly responseBody: HttpResponseBody<any>;
+
+    constructor(context: ApplicationContext, root: AbstractNode<any>, 
+                requestBody: HttpRequestBody<any>, responseBody: HttpResponseBody<any>, 
+                sizeMB: number, timeoutMS: number) {
+        this.context      = context;
+        this.root         = root;
+        this.requestBody  = requestBody;
+        this.responseBody = responseBody;
+        this.size         = sizeMB;
+        this.size         = this.size * 1024 * 1024;
+        this.timeout      = timeoutMS;
     }
 
     protected abstract createHttpContext(req: HttpRequest, res: HttpResponse): HttpContext;
@@ -86,24 +100,22 @@ export abstract class AbstractHttpRequestHandler {
 
     async handleRequest(req: http.IncomingMessage, 
                         res: http.ServerResponse): Promise<void> {
-        let _limitPipe = createSizeLimitPassthroug(this.maxSize, (total: number) => {
+        // Set up the request size limitter.
+        let _limitPipe = createSizeLimitPassthroug(this.size, (total: number) => {
             // Exceeded maximum size: send error response and pause the request stream.
             req.pause();
             return true;
         });
 
-        // handle the incomming request like a champ!
-        const _req   = new HttpRequest(req, _limitPipe);
-        const _res   = new HttpResponse(res);
-        const _httpc = this.createHttpContext(_req, _res);
+        req.setTimeout(this.timeout, () => {
+            req.pause();
+        });
 
-        // TODO: add checker code to expect a body.
-        // Prepare the request to read data and such.
-        let _loader = _req.read();
-        // Set-up the passthrough
-        req.pipe(_limitPipe);
-        // set the body of the request
-        _req.setBody(await _loader);
+        // handle the incomming request like a champ!
+        const _req   = new HttpRequest(req, _limitPipe, this.requestBody, 
+                                       this.context.log.child({name: HttpRequest.name}));
+        const _res   = new HttpResponse(res, this.responseBody);
+        const _httpc = this.createHttpContext(_req, _res);
 
         try {
             await this.processRequest(_httpc);
@@ -147,7 +159,9 @@ export class HttpRequestHandler extends AbstractHttpRequestHandler {
     }
 
     static create(context: ApplicationContext, root: AbstractNode<any>, 
-                  maxSizeMB: number = DEFAULT_MAX_REQUEST_SIZE_MB): AbstractHttpRequestHandler {
-        return new HttpRequestHandler(context, root, maxSizeMB);
+                  requestBody: HttpRequestBody<any>, responseBody: HttpResponseBody<any>,
+                  sizeMB: number, timeoutMS: number): AbstractHttpRequestHandler {
+        return new HttpRequestHandler(context, root, requestBody, responseBody, 
+                                      sizeMB, timeoutMS);
     }
 }

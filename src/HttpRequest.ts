@@ -29,10 +29,11 @@ import { SearchParams } from "./SearchParams";
 import { 
     HttpRequestBody, 
     JSONRequestBody 
-} from "./HttpBody";
+} from "./HttpRequestBody";
 import _ from "lodash";
 import http from "node:http";
 import { PassThrough } from "node:stream";
+import { ILogger } from "./Logger";
 
 const DEFAULT_CONTENT_TYPE_HEADER = "content-type";
 
@@ -120,8 +121,22 @@ export interface IHttpRequest {
     getContentType(): string;
     getHeader(key: string, defaultValue?: HeaderValue): HeaderValue;
     isMethod(method: HttpMethodEnum): boolean;
-    getBody<T extends Object>(): T;
-    mergeBody<T>(body: T): T;
+
+    /**
+     * @description Gets the body of the request using the request handler provided.
+     * @param content The request handler to use to read the body, overrides the 
+     *                default request handler. This only applies to invocations 
+     *                when the body is actually loaded.
+     * @returns The body of the request.
+     */
+    getBody<T>(content?: HttpRequestBody<T>): Promise<T>;
+
+    /**
+     * @description Merges the request body with the provided object.
+     * @param body The object to merge the request body with.
+     */
+    mergeBody<T>(body: T): Promise<T>;
+
     get isCreate(): boolean;
     get isRead(): boolean;  
     get isUpdate(): boolean;  
@@ -136,8 +151,11 @@ export interface IHttpRequest {
  * @copyright 2024 KRI, LLC
  */
 export class HttpRequest implements IHttpRequest{
-    private            _body:         Object = {};
-    protected content:               HttpRequestBody<any>;
+    private            _body?:       unknown; // Will usually be an object from JSON but could be anything.
+    private            _bodyMutex?:  Promise<unknown>;
+    private   readonly _pipe:        PassThrough;
+    protected          content:      HttpRequestBody<any>;
+    protected readonly log:          ILogger;
     public    readonly _request:     http.IncomingMessage;
     public    readonly _cookies:     Record<string, Cookie> = {};
     public             _method:      HttpMethodEnum = HttpMethodEnum.Unsupported;
@@ -145,13 +163,15 @@ export class HttpRequest implements IHttpRequest{
     public    readonly url:          URL;
     public    readonly uri:          URITree;
     
-
-    constructor(request: http.IncomingMessage, pipe: PassThrough) {
+    constructor(request: http.IncomingMessage, pipe: PassThrough, 
+                requestBody: HttpRequestBody<any>, log: ILogger) {
         this._request     = request;
+        this._pipe        = pipe;
+        this.log          = log;
         this.url          = new URL(request.url ?? "", `http://${request.headers.host}`);
         this.uri          = new URITree(this.url.pathname);
         this.searchParams = new SearchParams(this.url);
-        this.content      = new JSONRequestBody(pipe);
+        this.content      = requestBody;
         this._parseCookies();
         this._parseMethod();
     }
@@ -203,24 +223,41 @@ export class HttpRequest implements IHttpRequest{
         }
     }
 
-    public async read<T extends Object>(): Promise<T> {
-        return this.content.read(this._request);
-    }
-
     get http(): http.IncomingMessage {
         return this._request;
     }
 
-    getBody<T extends Object>(): T {
-        return this._body as T;
+    async getBody<T>(content?: HttpRequestBody<T>): Promise<T> {
+        // If we have already got the body, just return it immediately.
+        this.log.debug("Getting body from request.");
+        if(this._body) return this._body as T;
+
+        // The body has never been retrieved before, exclusively read it.
+        this.log.debug("Reading body from request.");
+        if(!this._bodyMutex) {
+            this._bodyMutex = (async () => {
+                // allow a content override.
+                const _content = content ?? this.content;
+
+                // Prep the pipe to read the body
+                this.log.debug(`Getting read promise from HttpRequestBody '${_content.constructor.name}'.`);
+                const _promise = _content.read(this._request, this._pipe);
+                // pipe the request to our passthrough.
+                this.log.debug("Piping request to PassThrough.");
+                this._request.pipe(this._pipe);
+                // wait for the body to be read.
+                this._body = await _promise;
+                return this._body; // return the body.
+            })();
+        }
+
+        // Returns the promise reading the body so anyone who got task time and made it this far
+        // will just wait for the body to be read from the original caller.
+        return this._bodyMutex  as Promise<T>; 
     }
 
-    setBody(body: Object) {
-        this._body = body;
-    }
-
-    mergeBody<T>(body: T): T {
-        return _.merge(body, this.getBody());
+    async mergeBody<T>(body: T): Promise<T> {
+        return _.merge(body, await this.getBody());
     }
 
     get method(): HttpMethodEnum {

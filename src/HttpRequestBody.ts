@@ -34,7 +34,7 @@ const DEFAULT_JSON_CONTENT_TYPE    = "application/json";
  * @copyright 2024 KRI, LLC
  */
 export abstract class HttpRequestBody<T> {
-    abstract read(request: http.IncomingMessage): Promise<T>;
+    abstract read(request: http.IncomingMessage, pipe: PassThrough): Promise<T>;
 }
 
 /**
@@ -52,39 +52,31 @@ export abstract class HttpResponseBody<T> {
  * @copyright 2024 KRI, LLC
  */
 export class JSONRequestBody extends HttpRequestBody<object> {
-    private readonly pipe: PassThrough;
-
-    constructor(pipe: PassThrough) {
-        super();
-        this.pipe = pipe;
-    }
-
     /**
      * @description
      * @param request 
      * @param pipe 
      * @returns 
      */
-    async read(request: http.IncomingMessage): Promise<Object> {
+    async read(request: http.IncomingMessage, pipe: PassThrough): Promise<Object> {
         const _contentType = request.headers[CONTENT_TYPE_REQUEST_HEADER] ?? "";
         if(!(/^application\/.*json$/.test(_contentType)))
             throw new UnsupportedMediaTypeError(_contentType);
 
-        let   _body = "";
-        const _this = this;
+        let _body = "";
         return new Promise<Object>((resolve, reject) => {
-            _this.pipe.on("data", (chunk: Buffer | string) => {
+            pipe.on("data", (chunk: Buffer | string) => {
                 _body += typeof chunk === "string" ? chunk : chunk.toString("utf8");
             });
 
-            _this.pipe.on("end", () => {
+            pipe.on("end", () => {
                 if(_body.trim().length === 0) 
                     resolve({});
                 else
                     resolve(JSON.parse(_body));
             });
       
-            _this.pipe.on("error", (err) => {
+            pipe.on("error", (err) => {
                 reject(new GestaeError("Error reading request", 500, err));
             });
         });
