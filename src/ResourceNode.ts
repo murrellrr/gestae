@@ -218,7 +218,7 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
     protected async loopEvents(context: HttpContext, event: ResourceEvent<any>, actions: EventRegisterType[]): Promise<void> {
         // Perform the before events.
         for(const _action of actions) {
-            if(!event.cancled) await this.emitResourceEvent(context, event, _action);
+            await this.emitResourceEvent(context, event, _action);
         }
     }
 

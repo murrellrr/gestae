@@ -23,7 +23,6 @@
 import { ApplicationContext } from "./ApplicationContext";
 import { HttpMethodEnum } from "./Gestae";
 import { 
-    CancelError,
     GestaeError, 
     MethodNotAllowedError,
     RequestTimeoutError,
@@ -121,13 +120,9 @@ export class HttpRequestHandler extends AbstractHttpRequestHandler {
             throw new MethodNotAllowedError(httpc.request.method);
         else {
             await this.root.doRequest(httpc);
-            if(httpc.canceled) 
-                throw new CancelError(httpc.reason);
-            else {
-                httpc.log.info(`Request processed with response code ${httpc.response.code} and pending write to client.`);
-                if(this.context.log.level === "debug")
-                    httpc.log.debug(`Response: \r\n${JSON.stringify(httpc.response.body, null, 2)}`);
-            }
+            httpc.log.info(`Request processed with response code ${httpc.response.code} and pending write to client.`);
+            if(this.context.log.level === "debug")
+                httpc.log.debug(`Response: \r\n${JSON.stringify(httpc.response.body, null, 2)}`);
         }
     }
 

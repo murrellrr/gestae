@@ -45,6 +45,7 @@ import {
     AbstractNode, 
     INode 
 } from "./Node";
+import { CancelError, GestaeError } from "./GestaeError";
 
 const LEAP_PATH_PREFIX = `gestaejs:leap:`;
 
@@ -63,7 +64,6 @@ export interface IHttpContext extends IContext {
     get currentNode():        INode | undefined;
     cancel(reason?: any):     void;
     get canceled():           boolean;
-    get reason():             any;
     get failed():             boolean;
     get cause():              any;
 }
@@ -81,7 +81,6 @@ export class HttpContext extends AbstractContext implements IHttpContext {
     public readonly _resources:          ResourceManager;
     public          _currentNode?:       AbstractNode<any>;
     public          _canceled:           boolean = false;
-    public          _reason:             any;
 
     constructor(applicationContext: ApplicationContext, request: HttpRequest, response: HttpResponse) {
         super();
@@ -114,18 +113,12 @@ export class HttpContext extends AbstractContext implements IHttpContext {
     }
 
     cancel(reason?: any): void {
-        if(!this._canceled) {
-            this._canceled = true;
-            this._reason   = reason ?? "Request canceled.";
-        }
+        this._canceled = true;
+        throw new CancelError(reason ?? "Request canceled.");
     }
 
     get canceled(): boolean {
         return this._canceled;
-    }
-
-    get reason(): any {
-        return this._reason;
     }
 
     get failed(): boolean {

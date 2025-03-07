@@ -303,9 +303,9 @@ export class GatewayTimeoutError extends GestaeError {
     }
 }
 
-export class CancelError extends InternalServerError {
+export class CancelError extends GestaeError {
     constructor(reaon?: any) {
-        super(reaon ?? "Request Canceled.");
+        super("Request Canceled.", 500, reaon ?? "Request Canceled.");
         this.name = this.constructor.name;
     }
 }

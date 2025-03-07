@@ -147,8 +147,6 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
 
     protected async emitEvent(context: HttpContext, event: GestaeEvent<any>, instance?: object) {
         await context.applicationContext.eventEmitter.emit(event);
-        if(event.cancled)
-            context.cancel(event.cause);
     }
 
     public async beforeRequest(context: HttpContext): Promise<void> {
