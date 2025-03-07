@@ -92,11 +92,50 @@ export interface Cookie {
 }
 
 /**
+ * 
+ * @param cookie 
+ * @returns 
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-function getTarget(target: Function | Object): Record<string, any> | undefined {
+export const createCookieString = (cookie: Cookie): string => {
+    const parts: string[] = [];
+  
+    // Start with name=value
+    parts.push(`${cookie.name}=${encodeURIComponent(cookie.value)}`);
+  
+    // Optional attributes
+    if(cookie.expires)
+      parts.push(`Expires=${cookie.expires.toDate().toUTCString()}`);
+  
+    if(cookie.maxAge !== undefined)
+      parts.push(`Max-Age=${cookie.maxAge}`);
+  
+    if(cookie.domain)
+      parts.push(`Domain=${cookie.domain}`);
+  
+    if(cookie.path)
+      parts.push(`Path=${cookie.path}`);
+  
+    if(cookie.secure)
+      parts.push("Secure");
+  
+    if(cookie.httpOnly)
+      parts.push("HttpOnly");
+  
+    if(cookie.sameSite)
+      parts.push(`SameSite=${cookie.sameSite}`);
+  
+    return parts.join("; ");
+  }
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const getTarget = (target: Function | Object): Record<string, any> | undefined => {
     return _GESTAE_METADATA[(typeof target === "function")? target.name : target.constructor.name];
 }
 
@@ -105,7 +144,7 @@ function getTarget(target: Function | Object): Record<string, any> | undefined {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-function setTarget(target: Function | Object): Record<string, any> {
+export const  setTarget = (target: Function | Object): Record<string, any> => {
     const _name  = (typeof target === "function")? target.name : target.constructor.name;
     const _super = (typeof target === "function") ? Object.getPrototypeOf(target) : Object.getPrototypeOf(target.constructor);
     let _target = _GESTAE_METADATA[_name];
@@ -124,7 +163,7 @@ function setTarget(target: Function | Object): Record<string, any> {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-function getsertTarget(target: Function | Object): Record<string, any> {
+export const getsertTarget = (target: Function | Object): Record<string, any> => {
     let _target = getTarget(target);
     if(!_target) _target = setTarget(target);
     return _target;

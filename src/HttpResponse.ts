@@ -21,9 +21,11 @@
  */
 
 import { GestaeError } from "./GestaeError";
-import { Cookie } from "./Gestae";
-import http from 'http';
+import { Cookie, createCookieString } from "./Gestae";
 import { HttpResponseBody } from "./HttpBody";
+import http from 'http';
+
+const SET_COOKIE_HEADER = "Set-Cookie";
 
 /**
  * @author Robert R Murrell
@@ -36,10 +38,11 @@ export interface IHttpResponse {
     get code(): number;
     get body(): object;
     get failed(): boolean;
+    get cookies(): Map<string, Cookie>;
     send(msg: object, code?:number): void;
     error(error: GestaeError): void;
-    setHeader(key: string, value: string): void;
-    setCookie(key: string, value: Cookie): void;
+    setHeader(key: string, value: string): IHttpResponse;
+    setCookie(key: string, value: Cookie): IHttpResponse;
 }
 
 /**
@@ -49,10 +52,11 @@ export interface IHttpResponse {
  */
 export class HttpResponse implements IHttpResponse {
     private            _failed:   boolean = false;
+    protected readonly content:   HttpResponseBody<any>;
+    protected readonly _cookies:  Map<string, Cookie> = new Map<string, Cookie>();
     public    readonly _response: http.ServerResponse;
     public             body:      any;
     public             code:      number = 200;
-    protected readonly content:   HttpResponseBody<any>;
 
     constructor(response: http.ServerResponse, responseBody:HttpResponseBody<any>) {
         this._response = response;
@@ -71,12 +75,18 @@ export class HttpResponse implements IHttpResponse {
         return this._failed;
     }
 
-    setHeader(key: string, value: number | string | readonly string[]): void {
+    setHeader(key: string, value: number | string | readonly string[]): IHttpResponse {
         this._response.setHeader(key, value);
+        return this;
     }
 
-    setCookie(key: string, value: Cookie): void {
-        //
+    setCookie(key: string, value: Cookie): IHttpResponse {
+        this._cookies.set(key, value);
+        return this;
+    }
+
+    get cookies(): Map<string, Cookie> {
+        return this._cookies;
     }
 
     send(body: any, code:number = 200): void {
@@ -94,6 +104,10 @@ export class HttpResponse implements IHttpResponse {
     }
 
     async write(content?: HttpResponseBody<any>): Promise<boolean> {
+        // convert cookies to headers.
+        this.setHeader(SET_COOKIE_HEADER, Array.from(this._cookies.values()).map(
+            (cookie: Cookie) => createCookieString(cookie))
+        );
         const _content = content ?? this.content;
         return _content.write(this._response, this.body, this.code);
     }
