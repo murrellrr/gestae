@@ -171,7 +171,6 @@ export class ResourceFeatureFactory extends AbstractFeatureFactoryChain<Resource
     onApply<T extends Object>(node: ResourceNode, target: T): void {
         this.log.debug(`${target.constructor.name} '${node.name}' decorated with @On<sync>Resource<action>, mapping functions to actions.`);
         const _metadata = getsertMetadata(target, RESOUREC_ACTION_METADATA_KEY);
-        this.log.debug(`Mapping ${Object.keys(_metadata).length} actions to '${node.name}': \r\n${JSON.stringify(_metadata, null, 2)}`);
 
         for(const _action in _metadata) {
             const _config = _metadata[_action];
@@ -186,7 +185,7 @@ export class ResourceFeatureFactory extends AbstractFeatureFactoryChain<Resource
                 if(!event.data) throw new GestaeError(`ResourceEvent must have data.`);
                 _method = _method.bind(event.data);
                 await _method(event.context);
-            }, false, true);
+            });
         }
     }
 

@@ -21,12 +21,12 @@
  */
 
 import http from "node:http";
-import { GestaeError, RequestEntityTooLargeError, UnsupportedMediaTypeError } from './GestaeError';
+import { GestaeError, UnsupportedMediaTypeError } from './GestaeError';
+import { PassThrough } from "stream";
 
 const CONTENT_TYPE_REQUEST_HEADER  = "content-type";
 const CONTENT_TYPE_RESPONSE_HEADER = "Content-Type";
 const DEFAULT_JSON_CONTENT_TYPE    = "application/json";
-const DEFAULT_MAX_REQUEST_SIZE_MB  = 4;
 
 /**
  * @author Robert R Murrell
@@ -52,44 +52,39 @@ export abstract class HttpResponseBody<T> {
  * @copyright 2024 KRI, LLC
  */
 export class JSONRequestBody extends HttpRequestBody<object> {
-    private readonly maxSizeB: number;
+    private readonly pipe: PassThrough;
 
-    constructor(maxMB: number = DEFAULT_MAX_REQUEST_SIZE_MB) {
+    constructor(pipe: PassThrough) {
         super();
-        this.maxSizeB = maxMB * 1024 * 1024;
+        this.pipe = pipe;
     }
 
-    async read(request: http.IncomingMessage): Promise<object> {
+    /**
+     * @description
+     * @param request 
+     * @param pipe 
+     * @returns 
+     */
+    async read(request: http.IncomingMessage): Promise<Object> {
         const _contentType = request.headers[CONTENT_TYPE_REQUEST_HEADER] ?? "";
         if(!(/^application\/.*json$/.test(_contentType)))
             throw new UnsupportedMediaTypeError(_contentType);
 
-        return new Promise<object>((resolve, reject) => {
-            let _body: string = "";
-            let totalLength = 0;
-      
-            request.on("data", (chunk: Buffer | string) => {
-                const _chunkStr = typeof chunk === "string" ? chunk : chunk.toString("utf8");
-                totalLength += Buffer.byteLength(_chunkStr, "utf8");
-                if (totalLength > this.maxSizeB) {
-                    // Exceeded maximum size: reject and destroy the stream
-                    reject(new RequestEntityTooLargeError(`Request body exceeds maximum allowed size of ${this.maxSizeB} Bytes.`));
-                    request.pause();
-                    return;
-                }
-                _body += _chunkStr;
+        let   _body = "";
+        const _this = this;
+        return new Promise<Object>((resolve, reject) => {
+            _this.pipe.on("data", (chunk: Buffer | string) => {
+                _body += typeof chunk === "string" ? chunk : chunk.toString("utf8");
             });
-      
-            request.on("end", () => {
-                try {
+
+            _this.pipe.on("end", () => {
+                if(_body.trim().length === 0) 
+                    resolve({});
+                else
                     resolve(JSON.parse(_body));
-                }
-                catch(error) {
-                    reject(new GestaeError("Failed to parse JSON body", 500, error));
-                }
             });
       
-            request.on("error", (err) => {
+            _this.pipe.on("error", (err) => {
                 reject(new GestaeError("Error reading request", 500, err));
             });
         });
@@ -105,7 +100,7 @@ export class JSONResponseBody extends HttpResponseBody<object> {
     async write(response: http.ServerResponse, body: object, code: number, contentType?:string): Promise<boolean> {
         if(response.writable && !response.headersSent){
             response.setHeader(CONTENT_TYPE_RESPONSE_HEADER, 
-                            contentType ?? (body as any).$contentType ?? DEFAULT_JSON_CONTENT_TYPE);
+                               contentType ?? (body as any).$contentType ?? DEFAULT_JSON_CONTENT_TYPE);
             response.writeHead(code);
             response.end(JSON.stringify(body));
             return true;

@@ -91,7 +91,7 @@ export class HttpResponse implements IHttpResponse {
         const _error = GestaeError.toError(error, code);
         this._failed = true;
         this.code = _error.code;
-        this.body = _error.safe();
+        this.body = _error.safe;
     }
 
     async write(content?: HttpResponseBody<any>): Promise<boolean> {

@@ -194,7 +194,6 @@ export class Application {
         // Request
         options.maxRequestSizeMB = options.maxRequestSizeMB ?? DEFAULT_MAX_REQUEST_SIZE_MB;
         options.maxJsonSizeMB    = options.maxJsonSizeMB    ?? options.maxRequestSizeMB;
-        options.requestBody      = options.requestBody      ?? new JSONRequestBody(options.maxJsonSizeMB);
         options.responseBody     = options.responseBody     ?? new JSONResponseBody();
 
         // Logger.

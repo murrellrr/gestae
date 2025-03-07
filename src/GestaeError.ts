@@ -48,7 +48,7 @@ export class GestaeError extends Error {
         return {message: this.message, code: this._code, cause: this._cause};
     }
 
-    safe() {
+    get safe(): object {
         return {message: this.message, code: this._code};
     }
 

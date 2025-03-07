@@ -54,6 +54,7 @@ import {
     IResourceOptions
 } from "./Resource";
 import { AbstractTaskableNode } from "./TaskNode";
+import { HttpRequest } from "./HttpRequest";
 
 interface IResourceContext {
     id?:            string;
@@ -145,14 +146,19 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
     public async emitResourceEvent(context: HttpContext, event: ResourceEvent<any>, type: EventRegisterType): Promise<void> {
         event.data = context.resources.getResource(this.resourceKey);
         event.path = `${this.fullyQualifiedPath}:${formatEvent(type)}`;
-        context.log.debug(`Emitting event '${event.path}'.`);
         await this.emitEvent(context, event);
         context.resources.setResource(this.resourceKey, event.data);
     }
 
     public async beforeRequest(context: HttpContext): Promise<void> {
-        const _id       = context.request.uri.next;
-        const _action   = this.getSupportedAction(context.request.method, _id, context.request.uri.target);
+        const _id     = context.request.uri.next;
+        const _action = this.getSupportedAction(context.request.method, _id, 
+                                                context.request.uri.target);
+        
+        // Validate whether the ID is required or not..
+        if((_action !== ResourceActionEnum.Create) && !_id)
+            throw new BadRequestError(`Id required for '${_action}' actions on entity '${this.name}'.`);
+
         const _resource = {
             id:             _id,
             instance:       this.createInstance(_id),
@@ -163,14 +169,23 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
         } as IResourceContext;
         context.setValue(this.resourceKey, _resource);
         context.resources.setResource(this.resourceKey, _resource.instance);
-        // Validate whether the ID is required or not..
-        if((_resource.action !== ResourceActionEnum.Create) && !_id)
-            throw new BadRequestError(`Id required for '${_resource.action}' actions on entity '${this.name}'.`);
-        context.log.debug(`Processing resource '${this.name}' with ID '${_id ?? ''}' using action '${_resource.action}'`);
-        this.prepareEvents(_resource);
+
+        this.prepareEvents(_resource, context._request);
+        await this.prepareBody(_resource, context);
     }
 
-    protected prepareEvents(resource: IResourceContext): void {
+    protected async prepareBody(resource: IResourceContext, context: HttpContext): Promise<void> {
+        if(resource.action === ResourceActionEnum.Create || 
+                resource.action === ResourceActionEnum.Update || 
+                resource.action === ResourceActionEnum.Delete) {
+            // Update the body and reset into the resource and events.
+            resource.instance   = await context.request.mergeBody(resource.instance);
+            resource.event.data = resource.instance;
+            context.resources.setResource(this.resourceKey, resource.instance);
+        }
+    }
+
+    protected prepareEvents(resource: IResourceContext, request: HttpRequest): void {
         switch(resource.action) {
             case ResourceActionEnum.Create:
                 resource.doBeforeEvents.push(ResourceEvents.Create.OnBefore);
@@ -180,7 +195,6 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
             case ResourceActionEnum.Read:
                 resource.doBeforeEvents.push(ResourceEvents.Read.OnBefore);
                 resource.doBeforeEvents.push(ResourceEvents.Read.On);
-                resource.doAfterEvents.push(ResourceEvents.Read.OnAfter);
                 break;
             case ResourceActionEnum.Update:
                 resource.doBeforeEvents.push(ResourceEvents.Update.OnBefore);

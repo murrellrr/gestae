@@ -20,6 +20,7 @@
  *  THE SOFTWARE.
  */
 
+import { PassThrough } from "node:stream";
 import { ApplicationContext } from "./ApplicationContext";
 import { HttpMethodEnum } from "./Gestae";
 import { 
@@ -39,6 +40,29 @@ import http from "node:http";
 const DEFAULT_MAX_REQUEST_SIZE_MB = 5;
 
 /**
+ * 
+ * @param maxSize 
+ */
+const createSizeLimitPassthroug = (maxSize: number, onOversizedLoad: (total: number) => boolean): PassThrough => {
+    // Add listener to enfource max request size.
+    let   _totalLength = 0;
+    const _pass        = new PassThrough();
+
+    // Monitor the incomming request to ensure it doesnt exceed the max size.
+    _pass.on("data", (chunk: Buffer | string) => {
+        // Determine the byte length of the chunk
+        const chunkSize = typeof chunk === "string" ? Buffer.byteLength(chunk, "utf8") : chunk.length;
+        _totalLength += chunkSize;
+        if(_totalLength > maxSize) {
+            if(onOversizedLoad(_totalLength))
+                throw new RequestEntityTooLargeError("Request body exceeds maximum allowed size");
+        }
+    });
+
+    return _pass;
+};
+
+/**
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
@@ -50,8 +74,9 @@ export abstract class AbstractHttpRequestHandler {
         public readonly root:    AbstractNode<any>,
         maxSizeMB?: number
     ) {
-        this.maxSize = maxSizeMB ? maxSizeMB * 1024 * 1024 : 
-                                   DEFAULT_MAX_REQUEST_SIZE_MB * 1024 * 1024;
+        // this.maxSize = maxSizeMB ? maxSizeMB * 1024 * 1024 : 
+        //                            DEFAULT_MAX_REQUEST_SIZE_MB * 1024 * 1024;
+        this.maxSize = 1;
     }
 
     protected abstract createHttpContext(req: HttpRequest, res: HttpResponse): HttpContext;
@@ -62,34 +87,22 @@ export abstract class AbstractHttpRequestHandler {
 
     async handleRequest(req: http.IncomingMessage, 
                         res: http.ServerResponse): Promise<void> {
-        // Add listener to enfource max request size.
-        let _totalLength   = 0;
-        let _limitExceeded = false;
-
-        // Monitor the incomming request to ensure it doesnt exceed the max size.
-        req.on("data", (chunk: Buffer | string) => {
-            // Determine the byte length of the chunk
-            const chunkSize = typeof chunk === "string" ? Buffer.byteLength(chunk, "utf8") : chunk.length;
-            _totalLength += chunkSize;
-            if(_totalLength > this.maxSize && !_limitExceeded) {
-                _limitExceeded = true;
-                // Exceeded maximum size: send error response and pause the request stream.
-                if(!res.headersSent) {
-                    const err = new RequestEntityTooLargeError("Request body exceeds maximum allowed size");
-                    res.writeHead(err.code, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify(err, null, 2));
-                }
-                req.pause();
-            }
+        let _limitPipe = createSizeLimitPassthroug(this.maxSize, (total: number) => {
+            // Exceeded maximum size: send error response and pause the request stream.
+            req.pause();
+            return true;
         });
 
-        // defensive coding.
-        if(_limitExceeded) return; // checking in case the stream was read before we get out of the event regoister.
-
         // handle the incomming request like a champ!
-        const _req   = new HttpRequest(req);
+        const _req   = new HttpRequest(req, _limitPipe);
         const _res   = new HttpResponse(res);
         const _httpc = this.createHttpContext(_req, _res);
+
+        // Prepare the request to read data and such.
+        let _loader = _req.prepare();
+        // Set-up the passthrough
+        req.pipe(_limitPipe);
+        await _loader;
 
         try {
             await this.processRequest(_httpc);
@@ -113,7 +126,7 @@ export class HttpRequestHandler extends AbstractHttpRequestHandler {
 
     protected async handleError(httpc: HttpContext, error?: any): Promise<void> {
         const _error = GestaeError.toError(error);
-        httpc.log.error(`Error processing ${httpc.request.method} request ${httpc.request.url}:\r\n${JSON.stringify(error, null, 2)}`);
+        httpc.log.error(`Error processing ${httpc.request.method} request ${httpc.request.url}:\r\n${JSON.stringify(error, null, 2)}\r\n${_error.stack}`);
         httpc.response.error(_error);
     }
 

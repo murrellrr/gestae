@@ -25,9 +25,14 @@ import {
     HeaderValue,
     HttpMethodEnum 
 } from "./Gestae";
-import http from "node:http";
 import { SearchParams } from "./SearchParams";
-import { HttpRequestBody, JSONRequestBody } from "./HttpBody";
+import { 
+    HttpRequestBody, 
+    JSONRequestBody 
+} from "./HttpBody";
+import _ from "lodash";
+import http from "node:http";
+import { PassThrough } from "node:stream";
 
 const DEFAULT_CONTENT_TYPE_HEADER = "content-type";
 
@@ -115,7 +120,8 @@ export interface IHttpRequest {
     getContentType(): string;
     getHeader(key: string, defaultValue?: HeaderValue): HeaderValue;
     isMethod(method: HttpMethodEnum): boolean;
-    getBody(parser?:HttpRequestBody<any>): Promise<any>;
+    getBody<T extends Object>(): T;
+    mergeBody<T>(body: T): Promise<T>;
     get isCreate(): boolean;
     get isRead(): boolean;  
     get isUpdate(): boolean;  
@@ -130,21 +136,21 @@ export interface IHttpRequest {
  * @copyright 2024 KRI, LLC
  */
 export class HttpRequest implements IHttpRequest{
-    public readonly  _request:     http.IncomingMessage;
-    public readonly  _cookies:     Record<string, Cookie> = {};
-    public           _method:      HttpMethodEnum = HttpMethodEnum.Unsupported;
-    public  readonly searchParams: SearchParams;
-    public  readonly url:          URL;
-    public  readonly uri:          URITree;
+    private            body:         Object = {}
+    protected content:               HttpRequestBody<any>;
+    public    readonly _request:     http.IncomingMessage;
+    public    readonly _cookies:     Record<string, Cookie> = {};
+    public             _method:      HttpMethodEnum = HttpMethodEnum.Unsupported;
+    public    readonly searchParams: SearchParams;
+    public    readonly url:          URL;
+    public    readonly uri:          URITree;
 
-    protected content: HttpRequestBody<any>;
-
-    constructor(request: http.IncomingMessage) {
+    constructor(request: http.IncomingMessage, pipe: PassThrough) {
         this._request     = request;
         this.url          = new URL(request.url ?? "", `http://${request.headers.host}`);
         this.uri          = new URITree(this.url.pathname);
         this.searchParams = new SearchParams(this.url);
-        this.content      = new JSONRequestBody();
+        this.content      = new JSONRequestBody(pipe);
         this._parseCookies();
         this._parseMethod();
     }
@@ -196,13 +202,20 @@ export class HttpRequest implements IHttpRequest{
         }
     }
 
+    public async prepare(): Promise<void> {
+        return this.content.read(this._request);
+    }
+
     get http(): http.IncomingMessage {
         return this._request;
     }
 
-    async getBody<T>(content?: HttpRequestBody<T>): Promise<T> {
-        const _content = content ?? this.content;
-        return _content.read(this._request);
+    getBody<T extends Object>(): T {
+        return this.body as T;
+    }
+
+    async mergeBody<T>(body: T): Promise<T> {
+        return _.merge(body, this.getBody());
     }
 
     get method(): HttpMethodEnum {
