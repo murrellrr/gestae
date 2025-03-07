@@ -121,7 +121,7 @@ export interface IHttpRequest {
     getHeader(key: string, defaultValue?: HeaderValue): HeaderValue;
     isMethod(method: HttpMethodEnum): boolean;
     getBody<T extends Object>(): T;
-    mergeBody<T>(body: T): Promise<T>;
+    mergeBody<T>(body: T): T;
     get isCreate(): boolean;
     get isRead(): boolean;  
     get isUpdate(): boolean;  
@@ -136,7 +136,7 @@ export interface IHttpRequest {
  * @copyright 2024 KRI, LLC
  */
 export class HttpRequest implements IHttpRequest{
-    private            body:         Object = {}
+    private            _body:         Object = {};
     protected content:               HttpRequestBody<any>;
     public    readonly _request:     http.IncomingMessage;
     public    readonly _cookies:     Record<string, Cookie> = {};
@@ -144,6 +144,7 @@ export class HttpRequest implements IHttpRequest{
     public    readonly searchParams: SearchParams;
     public    readonly url:          URL;
     public    readonly uri:          URITree;
+    
 
     constructor(request: http.IncomingMessage, pipe: PassThrough) {
         this._request     = request;
@@ -202,7 +203,7 @@ export class HttpRequest implements IHttpRequest{
         }
     }
 
-    public async prepare(): Promise<void> {
+    public async read<T extends Object>(): Promise<T> {
         return this.content.read(this._request);
     }
 
@@ -211,10 +212,14 @@ export class HttpRequest implements IHttpRequest{
     }
 
     getBody<T extends Object>(): T {
-        return this.body as T;
+        return this._body as T;
     }
 
-    async mergeBody<T>(body: T): Promise<T> {
+    setBody(body: Object) {
+        this._body = body;
+    }
+
+    mergeBody<T>(body: T): T {
         return _.merge(body, this.getBody());
     }
 

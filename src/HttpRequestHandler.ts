@@ -74,9 +74,8 @@ export abstract class AbstractHttpRequestHandler {
         public readonly root:    AbstractNode<any>,
         maxSizeMB?: number
     ) {
-        // this.maxSize = maxSizeMB ? maxSizeMB * 1024 * 1024 : 
-        //                            DEFAULT_MAX_REQUEST_SIZE_MB * 1024 * 1024;
-        this.maxSize = 1;
+        this.maxSize = maxSizeMB ? maxSizeMB * 1024 * 1024 : 
+                                   DEFAULT_MAX_REQUEST_SIZE_MB * 1024 * 1024;
     }
 
     protected abstract createHttpContext(req: HttpRequest, res: HttpResponse): HttpContext;
@@ -98,11 +97,13 @@ export abstract class AbstractHttpRequestHandler {
         const _res   = new HttpResponse(res);
         const _httpc = this.createHttpContext(_req, _res);
 
+        // TODO: add checker code to expect a body.
         // Prepare the request to read data and such.
-        let _loader = _req.prepare();
+        let _loader = _req.read();
         // Set-up the passthrough
         req.pipe(_limitPipe);
-        await _loader;
+        // set the body of the request
+        _req.setBody(await _loader);
 
         try {
             await this.processRequest(_httpc);
