@@ -76,8 +76,8 @@ export abstract class AbstractHttpRequestHandler {
                         res: http.ServerResponse): Promise<void> {
         const _this = this;
         // Set up the request size limitter.
-        const _limitter = new HttpPassThrough(this.size);
-        _limitter.addSizeLimitter();
+        const _limitter = new HttpPassThrough();
+        _limitter.addSizeLimitter(this.size);
 
         // Setting up the timout action
         req.setTimeout(this.timeout, () => {

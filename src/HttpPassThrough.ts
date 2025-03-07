@@ -30,14 +30,12 @@ import { RequestEntityTooLargeError } from "./GestaeError";
  */
 export class HttpPassThrough {
     public readonly pipe:    PassThrough;
-    public readonly sizeB:   number;
     
-    constructor(sizeB: number, pipe?: PassThrough) {
+    constructor(pipe?: PassThrough) {
         this.pipe  = pipe ?? new PassThrough();
-        this.sizeB = sizeB;
     }
 
-    addSizeLimitter(): this {
+    addSizeLimitter(sizeB: number): this {
         let _this        = this;
         let _totalLength = 0;
         // Monitor the incomming request to ensure it doesnt exceed the max size.
@@ -45,8 +43,8 @@ export class HttpPassThrough {
             // Determine the byte length of the chunk
             const chunkSize = typeof chunk === "string" ? Buffer.byteLength(chunk, "utf8") : chunk.length;
             _totalLength += chunkSize;
-            if(_totalLength > _this.sizeB)
-                _this.pipe.destroy(new RequestEntityTooLargeError(_this.sizeB));
+            if(_totalLength > sizeB)
+                _this.pipe.destroy(new RequestEntityTooLargeError(sizeB));
         });
         return this;
     }

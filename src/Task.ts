@@ -68,7 +68,7 @@ export const setTaskMetadata = <T extends Object>(target: T, property: string, o
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function Task<I, R = void>(options: ITaskOptions = {}) {
+export function TaskExecute<I, R = void>(options: ITaskOptions = {}) {
                                   options.dataAsTarget = options.dataAsTarget ?? true;
     return function <T extends Object>(target: T, property: string,
                                        descriptor: TypedPropertyDescriptor<(firstArg: I, context: HttpContext) => InferReturnType<R>>) {
@@ -77,7 +77,7 @@ export function Task<I, R = void>(options: ITaskOptions = {}) {
 
         const paramTypes = Reflect.getMetadata("design:paramtypes", target, property) || [];
         if (paramTypes.length != 2)
-            throw GestaeError.toError(`@Task requires the first parameter as an input type and the second as context in method: ${property}`);
+            throw GestaeError.toError(`Task decorator requires the first parameter as an input type and the second as context in method: ${property}`);
 
         const FirstArgType = paramTypes[0];
         const ContextType = paramTypes[1];
@@ -85,12 +85,12 @@ export function Task<I, R = void>(options: ITaskOptions = {}) {
         descriptor.value = function (firstArg: I, context: HttpContext) {
             if(!(firstArg instanceof FirstArgType))
                 throw GestaeError.toError(
-                    `@Task method '${property}' expected first argument of type ${FirstArgType.name}, but received ${typeof firstArg}`
+                    `Task decorator '${property}' expected first argument of type ${FirstArgType.name}, but received ${typeof firstArg}`
                 );
 
             if(!(context instanceof ContextType))
                 throw GestaeError.toError(
-                    `@Task method '${property}' expected second argument of type ${ContextType.name}, but received ${typeof context}`
+                    `Task decorator '${property}' expected second argument of type ${ContextType.name}, but received ${typeof context}`
                 );
 
             return originalMethod.apply(this, [firstArg, context]); // Only passing the required arguments
@@ -112,7 +112,7 @@ export function Task<I, R = void>(options: ITaskOptions = {}) {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function AsyncTask<I, R = void>(options: ITaskOptions = {}) {
+export function AsyncTaskExecute<I, R = void>(options: ITaskOptions = {}) {
     options.dataAsTarget = options.dataAsTarget ?? true;
     return function <T extends Object>(target: T, property: string,
                                        descriptor: TypedPropertyDescriptor<(firstArg: I, context: HttpContext) => Promise<InferReturnType<R>>>) {
@@ -123,7 +123,7 @@ export function AsyncTask<I, R = void>(options: ITaskOptions = {}) {
         const returnType = Reflect.getMetadata("design:returntype", target, property);
 
         if(paramTypes.length != 2)
-            throw GestaeError.toError(`@AsyncTask requires the first parameter as an input type and the second as context in method: ${property}`);
+            throw GestaeError.toError(`AsyncTask decorator requires the first parameter as an input type and the second as context in method: ${property}`);
 
         const FirstArgType = paramTypes[0];
         const ContextType = paramTypes[1];
@@ -131,19 +131,19 @@ export function AsyncTask<I, R = void>(options: ITaskOptions = {}) {
         descriptor.value = async function (firstArg: I, context: HttpContext) {
             if (!(firstArg instanceof FirstArgType))
                 throw GestaeError.toError(
-                    `@AsyncTask method '${property}' expected first argument of type ${FirstArgType.name}, but received ${typeof firstArg}`
+                    `AsyncTask decorator '${property}' expected first argument of type ${FirstArgType.name}, but received ${typeof firstArg}`
                 );
 
             if (!(context instanceof ContextType))
                 throw GestaeError.toError(
-                    `@AsyncTask method '${property}' expected second argument of type ${ContextType.name}, but received ${typeof context}`
+                    `AsyncTask decorator '${property}' expected second argument of type ${ContextType.name}, but received ${typeof context}`
                 );
 
             const result = await originalMethod.apply(this, [firstArg, context]); // Only passing the required arguments
 
             if (returnType && !(result instanceof returnType))
                 throw GestaeError.toError(
-                    `@AsyncTask method '${property}' expected return type ${returnType.name}, but got ${typeof result}`
+                    `AsyncTask decorator '${property}' expected return type ${returnType.name}, but got ${typeof result}`
                 );
 
             return result;

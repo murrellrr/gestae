@@ -63,7 +63,7 @@ const setResourceActionMetadata = (target: Object, action: ResourceActionEnum, p
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnAsyncResourceCreate<T>(options: IResourceActionOptions = {}) {
+export function AsyncCreateResource<T>(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(context: IHttpContext) => Promise<void>>) {
         
@@ -76,7 +76,7 @@ export function OnAsyncResourceCreate<T>(options: IResourceActionOptions = {}) {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnResourceCreate<T>(options: IResourceActionOptions = {}) {
+export function CreateResource<T>(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(context: IHttpContext) => void>) {
         // options.dataAsTarget = options.dataAsTarget ?? true;
@@ -89,7 +89,7 @@ export function OnResourceCreate<T>(options: IResourceActionOptions = {}) {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnAsyncResourceRead<T>(options: IResourceActionOptions = {}) {
+export function AsyncReadResource<T>(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(context: IHttpContext) => Promise<void>>) {
         // options.dataAsTarget = options.dataAsTarget ?? true;
@@ -102,7 +102,7 @@ export function OnAsyncResourceRead<T>(options: IResourceActionOptions = {}) {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnResourceRead<T>(options: IResourceActionOptions = {}) {
+export function ReadResource<T>(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(context: IHttpContext) => void>) {
         // options.dataAsTarget = options.dataAsTarget ?? true;
@@ -115,7 +115,7 @@ export function OnResourceRead<T>(options: IResourceActionOptions = {}) {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnAsyncResourceUpdate<T>(options: IResourceActionOptions = {}) {
+export function AsyncUpdateResource<T>(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(context: IHttpContext) => Promise<void>>) {
         // options.dataAsTarget = options.dataAsTarget ?? true;
@@ -128,7 +128,7 @@ export function OnAsyncResourceUpdate<T>(options: IResourceActionOptions = {}) {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnResourceUpdate<T>(options: IResourceActionOptions = {}) {
+export function UpdateResource<T>(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(context: IHttpContext) => void>) {
         // options.dataAsTarget = options.dataAsTarget ?? true;
@@ -141,7 +141,7 @@ export function OnResourceUpdate<T>(options: IResourceActionOptions = {}) {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnAsyncResourceDelete<T>(options: IResourceActionOptions = {}) {
+export function AsyncDeleteResource<T>(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(context: IHttpContext) => Promise<void>>) {
         // options.dataAsTarget = options.dataAsTarget ?? true;
@@ -154,7 +154,7 @@ export function OnAsyncResourceDelete<T>(options: IResourceActionOptions = {}) {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnResourceDelete<T>(options: IResourceActionOptions = {}) {
+export function DeleteResource<T>(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(context: IHttpContext) => void>) {
         // options.dataAsTarget = options.dataAsTarget ?? true;
@@ -168,7 +168,6 @@ export class ResourceFeatureFactory extends AbstractFeatureFactoryChain<Resource
     }
 
     onApply<T extends Object>(node: ResourceNode, target: T): void {
-        this.log.debug(`${target.constructor.name} '${node.name}' decorated with @On<sync>Resource<action>, mapping functions to actions.`);
         const _metadata = getsertMetadata(target, RESOUREC_ACTION_METADATA_KEY);
 
         for(const _action in _metadata) {
@@ -179,10 +178,15 @@ export class ResourceFeatureFactory extends AbstractFeatureFactoryChain<Resource
             let _event     = ResourceFeatureFactory.getResourceEvent(_config.action);
             let _eventName = `${node.fullyQualifiedPath}:${formatEvent(_event)}`;
 
-            this.log.debug(`Binding resource action event '${_eventName}' to method '${_config.method}' on target '${target.constructor.name}'.`);
+            this.log.debug(`Binding method '${target.constructor.name}.${_config.method}' on action '${_action}' to event '${_eventName}' for node '${node.name}'.`);
             this.context.eventQueue.on(_eventName, async (event: ResourceEvent<T>) => {
-                if(!event.data) throw new GestaeError(`ResourceEvent must have data.`); // Defensive coding.
-                await _method.call(event.data, event.context);
+                try {
+                    if(!event.data) throw new GestaeError(`ResourceEvent must have data.`); // Defensive coding.
+                    await _method.call(event.data, event.context);
+                }
+                catch(error) {
+                    event.cancel(GestaeError.toError(error));
+                }
             });
         }
     }

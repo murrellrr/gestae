@@ -278,18 +278,13 @@ export class Application {
 
     protected async onInitialize(): Promise<void> {
         //this.log.warn(`Application '${JSON.stringify(getGestaeMetadata(), null, 2)}'`);
-        this.log.debug(`Initializing application '${this.name}'...`);
         const _initContext: InitializationContext = 
             InitializationContext.create(this.context, this.options.nodeChainFactory!(this.context), 
                                          this.options.featureChainFactory!(this.context));
         // Initialize the templates to nodes.
-        this.log.debug("Converting templates...");
         this._root = await this._template.convert(_initContext);
-        this.log.debug("Templates converted.");
         // Initialize the nodes.
-        this.log.debug("Initializing nodes...");
         await this._root.initialize(_initContext);
-        this.log.debug("Nodes initialized.");
         this.log.debug(`Application '${this.name}' initialized on root '${this._root.name}'.`);
     }
 

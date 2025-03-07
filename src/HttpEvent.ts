@@ -33,6 +33,11 @@ import {
  * @copyright 2024 KRI, LLC
  */
 export const HttpEvents = {
+    Http: {
+        OnBefore: {operation: "get", action: "before"} as EventRegisterType,
+        On:       {operation: "get", action: "on"    } as EventRegisterType,
+        OnAfter:  {operation: "get", action: "after" } as EventRegisterType,
+    },
     Get: {
         OnBefore: {operation: "get", action: "before"} as EventRegisterType,
         On:       {operation: "get", action: "on"    } as EventRegisterType,

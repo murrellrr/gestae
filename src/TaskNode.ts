@@ -86,21 +86,19 @@ export abstract class AbstractTaskableNode<O extends INodeOptions> extends Abstr
      * @param context 
      */
     public async beforeInitialize(context: InitializationContext): Promise<void> {
+        await super.beforeInitialize(context);
         const _target = this.getInstance();
         if(hasMetadata(_target, TASK_METDADATA_KEY)) {
-            context.log.debug(`'${_target.constructor.name}' is decorated with @Task(s), applying task node(s) to '${this.name}'.`);
             const _metadata = getsertMetadata(_target, TASK_METDADATA_KEY);
             const _keys = Object.keys(_metadata);
-            context.log.debug(`Creating ${_keys.length} task node(s)...`);
             for(const _key in _metadata) {
                 if(_metadata.hasOwnProperty(_key)) {
                     const _taskConfig = _metadata[_key];
-                    context.log.debug(`Creating task node '${_taskConfig.name}' and adding it to '${this.name}'.`);
+                    context.log.debug(`${this.constructor.name} '${this.name}' adding task '${_taskConfig.name}' to children.`);
                     const _task = new TaskNode(_taskConfig);
                     this.add(_task);
                 }
             }
-            context.log.debug(`${_keys.length} task node(s) applied.`);
         }
     }
 }

@@ -102,19 +102,14 @@ export class NodeTemplate implements INodeTemplate {
      * @returns The top-level node of the template.
      */
     async convert(context: InitializationContext): Promise<AbstractNode<any>> {
-        context.applicationContext.log.debug(`Converting template '${this.name}'...`);
-
         // Checking to see if the base is a node.
         const _result = context.nodeFactory.create(this);
         const _node   = _result.bottom ?? _result.top;
 
         // Converting child templates.
-        context.applicationContext.log.debug(`Converting ${this._children.size} child templates...`);
         for(const child of this._children.values()) {
-            context.applicationContext.log.debug(`Converting template ${child.name} and adding to node '${_node.name}'.`);
             _node.add(await child.convert(context));
         }
-        context.applicationContext.log.debug(`${this._children.size} child templates converted.`);
 
         context.applicationContext.log.debug(`Template '${this.name}' converted to ${_node.constructor.name} '${_node.name}'.`);
         return _result?.top ?? _node;

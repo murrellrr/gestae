@@ -122,8 +122,6 @@ export class HttpEvent<T> extends GestaeEvent<T> {
     }
 }
 
-
-
 /**
  * @description Formats an EventRegisterType to a delimitted string using ':'.
  * @param event The event to format.
@@ -135,6 +133,16 @@ export class HttpEvent<T> extends GestaeEvent<T> {
  */
 export const formatEvent = (event: EventRegisterType): string => {
     return (event.topic ? event.topic + ":" : "") + event.operation + ":" + event.action;
+}
+
+/**
+ * @desciription
+ * @param event 
+ * @param path 
+ * @returns 
+ */
+export const generateEventName = (event: EventRegisterType, path: string): string => {
+    return `gestaejs:${path}:${formatEvent(event)}`;
 }
 
 /**
@@ -177,25 +185,22 @@ export class EventFeatureFactory extends AbstractFeatureFactoryChain<AbstractNod
     }
 
     onApply<T extends Object>(node: AbstractNode<any>, target: T): void {
-        this.log.debug(`'${target.constructor.name}' is decorated with @On<Asyn><Type>Event(s), applying event listeners for '${node.name}'...`);
         const _metadata = getsertMetadata(target, EVENT_OPTIONS_KEY);
         for(const _key in _metadata) {
             const _events = _metadata[_key];
             for(const _event of _events) {
                 const _fullyQualifiedEventPath = `${node.fullyQualifiedPath}:${formatEvent(_event.register)}`;
-                this.log.debug(`Registering event '${_fullyQualifiedEventPath}'`);
                 const _method = EventFeatureFactory.getMethod(target, _event.register.method);
                 if(_method) {
                     this.context.eventQueue.on(_fullyQualifiedEventPath, 
                                                _method as (event: GestaeEvent<unknown>) => void | Promise<void>, 
                                                _event.once);
-                    this.log.debug(`Method '${_event.register.method}' of '${target.constructor.name}' registered on '${_fullyQualifiedEventPath}'.`);
+                    this.log.debug(`Binding method '${target.constructor.name}.${_event.register.method}' on action '${_event.register.action}' to event '${_fullyQualifiedEventPath}' for node '${node.name}'.`);
                 }
                 else 
-                    throw GestaeError.toError(`Method '${_event.register.method}' not found on '${target.constructor.name}', skipping event registration.'`);
+                    throw GestaeError.toError(`Method '${target.constructor.name}.${_event.register.method}' not implemented.'`);
             }
         }
-        this.log.debug(`'Applied event listeners for '${node.name}'.`);
     }
 
     static getMethod(instance: object, method: string): Function | undefined {

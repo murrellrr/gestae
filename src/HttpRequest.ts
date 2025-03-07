@@ -210,7 +210,7 @@ export class HttpRequest implements IHttpRequest{
             for(const cookieStr of _cookkieValues) {
                 const _index = cookieStr.indexOf("=");
                 if(_index === -1) continue; // Invalid cookie segment.
-                const _cookieName = cookieStr.substring(0, _index).trim();
+                const _cookieName  = cookieStr.substring(0, _index).trim();
                 const _cookieValue = cookieStr.substring(_index + 1).trim();
                 this._cookies[_cookieName] = {
                     name: _cookieName,
@@ -226,21 +226,17 @@ export class HttpRequest implements IHttpRequest{
 
     async getBody<T>(content?: HttpRequestBody<T>): Promise<T> {
         // If we have already got the body, just return it immediately.
-        this.log.debug("Getting body from request.");
         if(this._body) return this._body as T;
 
         // The body has never been retrieved before, exclusively read it.
-        this.log.debug("Reading body from request.");
         if(!this._bodyMutex) {
             this._bodyMutex = (async () => {
                 // allow a content override.
                 const _content = content ?? this.content;
 
                 // Prep the pipe to read the body
-                this.log.debug(`Getting read promise from HttpRequestBody '${_content.constructor.name}'.`);
                 const _promise = _content.read(this._request, this._passThrough);
                 // pipe the request to our passthrough.
-                this.log.debug("Piping request to PassThrough.");
                 this._request.pipe(this._passThrough.pipe);
                 // wait for the body to be read.
                 this._body = await _promise;
@@ -298,6 +294,8 @@ export class HttpRequest implements IHttpRequest{
     }
 
     getCookie(key: string, defaultValue?: Cookie | undefined): Cookie | undefined {
-        return undefined; // TODO: Implement cookie retrieval.
+        let _cookie: Cookie | undefined = this._cookies[key];
+        if(!_cookie) _cookie = defaultValue;
+        return _cookie;
     }
 }

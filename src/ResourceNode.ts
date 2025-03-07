@@ -251,7 +251,6 @@ export class ResourceNodeFactory extends AbstractNodeFactoryChain<IResourceOptio
     }
 
     onCreate(target: NodeTemplate): FactoryReturnType<IResourceOptions, ResourceNode> {
-        this.log.debug(`Creating resource '${target.name}'`);
         return {top: ResourceNode.create((target.node as ClassType))};
     }
 }

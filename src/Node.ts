@@ -22,7 +22,7 @@
 
 import { InitializationContext } from "./ApplicationContext";
 import { IOptions } from "./Gestae";
-import { CancelError, GestaeError, NotFoundError } from "./GestaeError";
+import { CancelError, GestaeError, MethodNotAllowedError, NotFoundError } from "./GestaeError";
 import { GestaeEvent } from "./GestaeEvent";
 import { HttpContext } from "./HttpContext";
 
@@ -131,13 +131,10 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
 
     private async applyFeatures(context: InitializationContext): Promise<void> {
         // Applying the features to the top-level node.
-        context.log.debug(`Applying features to '${this.name}'...`);
         context.featureFactory.apply(this, this.getInstance());
-        context.log.debug(`Features applied to '${this.name}'.`);
     }
 
     public async initialize(context: InitializationContext): Promise<void> {
-        context.log.debug(`Initializing ${this.constructor.name} '${this.name}'...`);
         await this.beforeInitialize(context);
         this.generateURI();
         // Applying features.
@@ -146,7 +143,6 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
             await child.initialize(context);
         }
         await this.afterInitialize(context);
-        context.log.debug(`${this.constructor.name} '${this.name}' initialized on path '${this.fullyQualifiedPath}'.`);
     }
 
     protected async emitEvent(context: HttpContext, event: GestaeEvent<any>, instance?: object) {
@@ -175,17 +171,14 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
         let _nodeName = context.request.uri.node;
         // defensive coding.
         if(this.name !== _nodeName) // Check to see if we are the node.
-            throw new NotFoundError(`The requested resource '${this.name}' was not found from path ${context.request.url}.`);
+            throw new NotFoundError(this.name, `The requested resource '${this.name}' was not found from path ${context.request.url}.`);
 
         context._currentNode = this; // set us as the current node.
         
         await this.beforeRequest(context);
-        if(context.canceled) throw new CancelError(context.reason);
         
-        if(!context.leapt(this.uri)) {
+        if(!context.leapt(this.uri))
             await this.onRequest(context);
-            if(context.canceled) throw new CancelError(context.reason);
-        }
         else 
             context.log.debug(`Leap-frogging from ${this.name} on ${this.uri} to ${context.request.uri.peek}.`);
         
@@ -198,14 +191,10 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
             await _child.doRequest(context);
         }
         else if(!this.endpoint)
-            throw new NotFoundError(this.name, `The ${this.constructor.name} '${this.name}' is not an endpoint.`);
+            throw new MethodNotAllowedError(`The ${this.constructor.name} '${this.name}' is not an endpoint.`);
 
-        if(context.canceled) throw new CancelError(context.reason);
-
-        if(!context.canceled) {
-            context._currentNode = this; // set us as the current node.
-            await this.afterRequest(context);
-        }
+        context._currentNode = this; // set us as the current node.
+        await this.afterRequest(context);
     }
 
     public async finalize(): Promise<void> {

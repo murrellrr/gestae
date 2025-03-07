@@ -28,6 +28,7 @@ import {
 import { HttpPassThrough } from "./HttpPassThrough";
 
 const CONTENT_TYPE_REQUEST_HEADER  = "content-type";
+const CONTENT_LEN_REQUEST_HEADER   = "content-length";
 const CONTENT_TYPE_RESPONSE_HEADER = "Content-Type";
 const DEFAULT_JSON_CONTENT_TYPE    = "application/json";
 
@@ -63,7 +64,13 @@ export class JSONRequestBody extends HttpRequestBody<object> {
      * @returns 
      */
     async getBody(request: http.IncomingMessage, passThrough: HttpPassThrough): Promise<Object> {
-        const _contentType = request.headers[CONTENT_TYPE_REQUEST_HEADER] ?? "";
+        const _contentType   = request.headers[CONTENT_TYPE_REQUEST_HEADER] ?? "";
+        const _contentLength = request.headers[CONTENT_LEN_REQUEST_HEADER] ?? "0";
+
+        // Going to check for type &&|| length and just return an empty body if need be.
+        if(_contentLength === "0" || _contentType.trim() === "")
+            return {};
+
         if(!(/^application\/.*json$/.test(_contentType)))
             throw new UnsupportedMediaTypeError(_contentType);
 

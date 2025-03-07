@@ -161,16 +161,17 @@ export class SearchableResourceFeatureFactory extends AbstractFeatureFactoryChai
 
     onApply<T extends Object>(node: ResourceNode, target: T): void {
         const _metatdata: ISearchOptions = getsertMetadata(target, SEARCH_METADATA_KEY);
-        this.log.debug(`${node.constructor.name} '${node.name}' decorated with @<sync>SearchResource, adding virtual search node '${_metatdata.pathName}'.`);
 
         // check to see if the target implements the search method.
         if(!(target as any)[_metatdata.method!]) 
-            throw new Error(`@SearchResource method '${_metatdata.method}' not implemented in '${target.constructor.name}'.`);
+            throw new Error(`Search resource method '${target.constructor.name}.${_metatdata.method}' not implemented.`);
         makeResourceSearchable(node, _metatdata);
 
         const _method    = (target as any)[_metatdata.method!] as (firstArg: SearchRequest<any>, context: IHttpContext) => void;
         const _eventName = `${node.fullyQualifiedPath}:${formatEvent(ResourceEvents.Search.On)}`;
-        this.log.debug(`Binding search event '${_eventName}' to method '${_metatdata.method}' on target '${target.constructor.name}'.`);
+
+        //Binding method 'Employee.onRead' on action 'read' to event 'gestaejs:resource:my:test:root:api:busniess:company:people:labor:employee:read:on' for node 'employee'.
+        this.log.debug(`Binding method '${target.constructor.name}.${_metatdata.method}' on action 'search' to event '${_eventName}' for node '${node.name}'`);
         this.context.eventQueue.on(_eventName, async (event: ResourceEvent<SearchRequest<any>>): Promise<void> => {
                                         return _method(event.data!, event.context);
                                     });
@@ -201,12 +202,10 @@ export const makeResourceSearchable = (source: ResourceNode, options: ISearchOpt
 
     // wrapping source functions
     source.beforeRequest = async (context: HttpContext) => {
-        context.log.debug(`${source.name} Search Proxy peeking path name ${context.request.uri.peek}`);
         if(context.request.uri.peek === _pathName && (context.request.isMethod(HttpMethodEnum.Get) || 
                                                       context.request.isMethod(HttpMethodEnum.Post))) {
             // We are the search request, performing the pre-search operations.
             let _consumedPath = context.request.uri.next;
-            context.log.debug(`'Virtual search node ${_pathName}' is a match for uri node '${_consumedPath}', emitting OnBefore search events.`);
 
             const _searchRequest = SearchRequest.create(context._request);
             const _context: SearchResourceContext = {
@@ -227,7 +226,6 @@ export const makeResourceSearchable = (source: ResourceNode, options: ISearchOpt
         // check to see if this is a search request.
         const _context = context.getValue<SearchResourceContext>(_contextKey);
         if(_context){
-            context.log.debug(`${source.name} search proxy emitting On search events.`);
             await source.emitResourceEvent(context, _context.searchEvent, ResourceEvents.Search.On);
         }
         else 
@@ -238,7 +236,6 @@ export const makeResourceSearchable = (source: ResourceNode, options: ISearchOpt
         // check to see if this is a search request.
         const _context = context.getValue<SearchResourceContext>(_contextKey);
         if(_context){
-            context.log.debug(`${source.name} search proxy emitting OnAfter search events.`);
             await source.emitResourceEvent(context, _context.searchEvent, ResourceEvents.Search.OnAfter);
             context.response.send(_context.searchRequest.response);
         }
