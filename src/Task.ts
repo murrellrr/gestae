@@ -21,8 +21,8 @@
  */
 
 import { 
-    HttpMethodEnum, 
-    getsertMetadata 
+    HttpMethodEnum,
+    getsertObjectMetadata
 } from "./Gestae";
 import { GestaeError } from "./GestaeError";
 import { HttpContext } from "./HttpContext";
@@ -46,7 +46,7 @@ type InferReturnType<R> = R extends undefined ? void : R;
  */
 export const setTaskMetadata = <T extends Object>(target: T, property: string, options: ITaskOptions = {}): void => {
     let _taskName = options.name?.toLowerCase() ?? property.toLowerCase();
-    let _target   = getsertMetadata(target, TASK_METDADATA_KEY);
+    let _target   = getsertObjectMetadata(target, TASK_METDADATA_KEY);
 
     let _task = _target[_taskName];
     if(!_task) {
@@ -55,11 +55,11 @@ export const setTaskMetadata = <T extends Object>(target: T, property: string, o
     }
 
     // set the task type info...
-    _task.$method = options.$method ?? property;
-    _task.name = _taskName;
-    _task.requestMethod = options.requestMethod ?? HttpMethodEnum.Post;
+    _task.$method        = options.$method ?? property;
+    _task.name           = _taskName;
+    _task.requestMethod  = options.requestMethod ?? HttpMethodEnum.Post;
     _task.$asynchrounous = options.$asynchrounous ?? false;
-    _task.$overloads = options.$overloads ?? true;
+    _task.$overloads     = options.$overloads ?? true;
 };
 
 /**
@@ -80,7 +80,7 @@ export function TaskExecute<I, R = void>(options: ITaskOptions = {}) {
             throw GestaeError.toError(`Task decorator requires the first parameter as an input type and the second as context in method: ${property}`);
 
         const FirstArgType = paramTypes[0];
-        const ContextType = paramTypes[1];
+        const ContextType  = paramTypes[1];
 
         descriptor.value = function (firstArg: I, context: HttpContext) {
             if(!(firstArg instanceof FirstArgType))
@@ -96,11 +96,11 @@ export function TaskExecute<I, R = void>(options: ITaskOptions = {}) {
             return originalMethod.apply(this, [firstArg, context]); // Only passing the required arguments
         };
 
-        options.name = options.name?.toLowerCase() ?? property.toLowerCase();
-        options.requestMethod = options.requestMethod ?? HttpMethodEnum.Post;
+        options.name           = options.name?.toLowerCase() ?? property.toLowerCase();
+        options.requestMethod  = options.requestMethod ?? HttpMethodEnum.Post;
         options.$asynchrounous = false;
-        options.$method = property;
-        options.$overloads = options.$overloads ?? true;
+        options.$method        = property;
+        options.$overloads     = options.$overloads ?? true;
 
         setTaskMetadata(target, property, options);
     };
@@ -126,7 +126,7 @@ export function AsyncTaskExecute<I, R = void>(options: ITaskOptions = {}) {
             throw GestaeError.toError(`AsyncTask decorator requires the first parameter as an input type and the second as context in method: ${property}`);
 
         const FirstArgType = paramTypes[0];
-        const ContextType = paramTypes[1];
+        const ContextType  = paramTypes[1];
 
         descriptor.value = async function (firstArg: I, context: HttpContext) {
             if (!(firstArg instanceof FirstArgType))
@@ -149,11 +149,11 @@ export function AsyncTaskExecute<I, R = void>(options: ITaskOptions = {}) {
             return result;
         };
 
-        options.name = options.name?.toLowerCase() ?? property.toLowerCase();
-        options.requestMethod = options.requestMethod ?? HttpMethodEnum.Post;
+        options.name           = options.name?.toLowerCase() ?? property.toLowerCase();
+        options.requestMethod  = options.requestMethod ?? HttpMethodEnum.Post;
         options.$asynchrounous = true;
-        options.$method = property;
-        options.$overloads = options.$overloads ?? true;
+        options.$method        = property;
+        options.$overloads     = options.$overloads ?? true;
 
         setTaskMetadata(target, property, options);
     };

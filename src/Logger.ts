@@ -132,3 +132,12 @@ export class DefaultLogger implements ILogger {
         return DefaultLogger.getInstance(options);
     }
 }
+
+/**
+ * @description Minimal console logger for use in modules or functions outside the 
+ *              scope of an application.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const GestaeLogger = DefaultLogger.create({name: "Gestae"});

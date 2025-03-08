@@ -22,9 +22,9 @@
 
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { 
-    hasMetadata,
+    hasClassMetadata,
     IOptions,
-    setMetadata
+    setClassMetadata
 } from "./Gestae";
 import { 
     IEventOptions, 
@@ -108,7 +108,7 @@ export function Schema(options: ISchemaOptions = {}) {
         options.scheme = options.scheme ?? {};
         options.validate = (Object.keys(options.scheme).length === 0)? false: options.validate ?? true;
         options.$overloads = options.$overloads ?? true;
-        setMetadata(target, SCHEMA_METADATA_KEY, options);
+        setClassMetadata(target, SCHEMA_METADATA_KEY, options);
     };
 } // Cant be constant because it is used as a decorator.
 
@@ -118,11 +118,11 @@ export function Schema(options: ISchemaOptions = {}) {
  * @copyright 2024 KRI, LLC
  */
 export class SchemaFeatureFactory extends AbstractFeatureFactoryChain<AbstractNode<any>> {
-    isFeatureFactory<T extends Object>(node: AbstractNode<any>, target: T): boolean {
-        return hasMetadata(target, SCHEMA_METADATA_KEY);
+    isFeatureFactory(node: AbstractNode<any>): boolean {
+        return hasClassMetadata(node.model, SCHEMA_METADATA_KEY);
     }
 
-    onApply<T extends Object>(node: AbstractNode<any>, target: T): void {
+    onApply(node: AbstractNode<any>): void {
         //deleteMetadata(node.model, SCHEMA_OPTION_KEY);
     }
 }

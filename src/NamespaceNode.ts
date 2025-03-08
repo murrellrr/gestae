@@ -22,7 +22,7 @@
 
 import { 
     ClassType,
-    getsertMetadata,
+    getsertClassMetadata,
     hasMetadata,
 } from "./Gestae";
 import { 
@@ -33,7 +33,7 @@ import {
     AbstractNodeFactoryChain, 
     FactoryReturnType 
 } from "./AbstractNodeFactoryChain";
-import { NodeTemplate } from "./NodeTemplate";
+import { NodeTemplate, NodeTemplateType } from "./NodeTemplate";
 import { AbstractTaskableNode } from "./TaskNode";
 import _ from "lodash";
 import { HttpContext } from "./HttpContext";
@@ -53,8 +53,8 @@ import {
  * @copyright 2024 KRI, LLC
  */
 export class NamespaceNode extends AbstractTaskableNode<INamespaceOptions> implements INamesapceNode {
-    constructor(public readonly instance: Object, options: INamespaceOptions = {}) {
-        super(options);
+    constructor(options: INamespaceOptions = {}, model?: ClassType<any>) {
+        super(model ?? Object, options);
         options.name = options.name ?? this.constructor.name.toLowerCase();
         options.traversable = options.traversable ?? true;
         options.$overloads = options.$overloads ?? true;
@@ -64,36 +64,31 @@ export class NamespaceNode extends AbstractTaskableNode<INamespaceOptions> imple
         return "namespace";
     }
 
-    getInstance<T extends Object>(): T {
-        return this.instance as T;
-    }
-
     public async beforeRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
         _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.OnBefore)}`;
-        await this.emitEvent(context, _event, this.instance);
+        await this.emitEvent(context, _event, this.getInstance());
     }
 
     public async onRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
         _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.On)}`;
-        await this.emitEvent(context, _event, this.instance);
+        await this.emitEvent(context, _event, this.getInstance());
     }
 
     public async afterRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
         _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.OnAfter)}`;
-        await this.emitEvent(context, _event, this.instance);
+        await this.emitEvent(context, _event, this.getInstance());
     }
 
-    public static create(aClass: ClassType | string, options: INamespaceOptions = {}): NamespaceNode {
+    public static create(aClass: ClassType<any> | string, options: INamespaceOptions = {}): NamespaceNode {
         if(typeof aClass === "string") {
             const _result = NamespaceNodeFactory.createFromString(aClass);
             return _result.bottom ?? _result.top;
         }
         else {
-            const _instance = new aClass([]);
-            return new NamespaceNode(_instance, getsertMetadata(_instance, NAMESPACE_METADATA_KEY, options));
+            return new NamespaceNode(getsertClassMetadata(aClass, NAMESPACE_METADATA_KEY, options));
         }
     }
 }
@@ -103,21 +98,9 @@ export class NamespaceNode extends AbstractTaskableNode<INamespaceOptions> imple
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-class DefaultNameSpace {
-    static getInstance(): Object {
-        return new DefaultNameSpace();
-    }
-};
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
 export class NamespaceNodeFactory extends AbstractNodeFactoryChain<INamespaceOptions, NamespaceNode> {
     isNodeFactory(target: NodeTemplate): boolean {
-        return target.isString || 
-               (target.isClass && hasMetadata(target.node, NAMESPACE_METADATA_KEY));
+        return target.isString || NamespaceNodeFactory.hasNamespaceMetadata(target.node, NAMESPACE_METADATA_KEY);
     }
 
     onCreate(target: NodeTemplate): FactoryReturnType<INamespaceOptions, NamespaceNode> {
@@ -125,6 +108,14 @@ export class NamespaceNodeFactory extends AbstractNodeFactoryChain<INamespaceOpt
             return NamespaceNodeFactory.createFromString((target.node as string));
         else 
             return { top: NamespaceNode.create((target.node as ClassType)) };
+    }
+
+    public static hasNamespaceMetadata(target: NodeTemplateType, key: string): boolean {
+        let _name: string;
+        if(typeof target === "string") _name = target;
+        else if(typeof target === "function") _name = target.name;
+        else _name = target.constructor.name;
+        return hasMetadata(_name, key);
     }
 
     public static createFromDelimString(target: string, options: INamespaceOptions = {}): FactoryReturnType<INamespaceOptions, NamespaceNode> {
@@ -136,7 +127,7 @@ export class NamespaceNodeFactory extends AbstractNodeFactoryChain<INamespaceOpt
         for(const _node of _nodes) {
             let _options = _.cloneDeep(options);
             _options.name = _node.trim().toLowerCase();
-            _current = new NamespaceNode(DefaultNameSpace.getInstance(), _options);
+            _current = new NamespaceNode(_options);
             if(!_first) _first = _current;
             if(_parent) _parent.add(_current);
             _parent = _current;

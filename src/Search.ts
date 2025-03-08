@@ -22,10 +22,12 @@
 
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { 
-    getsertMetadata, 
-    hasMetadata, 
+    getsertClassMetadata,
+    getsertObjectMetadata, 
+    hasClassMetadata,  
     HttpMethodEnum 
 } from "./Gestae";
+import { GestaeError } from "./GestaeError";
 import { formatEvent } from "./GestaeEvent";
 import { 
     HttpContext, 
@@ -155,23 +157,26 @@ export class SearchRequest<R extends AbstractSearchResult> {
 }
 
 export class SearchableResourceFeatureFactory extends AbstractFeatureFactoryChain<AbstractNode<any>> {
-    isFeatureFactory<T extends Object>(node: AbstractNode<any>, target: T): boolean {
-        return hasMetadata(target, SEARCH_METADATA_KEY);
+    isFeatureFactory(node: AbstractNode<any>): boolean {
+        return hasClassMetadata(node.model, SEARCH_METADATA_KEY);
     }
 
-    onApply<T extends Object>(node: ResourceNode, target: T): void {
-        const _metatdata: ISearchOptions = getsertMetadata(target, SEARCH_METADATA_KEY);
+    onApply(node: ResourceNode): void {
+        const _metatdata: ISearchOptions = getsertClassMetadata(node.model, SEARCH_METADATA_KEY);
 
         // check to see if the target implements the search method.
-        if(!(target as any)[_metatdata.method!]) 
-            throw new Error(`Search resource method '${target.constructor.name}.${_metatdata.method}' not implemented.`);
+        if(!node.model.prototype[_metatdata.method!]) 
+            throw new Error(`Search resource method '${node.model.constructor.name}.${_metatdata.method}' not implemented.`);
         makeResourceSearchable(node, _metatdata);
 
-        const _method    = (target as any)[_metatdata.method!] as (firstArg: SearchRequest<any>, context: IHttpContext) => void;
+        const _method = node.model.prototype[_metatdata.method!] as (firstArg: SearchRequest<any>, context: IHttpContext) => void;
+        if(!_method) 
+            throw new GestaeError(`Method '${_metatdata.method}' not found on '${node.model.constructor.name}'.`);
+
         const _eventName = `${node.fullyQualifiedPath}:${formatEvent(ResourceEvents.Search.On)}`;
 
         //Binding method 'Employee.onRead' on action 'read' to event 'gestaejs:resource:my:test:root:api:busniess:company:people:labor:employee:read:on' for node 'employee'.
-        this.log.debug(`Binding method '${target.constructor.name}.${_metatdata.method}' on action 'search' to event '${_eventName}' for node '${node.name}'`);
+        this.log.debug(`Binding method '${node.model.constructor.name}.${_metatdata.method}' on action 'search' to event '${_eventName}' for node '${node.name}'`);
         this.context.eventQueue.on(_eventName, async (event: ResourceEvent<SearchRequest<any>>): Promise<void> => {
                                         return _method(event.data!, event.context);
                                     });
@@ -179,7 +184,7 @@ export class SearchableResourceFeatureFactory extends AbstractFeatureFactoryChai
 }
 
 export const setSearchMetadata = <T extends Object>(target: T, property: string, options: ISearchOptions = {}) => {
-    let _target = getsertMetadata(target, SEARCH_METADATA_KEY, options);
+    let _target = getsertObjectMetadata(target, SEARCH_METADATA_KEY, options);
     _target.pathName      = options.pathName ?? DEFAULT_SEARCH_NAME;
     _target.requestMethod = options.requestMethod ?? HttpMethodEnum.Get;
     _target.method        = property;
@@ -266,9 +271,9 @@ export function SearchResource<S extends AbstractSearchResult>(options: ISearchO
  * @copyright 2024 KRI, LLC
  */
 export function AsyncSearchResource<S extends AbstractSearchResult>(options: ISearchOptions = {}) {
-                                                                    options.dataAsTarget = options.dataAsTarget ?? true;
     return function <T extends Object>(target: T, property: string,
                                        descriptor: TypedPropertyDescriptor<(firstArg: SearchRequest<S>, context: HttpContext) => Promise<void>>) {
+        options.dataAsTarget = options.dataAsTarget ?? true;
         setSearchMetadata(target, property, options);
     };
 } // Cant be constant because it is used as a decorator.

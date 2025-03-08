@@ -24,7 +24,8 @@ import "reflect-metadata";
 import { IHttpContext } from "./HttpContext";
 import { IApplicationContext } from "./ApplicationContext";
 import { 
-    getsertMetadata,
+    getsertClassMetadata,
+    hasClassMetadata,
     hasMetadata,
     IOptions,
 } from "./Gestae";
@@ -156,7 +157,7 @@ export const generateEventName = (event: EventRegisterType, path: string): strin
  */
 export const setEventMetadata = (target: any, event: EventRegisterType, property: string, options: IEventOptions = {}): void => {
     let _namesapce = formatEvent(event);
-    let _metadata: Record<string, any> = getsertMetadata(target, EVENT_OPTIONS_KEY);
+    let _metadata: Record<string, any> = getsertClassMetadata(target, EVENT_OPTIONS_KEY);
 
     let _event = _metadata[_namesapce];
     if(!_event) {
@@ -180,32 +181,30 @@ export const setEventMetadata = (target: any, event: EventRegisterType, property
  * @copyright 2024 KRI, LLC
  */
 export class EventFeatureFactory extends AbstractFeatureFactoryChain<AbstractNode<any>> {
-    isFeatureFactory<T extends Object>(node: AbstractNode<any>, target: T): boolean {
-        return hasMetadata(target, EVENT_OPTIONS_KEY);
+    isFeatureFactory(node: AbstractNode<any>): boolean {
+        this.log.debug(`${node.constructor.name} '${node.model.name}' has event metadata: ${hasMetadata(node.model.name, EVENT_OPTIONS_KEY)}`);
+        return hasClassMetadata(node.model, EVENT_OPTIONS_KEY);
     }
 
-    onApply<T extends Object>(node: AbstractNode<any>, target: T): void {
-        const _metadata = getsertMetadata(target, EVENT_OPTIONS_KEY);
+    onApply(node: AbstractNode<any>): void {
+        const _metadata = getsertClassMetadata(node.model, EVENT_OPTIONS_KEY);
+        this.log.debug(`Binding events for node '${node.model.name}' using metadata ${JSON.stringify(_metadata)}.`);
         for(const _key in _metadata) {
-            const _events = _metadata[_key];
-            for(const _event of _events) {
-                const _fullyQualifiedEventPath = `${node.fullyQualifiedPath}:${formatEvent(_event.register)}`;
-                const _method = EventFeatureFactory.getMethod(target, _event.register.method);
-                if(_method) {
-                    this.context.eventQueue.on(_fullyQualifiedEventPath, 
-                                               _method as (event: GestaeEvent<unknown>) => void | Promise<void>, 
-                                               _event.once);
-                    this.log.debug(`Binding method '${target.constructor.name}.${_event.register.method}' on action '${_event.register.action}' to event '${_fullyQualifiedEventPath}' for node '${node.name}'.`);
-                }
-                else 
-                    throw GestaeError.toError(`Method '${target.constructor.name}.${_event.register.method}' not implemented.'`);
+            const _eventsMetadata = _metadata[_key];
+            for(const _eventMetadata of _eventsMetadata) {
+                const _fullyQualifiedEventPath = `${node.fullyQualifiedPath}:${formatEvent(_eventMetadata.register)}`;
+                const _method = node.model.prototype[_eventMetadata.register.method] as (event: GestaeEvent<unknown>) => void | Promise<void>;
+
+                // Check Method.
+                if(!_method) 
+                    throw GestaeError.toError(`Method '${node.model.name}.${_eventMetadata.register.method}' not implemented.'`);
+
+                this.context.eventQueue.on(_fullyQualifiedEventPath, 
+                                            _method, 
+                                            _eventMetadata.once);
+                this.log.debug(`Binding method '${node.model.name}.${_eventMetadata.register.method}' on action '${_eventMetadata.register.action}' to event '${_fullyQualifiedEventPath}' for node '${node.name}'.`);
             }
         }
-    }
-
-    static getMethod(instance: object, method: string): Function | undefined {
-        return Object.getOwnPropertyDescriptor(
-            Object.getPrototypeOf(instance), method)?.value;
     }
 }
 

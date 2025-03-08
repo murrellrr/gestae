@@ -23,8 +23,8 @@
 import { 
     ClassType,
     HttpMethodEnum,
-    getsertMetadata,
-    hasMetadata,
+    getsertClassMetadata,
+    hasClassMetadata,
     isClassConstructor,
 } from "./Gestae";
 import { 
@@ -76,11 +76,9 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
     protected readonly lazyLoad:         boolean;
     protected readonly supportedActions: ResourceActionEnum[];
     protected readonly resourceId:       string | undefined;
-    public    readonly model:            ClassType;
 
     constructor(target: ClassType, options: IResourceOptions = {}) {
-        super(options);
-        this.model = target;
+        super(target, options);
         options.name = options.name?.toLowerCase() ?? target.name.toLowerCase();
         this.idProperty = options.idProperty ?? "id";
         this.lazyLoad   = options.lazyLoad ?? true;
@@ -131,10 +129,6 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
         if(!_action || !this.supportedActions.includes(_action))
             throw new MethodNotAllowedError(`Method '${method}' is not supported on resource '${this.name}'.`);
         return _action;
-    }
-
-    getInstance<T extends Object>(...args: any[]): T {
-        return new this.model(...args) as T;
     }
 
     createInstance<T extends Object>(id?: string): T {
@@ -236,7 +230,7 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
     }
 
     static create(aClass: ClassType, options: IResourceOptions = {}): ResourceNode {
-        return new ResourceNode(aClass, getsertMetadata(aClass, RESOURCE_METADATA_KEY, options));
+        return new ResourceNode(aClass, getsertClassMetadata(aClass, RESOURCE_METADATA_KEY, options));
     }
 }
 
@@ -247,7 +241,7 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
  */
 export class ResourceNodeFactory extends AbstractNodeFactoryChain<IResourceOptions, ResourceNode> {
     isNodeFactory(target: NodeTemplate): boolean {
-        return isClassConstructor(target.node) && hasMetadata(target.node, RESOURCE_METADATA_KEY);
+        return isClassConstructor(target.node) && hasClassMetadata(target.node, RESOURCE_METADATA_KEY);
     }
 
     onCreate(target: NodeTemplate): FactoryReturnType<IResourceOptions, ResourceNode> {

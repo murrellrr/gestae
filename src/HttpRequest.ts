@@ -148,17 +148,17 @@ export interface IHttpRequest {
  * @copyright 2024 KRI, LLC
  */
 export class HttpRequest implements IHttpRequest{
-    private            _body?:       unknown; // Will usually be an object from JSON but could be anything.
-    private            _bodyMutex?:  Promise<unknown>;
-    private   readonly _passThrough: HttpPassThrough;
-    protected          content:      HttpRequestBody<any>;
-    protected readonly log:          ILogger;
-    public    readonly _request:     http.IncomingMessage;
-    public    readonly _cookies:     Record<string, Cookie> = {};
-    public             _method:      HttpMethodEnum = HttpMethodEnum.Unsupported;
-    public    readonly searchParams: SearchParams;
-    public    readonly url:          URL;
-    public    readonly uri:          URITree;
+    private            _body?:        unknown; // Will usually be an object from JSON but could be anything.
+    private            _bodyBarrier?: Promise<unknown>;
+    private   readonly _passThrough:  HttpPassThrough;
+    protected          content:       HttpRequestBody<any>;
+    protected readonly log:           ILogger;
+    public    readonly _request:      http.IncomingMessage;
+    public    readonly _cookies:      Record<string, Cookie> = {};
+    public             _method:       HttpMethodEnum = HttpMethodEnum.Unsupported;
+    public    readonly searchParams:  SearchParams;
+    public    readonly url:           URL;
+    public    readonly uri:           URITree;
     
     constructor(request: http.IncomingMessage, passThrough: HttpPassThrough, 
                 requestBody: HttpRequestBody<any>, log: ILogger) {
@@ -229,8 +229,8 @@ export class HttpRequest implements IHttpRequest{
         if(this._body) return this._body as T;
 
         // The body has never been retrieved before, exclusively read it.
-        if(!this._bodyMutex) {
-            this._bodyMutex = (async () => {
+        if(!this._bodyBarrier) {
+            this._bodyBarrier = (async () => {
                 // allow a content override.
                 const _content = content ?? this.content;
 
@@ -246,7 +246,7 @@ export class HttpRequest implements IHttpRequest{
 
         // Returns the promise reading the body so anyone who got task time and made it this far
         // will just wait for the body to be read from the original caller.
-        return this._bodyMutex  as Promise<T>; 
+        return this._bodyBarrier  as Promise<T>; 
     }
 
     async mergeBody<T>(body: T): Promise<T> {

@@ -21,8 +21,11 @@
  */
 
 import { 
+    ClassType,
     HttpMethodEnum,
+    getsertClassMetadata,
     getsertMetadata,
+    hasClassMetadata,
     hasMetadata
 } from "./Gestae";
 import { GestaeError } from "./GestaeError";
@@ -41,19 +44,15 @@ import { TASK_METDADATA_KEY } from "./Task";
  * @copyright 2024 KRI, LLC
  */
 export class TaskNode extends AbstractNode<ITaskOptions> {
-    constructor(options: ITaskOptions = {}) {
-        super(options);
-        options.name = options.name ?? this.constructor.name.toLowerCase();
+    constructor(model: ClassType<any>, options: ITaskOptions = {}) {
+        super(model, options);
+        options.name           = options.name ?? this.constructor.name.toLowerCase();
         options.$asynchrounous = options.$asynchrounous ?? false;
-        options.requestMethod = options.requestMethod ?? HttpMethodEnum.Post;
+        options.requestMethod  = options.requestMethod ?? HttpMethodEnum.Post;
     }
 
     get type(): string {
         return "task";
-    }
-
-    getInstance<T extends Object>(): T {
-        return {} as T;
     }
 
     /**
@@ -87,9 +86,8 @@ export abstract class AbstractTaskableNode<O extends INodeOptions> extends Abstr
      */
     public async beforeInitialize(context: InitializationContext): Promise<void> {
         await super.beforeInitialize(context);
-        const _target = this.getInstance();
-        if(hasMetadata(_target, TASK_METDADATA_KEY)) {
-            const _metadata = getsertMetadata(_target, TASK_METDADATA_KEY);
+        if(hasClassMetadata(this.model, TASK_METDADATA_KEY)) {
+            const _metadata = getsertClassMetadata(this.model, TASK_METDADATA_KEY);
             const _keys = Object.keys(_metadata);
             for(const _key in _metadata) {
                 if(_metadata.hasOwnProperty(_key)) {

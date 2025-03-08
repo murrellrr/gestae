@@ -22,7 +22,7 @@
 
 import { 
     IOptions, 
-    setMetadata 
+    setClassMetadata
 } from "./Gestae";
 
 export const RESOURCE_METADATA_KEY = "gestaejs:resource";
@@ -57,6 +57,16 @@ export interface IResourceOptions extends IOptions {
 };
 
 /**
+ * @description Options for a resource.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export interface ISubResourceOptions extends IOptions {
+    namespace?: string;
+};
+
+/**
  * @description Decorator for configuraing a plain-old object as a resource in Gestae.
  * @param options 
  * @returns 
@@ -67,7 +77,13 @@ export interface IResourceOptions extends IOptions {
 export function Resource(options: IResourceOptions = {}) {
     return function (target: new (... args: [any]) => any) {
         options.name = options.name ?? target.name;
-        setMetadata(target, RESOURCE_METADATA_KEY, options);
+        setClassMetadata(target, RESOURCE_METADATA_KEY, options);
     };
 } // Cant be constant because it is used as a decorator.
 
+export function SubResource(options: ISubResourceOptions = {}): PropertyDecorator  {
+    return (target: Object, propertyKey: string | symbol) => {
+        // first we get the type of the sub resource.
+        const _type = Reflect.getMetadata("design:type", target, propertyKey);
+    };
+} // Cant be constant because it is used as a decorator.

@@ -1,7 +1,8 @@
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { 
-    getsertMetadata,
-    hasMetadata, 
+    getsertClassMetadata,
+    getsertObjectMetadata,
+    hasClassMetadata,
     IOptions 
 } from "./Gestae";
 import { GestaeError } from "./GestaeError";
@@ -42,7 +43,7 @@ export interface IResourceActionOptions extends IOptions {
  */
 const setResourceActionMetadata = (target: Object, action: ResourceActionEnum, property: string, 
                                    options: IResourceActionOptions = {}) => {
-    const _metadata = getsertMetadata(target, RESOUREC_ACTION_METADATA_KEY);
+    const _metadata = getsertObjectMetadata(target, RESOUREC_ACTION_METADATA_KEY);
     let _config = _metadata[action];
     if(!_config) {
         _config = {};
@@ -66,7 +67,6 @@ const setResourceActionMetadata = (target: Object, action: ResourceActionEnum, p
 export function AsyncCreateResource<T>(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(context: IHttpContext) => Promise<void>>) {
-        
         setResourceActionMetadata(target, ResourceActionEnum.Create, property, options);
     };
 } // Cant be constant because it is used as a decorator.
@@ -163,23 +163,26 @@ export function DeleteResource<T>(options: IResourceActionOptions = {}) {
 } // Cant be constant because it is used as a decorator.
 
 export class ResourceFeatureFactory extends AbstractFeatureFactoryChain<ResourceNode> {
-    isFeatureFactory<T extends Object>(node: ResourceNode, target: T): boolean {
-        return hasMetadata(target, RESOUREC_ACTION_METADATA_KEY);
+    isFeatureFactory(node: ResourceNode): boolean {
+        return hasClassMetadata(node.model, RESOUREC_ACTION_METADATA_KEY);
     }
 
-    onApply<T extends Object>(node: ResourceNode, target: T): void {
-        const _metadata = getsertMetadata(target, RESOUREC_ACTION_METADATA_KEY);
-
+    onApply(node: ResourceNode): void {
+        const _metadata = getsertClassMetadata(node.model, RESOUREC_ACTION_METADATA_KEY);
+        this.log.debug(`Binding events for node '${node.name}' using metadata ${JSON.stringify(_metadata)}.`);
         for(const _action in _metadata) {
-            const _config = _metadata[_action];
-            let _method: Function = (target as any)[_config.method];
+            const _actionMetadata = _metadata[_action];
+
+            // Get the method.
+            let _method: Function = node.model.prototype[_actionMetadata.method];
             if(!_method) 
-                throw new GestaeError(`Method '${_config.method}' not found on '${target.constructor.name}'.`);
-            let _event     = ResourceFeatureFactory.getResourceEvent(_config.action);
+                throw new GestaeError(`Method '${_actionMetadata.method}' not found on '${node.model.constructor.name}'.`);
+
+            let _event     = ResourceFeatureFactory.getResourceEvent(_actionMetadata.action);
             let _eventName = `${node.fullyQualifiedPath}:${formatEvent(_event)}`;
 
-            this.log.debug(`Binding method '${target.constructor.name}.${_config.method}' on action '${_action}' to event '${_eventName}' for node '${node.name}'.`);
-            this.context.eventQueue.on(_eventName, async (event: ResourceEvent<T>) => {
+            this.log.debug(`Binding method '${node.model.constructor.name}.${_actionMetadata.method}' on action '${_action}' to event '${_eventName}' for node '${node.name}'.`);
+            this.context.eventQueue.on(_eventName, async (event: ResourceEvent<any>) => {
                 try {
                     if(!event.data) throw new GestaeError(`ResourceEvent must have data.`); // Defensive coding.
                     await _method.call(event.data, event.context);

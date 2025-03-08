@@ -21,7 +21,7 @@
  */
 
 import { InitializationContext } from "./ApplicationContext";
-import { IOptions } from "./Gestae";
+import { ClassType, IOptions } from "./Gestae";
 import { 
     GestaeError, 
     MethodNotAllowedError, 
@@ -58,15 +58,21 @@ export interface INode {
  * @copyright 2024 KRI, LLC
  */
 export abstract class AbstractNode<O extends INodeOptions> implements INode {
-    private   readonly _children: Map<string, AbstractNode<any>> = new Map<string, AbstractNode<any>>();
+    protected readonly _children: Map<string, AbstractNode<any>> = new Map<string, AbstractNode<any>>();
     protected readonly options:   O;
+    protected readonly _model:    ClassType<any>;
     protected          parent?:   AbstractNode<any>;
     protected          uri:       string = "";
     protected readonly _name:     string;
 
-    constructor(options?: O) {
+    constructor(model: ClassType<any>, options?: O) {
+        this._model  = model;
         this.options = (options ?? {}) as O;
-        this._name = this.options.name?.toLowerCase() ?? this.constructor.name.toLowerCase();
+        this._name   = this.options.name?.toLowerCase() ?? this.constructor.name.toLowerCase();
+    }
+
+    get model(): ClassType<any> {
+        return this._model;
     }
 
     get name(): string {
@@ -101,7 +107,9 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
 
     abstract get type(): string;
 
-    abstract getInstance<T extends Object>(): T;
+    getInstance<T extends Object>(...args: any[]): T {
+        return new this.model(...args) as T;
+    }
 
     public async beforeInitialize(context: InitializationContext): Promise<void> {
         // do nothing, developers, override this method to take custom action.
@@ -135,7 +143,8 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
 
     private async applyFeatures(context: InitializationContext): Promise<void> {
         // Applying the features to the top-level node.
-        context.featureFactory.apply(this, this.getInstance());
+        //context.featureFactory.apply(this, this.getInstance());
+        context.featureFactory.apply(this);
     }
 
     public async initialize(context: InitializationContext): Promise<void> {
@@ -170,6 +179,8 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
     }
 
     public async doRequest(context: HttpContext): Promise<void> {
+        context.log.debug(`${this.constructor.name}.doRequest('${this.name}'): ${this.uri}.`);
+
         let _nodeName = context.request.uri.node;
         // defensive coding.
         if(this.name !== _nodeName) // Check to see if we are the node.

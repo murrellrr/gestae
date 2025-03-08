@@ -21,11 +21,13 @@
  */
 
 /**
- * @description _GESTAE_METADATA contains all the meta-data set by decorators in Gestate
+ * @description _GESTAE_METADATA contains all the meta-data set by decorators in Gestate.
+ *              Prefer this over experimental reflect metatdata.
  */
 const _GESTAE_METADATA: Record<string, any> = {};
 
 /**
+ * @description Gets the metadata for Gestae.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
@@ -35,6 +37,7 @@ export const getGestaeMetadata = (): Record<string, any> => {
 }
 
 /**
+ * @description ClassType is a type that represents a class constructor.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
@@ -42,6 +45,10 @@ export const getGestaeMetadata = (): Record<string, any> => {
 export type ClassType<T = {}> = new (...args: any[]) => T;
 
 /**
+ * @description IOptions is an interface that represents the options for a node, event, or decorator.
+ *              This interface is inherently generic due to the inclusion of "[key: string]: any;".
+ *              This is to accomdate well-known options for the system while minimining regrerssion
+ *              caused by minor feature changes.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
@@ -52,6 +59,7 @@ export interface IOptions {
 }
 
 /**
+ * @description HeaderValue is a type that represents the value of an HTTP header.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
@@ -59,6 +67,7 @@ export interface IOptions {
 export type HeaderValue = string[] | string | undefined;
 
 /**
+ * @description HttpMethodEnum is an enum that represents the HTTP methods.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
@@ -75,6 +84,8 @@ export enum HttpMethodEnum {
 }
 
 /**
+ * @description Cookie is an interface that represents an HTTP cookie. This interface is 
+ *              used for both inbound and outbound cookies.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
@@ -92,7 +103,7 @@ export interface Cookie {
 }
 
 /**
- * 
+ * @description createCookieString Creates a cookie set-cookies header string from a Cookie object.
  * @param cookie 
  * @returns 
  * @author Robert R Murrell
@@ -131,50 +142,105 @@ export const createCookieString = (cookie: Cookie): string => {
   }
 
 /**
+ * @description Gets a reference from _GESTAE_METADATA by a string.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const getTarget = (target: Function | Object): Record<string, any> | undefined => {
-    return _GESTAE_METADATA[(typeof target === "function")? target.name : target.constructor.name];
+export const getTarget = (key: string): Record<string, any> | undefined => {
+    return _GESTAE_METADATA[key];
 }
 
 /**
+ * @description Gets a reference from _GESTAE_METADATA by a Class name.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const  setTarget = (target: Function | Object): Record<string, any> => {
-    const _name  = (typeof target === "function")? target.name : target.constructor.name;
-    const _super = (typeof target === "function") ? Object.getPrototypeOf(target) : Object.getPrototypeOf(target.constructor);
-    let _target = _GESTAE_METADATA[_name];
+export const getClassTarget = (key: ClassType<any>): Record<string, any> | undefined => {
+    return _GESTAE_METADATA[key.name];
+}
+
+/**
+ * @description Gets a reference from _GESTAE_METADATA by a Class name of an object.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const getObjectTarget = <T extends Object>(key: T): Record<string, any> | undefined => {
+    return _GESTAE_METADATA[key.constructor.name];
+}
+
+/**
+ * @description Sets a reference to _GESTAE_METADATA by a string.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const setTarget = (key: string, target: Record<string, any>): void => {
+    _GESTAE_METADATA[key] = target;
+}
+
+/**
+ * @description Sets a reference to _GESTAE_METADATA by a Class name.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const setClassTarget = (key: ClassType<any>, target: Record<string, any>): void => {
+    target.$name = key.name;
+    const _super = Object.getPrototypeOf(key);
+    if(_super?.name && _super !== Object) target.$extends = _super.name;
+    setTarget(key.name, target);
+}
+
+/**
+ * @description Sets a reference to _GESTAE_METADATA by a Class name of an object.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const setObjectTarget = <T extends Object>(key: T, target: Record<string, any>): void => {
+    setClassTarget(key.constructor as ClassType, target);
+}
+
+/**
+ * @description Gets a reference from _GESTAE_METADATA by a string and if it doesnt exist, inserts it.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const getsertTarget = (target: string): Record<string, any> => {
+    let _target = getTarget(target);
     if(!_target) {
-        _target = {
-            $name: _name,
-        };
-        if(_super?.name && _super !== Object) _target.$extends = _super.name;
-        _GESTAE_METADATA[_name] = _target;
+        _target = {};
+        setTarget(target, _target);
     }
     return _target;
 }
 
 /**
+ * @description Gets a reference from _GESTAE_METADATA by a Class name and if it doesnt exist, inserts it.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const getsertTarget = (target: Function | Object): Record<string, any> => {
-    let _target = getTarget(target);
-    if(!_target) _target = setTarget(target);
+export const getsertClassTarget = (target: ClassType<any>): Record<string, any> => {
+    let _target = getClassTarget(target);
+    if(!_target) {
+        _target = {};
+        setClassTarget(target, _target);
+    }
     return _target;
-}
+} 
 
 /**
+ * @description Determins if there is metadata present for a reference.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const hasMetadata = (target: Function | Object, key: string): boolean => {
+export const hasMetadata = (target: string, key: string): boolean => {
     const _target = getTarget(target);
     return (!_target)? false : _target.hasOwnProperty(key);
 };
@@ -184,7 +250,25 @@ export const hasMetadata = (target: Function | Object, key: string): boolean => 
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const getMetadata = (target: Function | Object, key: string, 
+export const hasClassMetadata = (target: ClassType<any>, key: string): boolean => {
+    return hasMetadata(target.name, key);
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const hasObjectMetadata = <T extends Object>(target: T, key: string): boolean => {
+    return hasClassMetadata(target.constructor as ClassType, key);
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const getMetadata = (target: string, key: string, 
                             defaultValue: Record<string, any> | undefined = undefined): Record<string, any> | undefined => {
     const _target = getTarget(target);
     // Get the key'd meta-data and return | defaultValue
@@ -198,7 +282,27 @@ export const getMetadata = (target: Function | Object, key: string,
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const getsertMetadata = (target: Function | Object, key: string, 
+export const getClassMetadata = (target: ClassType<any>, key: string, 
+                                defaultValue: Record<string, any> | undefined = undefined): Record<string, any> | undefined => {
+    return getMetadata(target.name, key, defaultValue);
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const getObjectMetadata = <T extends Object>(target: T, key: string, 
+                                                    defaultValue: Record<string, any> | undefined = undefined): Record<string, any> | undefined => {
+    return getClassMetadata(target.constructor as ClassType, key, defaultValue);
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const getsertMetadata = (target: string, key: string, 
                                 defaultValue: Record<string, any> = {}): Record<string, any> => {
     const _target = getsertTarget(target);
     // Get the key'd meta-data and return | defaultValue
@@ -215,7 +319,33 @@ export const getsertMetadata = (target: Function | Object, key: string,
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const setMetadata = (target: Function | Object, key: string, data: Record<string, any>): void => {
+export const getsertClassMetadata = (target: ClassType<any>, key: string, 
+                                     defaultValue: Record<string, any> = {}): Record<string, any> => {
+    let _targey = getsertClassTarget(target); // update getsertTarget
+    let _metadata = _targey[key];
+    if(!_metadata) {
+        _metadata = defaultValue;
+        _targey[key] = _metadata;
+    }
+    return _metadata;
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const getsertObjectMetadata = <T extends Object>(target: T, key: string, 
+                                    defaultValue: Record<string, any> = {}): Record<string, any> => {
+    return getsertClassMetadata(target.constructor as ClassType, key, defaultValue);
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const setMetadata = (target: string, key: string, data: Record<string, any>): void => {
     const _target = getsertTarget(target);
     _target[key] = data;
 }
@@ -225,9 +355,72 @@ export const setMetadata = (target: Function | Object, key: string, data: Record
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const deleteMetadata = (target: Function | Object, key: string): void => {
+export const setClassMetadata = (target: ClassType<any>, key: string, data: Record<string, any>): void => {
+    setMetadata(target.name, key, data);
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const setObjectMetadata = <T extends Object>(target: T, key: string, data: Record<string, any>): void => {
+    setClassMetadata(target.constructor as ClassType, key, data);
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const deleteTarget = (target: string): void => {
+    delete _GESTAE_METADATA[target];
+};
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const deleteClassTarget = (target: ClassType<any>): void => {
+    deleteTarget(target.name);
+};
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const deleteObjectTarget = <T extends Object>(target: T): void => {
+    deleteTarget(target.constructor.name);
+};
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const deleteMetadata = (target: string, key: string): void => {
     const _target = getTarget(target);
     if(_target) delete _target[key];
+};
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const deleteClassMetadata = (target: ClassType<any>, key: string): void => {
+    deleteMetadata(target.name, key);
+};
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const deleteObjectMetadata = <T extends Object>(target: T, key: string): void => {
+    deleteClassMetadata(target.constructor as ClassType, key);
 };
 
 /**

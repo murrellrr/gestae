@@ -45,14 +45,14 @@ export abstract class AbstractFeatureFactoryChain<P extends AbstractNode<any>> {
         else this._link.add(link);
     }
 
-    abstract isFeatureFactory<T extends Object>(node: P, target: T): boolean;
+    abstract isFeatureFactory(node: P): boolean;
 
-    abstract onApply<T extends Object>(node: P, target: T): void;
+    abstract onApply(node: P): void;
 
-    apply<T extends Object>(node: P, target: T): void {
-        if(this.isFeatureFactory(node, target))
-            this.onApply(node, target);
+    apply(node: P): void {
+        if(this.isFeatureFactory(node))
+            this.onApply(node);
         if(this._link) 
-            this._link.apply(node, target);
+            this._link.apply(node);
     }
 }

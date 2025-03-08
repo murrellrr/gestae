@@ -69,6 +69,6 @@ export abstract class AbstractNodeFactoryChain<O extends INodeOptions, P extends
         else if(this.link) 
             return this.link.create(target);
         else 
-            throw GestaeError.toError("Cannot create node for target.");
+            throw GestaeError.toError(`Cannot create node for target ${target.name}.`);
     }
 }
