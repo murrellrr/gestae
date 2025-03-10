@@ -28,8 +28,8 @@ import {
     isClassConstructor,
 } from "./Gestae";
 import { 
-    EventRegisterType,
-    formatEvent,
+    createEventPathFromNode,
+    EventRegisterType
 } from "./GestaeEvent";
 import { 
     HttpContext 
@@ -60,7 +60,6 @@ interface IResourceContext {
     id?:            string;
     instance:       any;
     action:         ResourceActionEnum;
-    event:          ResourceEvent<any>;
     overrideEvent?: ResourceEvent<any>;
     doBeforeEvents: EventRegisterType[];
     doAfterEvents:  EventRegisterType[];
@@ -72,6 +71,8 @@ interface IResourceContext {
  * @copyright 2024 KRI, LLC
  */
 export class ResourceNode extends AbstractTaskableNode<IResourceOptions> implements IResourceNode {
+    public static readonly RESOURCE_TYPE: string = "resource";
+
     protected readonly idProperty:       string;
     protected readonly lazyLoad:         boolean;
     protected readonly supportedActions: ResourceActionEnum[];
@@ -93,7 +94,7 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
     }
 
     get type(): string {
-        return "resource";
+        return ResourceNode.RESOURCE_TYPE;
     }
 
     get endpoint(): boolean {
@@ -137,27 +138,27 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
         return _instance;
     }
 
-    public async emitResourceEvent(context: HttpContext, event: ResourceEvent<any>, type: EventRegisterType): Promise<void> {
-        event.data = context.resources.getResource(this.resourceKey);
-        event.path = `${this.fullyQualifiedPath}:${formatEvent(type)}`;
-        await this.emitEvent(context, event);
-        context.resources.setResource(this.resourceKey, event.data);
+    public async emitResourceEvent(context: HttpContext, type: EventRegisterType): Promise<void> {
+        const _event = new ResourceEvent(context, this, 
+                                         context.resources.getResource(this.resourceKey));
+        _event.path = createEventPathFromNode(this, type)
+        await this.emitEvent(context, _event);
+        context.resources.setResource(this.resourceKey, _event.data);
     }
 
     public async beforeRequest(context: HttpContext): Promise<void> {
-        const _id     = context.request.uri.next;
+        const _id     = context.request.uriTree.next;
         const _action = this.getSupportedAction(context.request.method, _id, 
-                                                context.request.uri.target);
-        
+                                                context.request.uriTree.target);
         // Validate whether the ID is required or not..
         if((_action !== ResourceActionEnum.Create) && !_id)
             throw new BadRequestError(`Id required for '${_action}' actions on entity '${this.name}'.`);
 
+        let _instance = this.createInstance(_id);
         const _resource = {
             id:             _id,
-            instance:       this.createInstance(_id),
+            instance:       _instance,
             action:         _action,
-            event:          new ResourceEvent(context, this),
             doBeforeEvents: [],
             doAfterEvents:  []
         } as IResourceContext;
@@ -173,8 +174,7 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
                 resource.action === ResourceActionEnum.Update || 
                 resource.action === ResourceActionEnum.Delete) {
             // Update the body and reset into the resource and events.
-            resource.instance   = await context.request.mergeBody(resource.instance);
-            resource.event.data = resource.instance;
+            resource.instance = await context.request.mergeBody(resource.instance);
             context.resources.setResource(this.resourceKey, resource.instance);
         }
     }
@@ -209,24 +209,24 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
         resource.doAfterEvents.push(ResourceEvents.Resource.OnAfter);
     }
 
-    protected async loopEvents(context: HttpContext, event: ResourceEvent<any>, actions: EventRegisterType[]): Promise<void> {
+    protected async loopEvents(context: HttpContext, actions: EventRegisterType[]): Promise<void> {
         // Perform the before events.
         for(const _action of actions) {
-            await this.emitResourceEvent(context, event, _action);
+            await this.emitResourceEvent(context, _action);
         }
     }
 
     public async onRequest(context: HttpContext): Promise<void> {
         const _resource = context.getValue<IResourceContext>(this.resourceKey);
         // Perform the before events.
-        await this.loopEvents(context, _resource.event, _resource.doBeforeEvents);
+        await this.loopEvents(context, _resource.doBeforeEvents);
         context.response.send(_resource.instance);
     }
 
     public async afterRequest(context: HttpContext): Promise<void> {
         const _resource = context.getValue<IResourceContext>(this.resourceKey);
         // Perform the before events.
-        await this.loopEvents(context, _resource.event, _resource.doAfterEvents);
+        await this.loopEvents(context, _resource.doAfterEvents);
     }
 
     static create(aClass: ClassType, options: IResourceOptions = {}): ResourceNode {

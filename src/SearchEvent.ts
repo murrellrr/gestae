@@ -51,11 +51,6 @@ export const SearchEvents = {
         OnBefore: {operation: "mediasearch", action: "before"} as EventRegisterType,
         On:       {operation: "mediasearch", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "mediasearch", action: "after" } as EventRegisterType,
-    },
-    Error: {
-        OnBefore: {operation: "error", action: "before"} as EventRegisterType,
-        On:       {operation: "error", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "error", action: "after" } as EventRegisterType,
     }
 };
 

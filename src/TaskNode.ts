@@ -24,9 +24,7 @@ import {
     ClassType,
     HttpMethodEnum,
     getsertClassMetadata,
-    getsertMetadata,
-    hasClassMetadata,
-    hasMetadata
+    hasClassMetadata
 } from "./Gestae";
 import { GestaeError } from "./GestaeError";
 import { 
@@ -34,8 +32,17 @@ import {
     INodeOptions 
 } from "./Node";
 import { InitializationContext } from "./ApplicationContext";
-import { ITaskOptions } from "./TaskEvent";
-import { TASK_METDADATA_KEY } from "./Task";
+import { TaskEvent, TaskEvents } from "./TaskEvent";
+import { 
+    ITaskOptions, 
+    TASK_METDADATA_KEY, 
+    TaskMethodType 
+} from "./Task";
+import { HttpContext } from "./HttpContext";
+import { createEventPathFromNode } from "./GestaeEvent";
+import { ResourceNode } from "./ResourceNode";
+
+const RESOURCE_NODE_NAME = "resource";
 
 /**
  * @description
@@ -71,6 +78,26 @@ export class TaskNode extends AbstractNode<ITaskOptions> {
     add(child: AbstractNode<any>): AbstractNode<any> {
         throw GestaeError.toError("Tasks do not supoport child nodes.");
     }
+
+    public async beforeInitialize(context: InitializationContext): Promise<void> {
+        let _eventName = createEventPathFromNode(this, TaskEvents.Execute.On, this.name);
+        let _this = this;
+        context.applicationContext.eventQueue.on(_eventName, async (event: TaskEvent<any, any>) => {
+            event.data.output = await _this.options.$method!.call(event.data.input, event.data, event.context);
+        });
+    }
+
+    public async beforeRequest(context: HttpContext): Promise<void> {
+        //
+    }
+
+    public async onRequest(context: HttpContext): Promise<void> {
+        //
+    }
+
+    public async afterRequest(context: HttpContext): Promise<void> {
+        //
+    }
 }
 
 /**
@@ -88,14 +115,21 @@ export abstract class AbstractTaskableNode<O extends INodeOptions> extends Abstr
         await super.beforeInitialize(context);
         if(hasClassMetadata(this.model, TASK_METDADATA_KEY)) {
             const _metadata = getsertClassMetadata(this.model, TASK_METDADATA_KEY);
-            const _keys = Object.keys(_metadata);
             for(const _key in _metadata) {
-                if(_metadata.hasOwnProperty(_key)) {
-                    const _taskConfig = _metadata[_key];
-                    context.log.debug(`${this.constructor.name} '${this.name}' adding task '${_taskConfig.name}' to children.`);
-                    const _task = new TaskNode(_taskConfig);
-                    this.add(_task);
+                const _taskConfig = _metadata[_key] as ITaskOptions;
+                context.log.debug(`${this.constructor.name} '${this.name}' adding task '${_taskConfig.name}' to children.`);
+                
+                // Get the method.
+                _taskConfig.$method = this.model.prototype[_taskConfig.method!] as TaskMethodType;
+                    if(!_taskConfig.$method) 
+                        throw new GestaeError(`Task method '${_taskConfig.method}' not found on '${this.model.name}'.`);
+
+                if(RESOURCE_NODE_NAME === this.type) {
+                    _taskConfig.resourceKey = (this as unknown as ResourceNode).resourceKey;
                 }
+
+                const _task = new TaskNode(this.model, _taskConfig);
+                this.add(_task);
             }
         }
     }

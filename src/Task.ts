@@ -22,13 +22,42 @@
 
 import { 
     HttpMethodEnum,
+    IOptions,
     getsertObjectMetadata
 } from "./Gestae";
 import { GestaeError } from "./GestaeError";
-import { HttpContext } from "./HttpContext";
-import { ITaskOptions } from "./TaskEvent";
+import { HttpContext, IHttpContext } from "./HttpContext";
 
 export const TASK_METDADATA_KEY = "gestaejs:task";
+
+/**
+ * @description
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export class Envelope<I extends Object, O extends Object> {
+    public input?:  I;
+    public output?: O;
+}
+
+export type TaskMethodType = (envelope: Envelope<any, any>, context: IHttpContext) => void | Promise<void>;
+
+/**
+ * @description Options for a resource.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export interface ITaskOptions extends IOptions {
+    name?: string;
+    requestMethod?: HttpMethodEnum;
+    dataAsTarget?: boolean;
+    method?: string;
+    $method?:  TaskMethodType;
+    resourceKey?: string;
+    $asynchrounous?: boolean;
+};
 
 /**
  * @description Utility type to infer `void` return type when omitted.
@@ -55,7 +84,7 @@ export const setTaskMetadata = <T extends Object>(target: T, property: string, o
     }
 
     // set the task type info...
-    _task.$method        = options.$method ?? property;
+    _task.method         = property;
     _task.name           = _taskName;
     _task.requestMethod  = options.requestMethod ?? HttpMethodEnum.Post;
     _task.$asynchrounous = options.$asynchrounous ?? false;
@@ -69,7 +98,7 @@ export const setTaskMetadata = <T extends Object>(target: T, property: string, o
  * @copyright 2024 KRI, LLC
  */
 export function TaskExecute<I, R = void>(options: ITaskOptions = {}) {
-                                  options.dataAsTarget = options.dataAsTarget ?? true;
+                                         options.dataAsTarget = options.dataAsTarget ?? true;
     return function <T extends Object>(target: T, property: string,
                                        descriptor: TypedPropertyDescriptor<(firstArg: I, context: HttpContext) => InferReturnType<R>>) {
         const originalMethod = descriptor.value;
@@ -96,10 +125,10 @@ export function TaskExecute<I, R = void>(options: ITaskOptions = {}) {
             return originalMethod.apply(this, [firstArg, context]); // Only passing the required arguments
         };
 
+        options.method         = property;
         options.name           = options.name?.toLowerCase() ?? property.toLowerCase();
         options.requestMethod  = options.requestMethod ?? HttpMethodEnum.Post;
         options.$asynchrounous = false;
-        options.$method        = property;
         options.$overloads     = options.$overloads ?? true;
 
         setTaskMetadata(target, property, options);
@@ -149,10 +178,10 @@ export function AsyncTaskExecute<I, R = void>(options: ITaskOptions = {}) {
             return result;
         };
 
+        options.method         = property;
         options.name           = options.name?.toLowerCase() ?? property.toLowerCase();
         options.requestMethod  = options.requestMethod ?? HttpMethodEnum.Post;
         options.$asynchrounous = true;
-        options.$method        = property;
         options.$overloads     = options.$overloads ?? true;
 
         setTaskMetadata(target, property, options);

@@ -77,11 +77,6 @@ export const ResourceEvents = {
         OnBefore: {operation: "delete", action: "before"} as EventRegisterType,
         On:       {operation: "delete", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "delete", action: "after" } as EventRegisterType,
-    },
-    Error: {
-        OnBefore: {operation: "error", action: "before"} as EventRegisterType,
-        On:       {operation: "error", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "error", action: "after" } as EventRegisterType,
     }
 };
 
@@ -104,7 +99,7 @@ export interface IResourceNode extends INode {
  */
 export class ResourceEvent<T> extends HttpEvent<T> {
     public readonly resource: IResourceNode;
-    constructor(context: IHttpContext, resource: IResourceNode, data?: T) {
+    constructor(context: IHttpContext, resource: IResourceNode, data: T) {
         super(context, data);
         this.resource = resource;
     }

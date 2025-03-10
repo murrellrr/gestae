@@ -1,3 +1,25 @@
+/*
+ *  Copyright (c) 2024, KRI, LLC.
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *  THE SOFTWARE.
+ */
+
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { 
     getsertClassMetadata,
@@ -6,7 +28,10 @@ import {
     IOptions 
 } from "./Gestae";
 import { GestaeError } from "./GestaeError";
-import { EventRegisterType, formatEvent } from "./GestaeEvent";
+import { 
+    createEventPathFromNode, 
+    EventRegisterType 
+} from "./GestaeEvent";
 import { IHttpContext } from "./HttpContext";
 import { 
     RESOURCE_METADATA_KEY, 
@@ -169,7 +194,7 @@ export class ResourceFeatureFactory extends AbstractFeatureFactoryChain<Resource
 
     onApply(node: ResourceNode): void {
         const _metadata = getsertClassMetadata(node.model, RESOUREC_ACTION_METADATA_KEY);
-        this.log.debug(`Binding events for node '${node.name}' using metadata ${JSON.stringify(_metadata)}.`);
+        this.log.debug(`Binding events for node '${node.name}'.`);
         for(const _action in _metadata) {
             const _actionMetadata = _metadata[_action];
 
@@ -179,7 +204,7 @@ export class ResourceFeatureFactory extends AbstractFeatureFactoryChain<Resource
                 throw new GestaeError(`Method '${_actionMetadata.method}' not found on '${node.model.constructor.name}'.`);
 
             let _event     = ResourceFeatureFactory.getResourceEvent(_actionMetadata.action);
-            let _eventName = `${node.fullyQualifiedPath}:${formatEvent(_event)}`;
+            let _eventName = `${createEventPathFromNode(node, _event)}`;
 
             this.log.debug(`Binding method '${node.model.constructor.name}.${_actionMetadata.method}' on action '${_action}' to event '${_eventName}' for node '${node.name}'.`);
             this.context.eventQueue.on(_eventName, async (event: ResourceEvent<any>) => {

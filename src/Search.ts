@@ -25,10 +25,11 @@ import {
     getsertClassMetadata,
     getsertObjectMetadata, 
     hasClassMetadata,  
-    HttpMethodEnum 
+    HttpMethodEnum, 
+    IOptions
 } from "./Gestae";
 import { GestaeError } from "./GestaeError";
-import { formatEvent } from "./GestaeEvent";
+import { createEventPathFromNode } from "./GestaeEvent";
 import { 
     HttpContext, 
     IHttpContext 
@@ -41,7 +42,6 @@ import {
 } from "./ResourceEvent";
 import { ResourceNode } from "./ResourceNode";
 import { SearchParams } from "./SearchParams";
-import { ITaskOptions } from "./TaskEvent";
 
 export const SEARCH_METADATA_KEY = "gestaejs:search";
 const        DEFAULT_SEARCH_NAME = "search";
@@ -51,7 +51,7 @@ interface SearchResourceContext {
     searchEvent:   ResourceEvent<any>;
 }
 
-export interface ISearchOptions extends ITaskOptions {
+export interface ISearchOptions extends IOptions {
     pathName?: string;
     method?:   string;
 };
@@ -162,23 +162,23 @@ export class SearchableResourceFeatureFactory extends AbstractFeatureFactoryChai
     }
 
     onApply(node: ResourceNode): void {
-        const _metatdata: ISearchOptions = getsertClassMetadata(node.model, SEARCH_METADATA_KEY);
+        const _metadata: ISearchOptions = getsertClassMetadata(node.model, SEARCH_METADATA_KEY);
 
         // check to see if the target implements the search method.
-        if(!node.model.prototype[_metatdata.method!]) 
-            throw new Error(`Search resource method '${node.model.constructor.name}.${_metatdata.method}' not implemented.`);
-        makeResourceSearchable(node, _metatdata);
+        if(!node.model.prototype[_metadata.method!]) 
+            throw new Error(`Search resource method '${node.model.name}.${_metadata.method}' not implemented.`);
+        makeResourceSearchable(node, _metadata);
 
-        const _method = node.model.prototype[_metatdata.method!] as (firstArg: SearchRequest<any>, context: IHttpContext) => void;
+        const _method = node.model.prototype[_metadata.method!] as (firstArg: SearchRequest<any>, context: IHttpContext) => void;
         if(!_method) 
-            throw new GestaeError(`Method '${_metatdata.method}' not found on '${node.model.constructor.name}'.`);
+            throw new GestaeError(`Method '${_metadata.method}' not found on '${node.model.name}'.`);
 
-        const _eventName = `${node.fullyQualifiedPath}:${formatEvent(ResourceEvents.Search.On)}`;
+        const _eventName = `${createEventPathFromNode(node, ResourceEvents.Search.On)}`;
 
         //Binding method 'Employee.onRead' on action 'read' to event 'gestaejs:resource:my:test:root:api:busniess:company:people:labor:employee:read:on' for node 'employee'.
-        this.log.debug(`Binding method '${node.model.constructor.name}.${_metatdata.method}' on action 'search' to event '${_eventName}' for node '${node.name}'`);
+        this.log.debug(`Binding method '${node.model.constructor.name}.${_metadata.method}' on action 'search' to event '${_eventName}' for node '${node.name}'`);
         this.context.eventQueue.on(_eventName, async (event: ResourceEvent<SearchRequest<any>>): Promise<void> => {
-                                        return _method(event.data!, event.context);
+                                        return _method(event.data, event.context);
                                     });
     }
 }
@@ -207,21 +207,18 @@ export const makeResourceSearchable = (source: ResourceNode, options: ISearchOpt
 
     // wrapping source functions
     source.beforeRequest = async (context: HttpContext) => {
-        if(context.request.uri.peek === _pathName && (context.request.isMethod(HttpMethodEnum.Get) || 
-                                                      context.request.isMethod(HttpMethodEnum.Post))) {
+        if(context.request.uriTree.peek === _pathName && (context.request.isMethod(HttpMethodEnum.Get) || 
+                                                          context.request.isMethod(HttpMethodEnum.Post))) {
             // We are the search request, performing the pre-search operations.
-            let _consumedPath = context.request.uri.next;
+            context.request.uriTree.next; //NOSONAR: advance past the search keyword leaf on the tree.
+            // we do this to prevent upstream processesing think there are still leafs to process.
 
             const _searchRequest = SearchRequest.create(context._request);
-            const _context: SearchResourceContext = {
-                searchRequest: _searchRequest,
-                searchEvent:   new ResourceEvent<any>(context, source)
-            }
-            context.setValue(_contextKey, _context);
             context.resources.setResource(source.resourceKey, _searchRequest);
+            context.setValue(_contextKey, true);
 
             // Fire the before events.
-            await source.emitResourceEvent(context, _context.searchEvent, ResourceEvents.Search.OnBefore);
+            await source.emitResourceEvent(context, ResourceEvents.Search.OnBefore);
         }
         else
             return _originBeforeRequest(context);
@@ -229,20 +226,18 @@ export const makeResourceSearchable = (source: ResourceNode, options: ISearchOpt
 
     source.onRequest = async (context: HttpContext) => {
         // check to see if this is a search request.
-        const _context = context.getValue<SearchResourceContext>(_contextKey);
-        if(_context){
-            await source.emitResourceEvent(context, _context.searchEvent, ResourceEvents.Search.On);
-        }
+        if(context.getValue<boolean>(_contextKey))
+            await source.emitResourceEvent(context, ResourceEvents.Search.On);
         else 
             return _originOnRequest(context);
     };
 
     source.afterRequest = async (context: HttpContext) => {
         // check to see if this is a search request.
-        const _context = context.getValue<SearchResourceContext>(_contextKey);
-        if(_context){
-            await source.emitResourceEvent(context, _context.searchEvent, ResourceEvents.Search.OnAfter);
-            context.response.send(_context.searchRequest.response);
+        const _searchRequest = context.resources.getResource<SearchRequest<any>>(source.resourceKey);
+        if(context.getValue<boolean>(_contextKey)) {
+            await source.emitResourceEvent(context, ResourceEvents.Search.OnAfter);
+            context.response.send(_searchRequest.response);
         }
         else 
             return _originAfterRequest(context);

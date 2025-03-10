@@ -23,7 +23,6 @@
 import { InitializationContext } from "./ApplicationContext";
 import { ClassType, IOptions } from "./Gestae";
 import { 
-    GestaeError, 
     MethodNotAllowedError, 
     NotFoundError 
 } from "./GestaeError";
@@ -96,7 +95,7 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
     }
 
     get fullyQualifiedPath(): string {
-        return `gestaejs:${this.type}:${this.uri}`;
+        return `${this.type}:${this.uri}`;
     }
 
     add(child: AbstractNode<any>): AbstractNode<any> {
@@ -174,39 +173,39 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
         // do nothing, developers, override this method to take custom action.
     };
 
-    public async doError(context: HttpContext, error: GestaeError): Promise<void> {
-        // do nothing, developers, override this method to take custom action.
-    }
-
     public async doRequest(context: HttpContext): Promise<void> {
         context.log.debug(`${this.constructor.name}.doRequest('${this.name}'): ${this.uri}.`);
 
-        let _nodeName = context.request.uri.node;
-        // defensive coding.
+        let _nodeName = context.request.uriTree.leaf;
+        // defensive coding, make sure WE ARE INDEED the node to process this leaf.
         if(this.name !== _nodeName) // Check to see if we are the node.
-            throw new NotFoundError(this.name, `The requested resource '${this.name}' was not found from path ${context.request.url}.`);
-
-        context._currentNode = this; // set us as the current node.
-        
-        await this.beforeRequest(context);
-        
-        if(!context.leapt(this.uri))
-            await this.onRequest(context);
-        else 
-            context.log.debug(`Leap-frogging from ${this.name} on ${this.uri} to ${context.request.uri.peek}.`);
-        
-        if(!context.request.uri.target && context.request.uri.hasNext) {
-            // We need to continue processing children
-            let _next = context.request.uri.next;
-            const _child = this.children.get(_next!); // validated above.
-            if(!_child)
-                throw new NotFoundError(_next, `The requested resource '${_next}' was not found from path ${context.request.url}.`);
-            await _child.doRequest(context);
-        }
-        else if(!this.endpoint)
+            throw new NotFoundError(this.name, `The requested resource '${this.name}' was not found in path ${context.request.url}.`);
+        // Check to see if we are the endpoint.
+        if(context.request.uriTree.target && !this.endpoint)
             throw new MethodNotAllowedError(`The ${this.constructor.name} '${this.name}' is not an endpoint.`);
 
         context._currentNode = this; // set us as the current node.
+        await this.beforeRequest(context);
+        if(!context.leapt(this.uri))
+            await this.onRequest(context);
+        else 
+            context.log.debug(`Leap-frogging from ${this.name} on ${this.uri} to ${context.request.uriTree.peek}.`);
+    
+        if(context.request.uriTree.hasNext) {
+            // We need to continue processing children
+            let _next = context.request.uriTree.next;
+
+            // Get the next child.
+            const _child = this.children.get(_next!); // validated above.
+            if(!_child)
+                throw new NotFoundError(_next, `The requested child resource '${_next}' was not found in path ${context.request.url}.`);
+
+            // intercept errors on doRequest.
+            await _child.doRequest(context);
+            context._currentNode = this; // set us as the current node.
+        }
+
+        // do the afterRequest and wrap things up.
         await this.afterRequest(context);
     }
 

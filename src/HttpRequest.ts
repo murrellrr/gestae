@@ -40,24 +40,24 @@ const DEFAULT_CONTENT_TYPE_HEADER = "content-type";
  * @copyright 2024 KRI, LLC
  */
 export class URITree {
-    private readonly _nodes: string[];
-    private _node: string | undefined;
-    private _index: number = 0;
+    private readonly _leafs: string[];
+    private          _leaf:  string | undefined;
+    private          _index: number = 0;
 
     constructor(uri: string) {
         // Ensure _nodes never contains empty strings
-        this._nodes = uri.split("/").map(node => node.trim()).filter(node => node.length > 0);
+        this._leafs = uri.split("/").map(node => node.trim()).filter(node => node.length > 0);
         this._index = 0;
-        this._node  = this._nodes.length > 0 ? this._nodes[this._index] : undefined;
+        this._leaf  = this._leafs.length > 0 ? this._leafs[this._index] : undefined;
     }
 
     /**
-     * @description Gets the current node in the tree.
-     * @returns The current node in the tree or undefined if no more nodes exist.
+     * @description Gets the current leaf on the tree.
+     * @returns The current leaf on the tree or undefined if no more nodes exist.
      */
-    get node(): string | undefined {
-        if(!this._node) return undefined;
-        return this._node;
+    get leaf(): string | undefined {
+        if(!this._leaf) return undefined;
+        return this._leaf;
     }
 
     /**
@@ -66,8 +66,8 @@ export class URITree {
      */
     get next(): string | undefined {
         if(!this.hasNext) return undefined;
-        this._node = this._nodes[++this._index] ?? undefined;
-        return this._node;
+        this._leaf = this._leafs[++this._index] ?? undefined;
+        return this._leaf;
     }
 
     /**
@@ -76,8 +76,8 @@ export class URITree {
      */
     get peek(): string | undefined {
         const _peekIndex = this._index + 1;
-        if(_peekIndex < this._nodes.length)
-            return this._nodes[_peekIndex];
+        if(_peekIndex < this._leafs.length)
+            return this._leafs[_peekIndex];
         return undefined; // No more nodes to return
     }
 
@@ -96,11 +96,11 @@ export class URITree {
      */
     reset(): void {
         this._index = 0;
-        this._node = this._nodes.length > 0 ? this._nodes[this._index] : undefined;
+        this._leaf = this._leafs.length > 0 ? this._leafs[this._index] : undefined;
     }
 
     get hasNext(): boolean {
-        return this._index + 1 < this._nodes.length; // Ensure a next element exists
+        return this._index + 1 < this._leafs.length; // Ensure a next element exists
     }
 }
 
@@ -111,7 +111,7 @@ export class URITree {
  */
 export interface IHttpRequest {
     get url(): URL;
-    get uri(): URITree;
+    get uriTree(): URITree;
     get http(): http.IncomingMessage;
     get method(): HttpMethodEnum;
     get searchParams(): SearchParams;
@@ -158,7 +158,7 @@ export class HttpRequest implements IHttpRequest{
     public             _method:       HttpMethodEnum = HttpMethodEnum.Unsupported;
     public    readonly searchParams:  SearchParams;
     public    readonly url:           URL;
-    public    readonly uri:           URITree;
+    public    readonly uriTree:       URITree;
     
     constructor(request: http.IncomingMessage, passThrough: HttpPassThrough, 
                 requestBody: HttpRequestBody<any>, log: ILogger) {
@@ -166,7 +166,7 @@ export class HttpRequest implements IHttpRequest{
         this._passThrough = passThrough;
         this.log          = log;
         this.url          = new URL(request.url ?? "", `http://${request.headers.host}`);
-        this.uri          = new URITree(this.url.pathname);
+        this.uriTree      = new URITree(this.url.pathname);
         this.searchParams = new SearchParams(this.url);
         this.content      = requestBody;
         this._parseCookies();

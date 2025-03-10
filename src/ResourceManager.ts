@@ -24,13 +24,13 @@ import { ClassType } from "./Gestae";
 
 export interface IResourceManager {
     contains(key: ClassType | string): boolean;
-    getResource<T extends Object>(resource: ClassType | string, defaultValue?: T | undefined): T
-    setResource<T extends Object>(resource: ClassType | string, value: T): T
+    getResource<T extends Object>(resource: ClassType | string, defaultValue?: T | undefined): T;
+    setResource<T extends Object>(resource: ClassType | string, value: T): T;
     get resources(): MapIterator<Object>;
 }
 
 export class ResourceManager {
-    private readonly _resources: Map<string, Object> = new Map<string, Object>();
+    private readonly _resources:          Map<string, Object> = new Map<string, Object>();
 
     contains(key: ClassType | string): boolean {
         return this._resources.has((typeof key === "string")? key : key.name);

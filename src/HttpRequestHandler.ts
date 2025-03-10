@@ -65,14 +65,16 @@ export abstract class AbstractHttpRequestHandler {
         this.timeout      = timeoutMS;
     }
 
-    protected abstract createHttpContext(req: HttpRequest, res: HttpResponse): HttpContext;
+    protected abstract createHttpContext(req: HttpRequest, res: HttpResponse, 
+                                        root: AbstractNode<any>): HttpContext;
 
     protected abstract handleError(httpc: HttpContext, error?: any): Promise<void>;
 
     protected abstract processRequest(httpc: HttpContext): Promise<void>;
 
     async handleRequest(req: http.IncomingMessage, 
-                        res: http.ServerResponse): Promise<void> {
+                        res: http.ServerResponse,
+                        root: AbstractNode<any>): Promise<void> {
         const _this = this;
         // Set up the request size limitter.
         const _limitter = new HttpPassThrough();
@@ -87,7 +89,7 @@ export abstract class AbstractHttpRequestHandler {
         const _req   = new HttpRequest(req, _limitter, this.requestBody, 
                                        this.context.log.child({name: HttpRequest.name}));
         const _res   = new HttpResponse(res, this.responseBody);
-        const _httpc = this.createHttpContext(_req, _res);
+        const _httpc = this.createHttpContext(_req, _res, root);
 
         try {
             await this.processRequest(_httpc);
@@ -105,14 +107,14 @@ export abstract class AbstractHttpRequestHandler {
 }
 
 export class HttpRequestHandler extends AbstractHttpRequestHandler {
-    createHttpContext(req: HttpRequest, res: HttpResponse): HttpContext {
-        return HttpContext.create(this.context, req, res);
+    createHttpContext(req: HttpRequest, res: HttpResponse, root: AbstractNode<any>): HttpContext {
+        return HttpContext.create(this.context, req, res, root);
     }
 
     protected async handleError(httpc: HttpContext, error?: any): Promise<void> {
         const _error = GestaeError.toError(error);
-        httpc.log.error(`Error processing ${httpc.request.method} request ${httpc.request.url}:\r\n${JSON.stringify(error, null, 2)}\r\n${_error.stack}`);
-        httpc.response.error(_error);
+        httpc.log.error(`Error processing ${httpc.request.method} request ${httpc.request.url}:\r\n\r\n${JSON.stringify(error, null, 2)}\r\n\r\n${_error.stack}\r\n\r\n`);
+        httpc.response.send(_error);
     }
 
     protected async processRequest(httpc: HttpContext): Promise<void> {

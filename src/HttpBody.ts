@@ -115,7 +115,7 @@ export class JSONRequestBody extends HttpRequestBody<object> {
  * @copyright 2024 KRI, LLC
  */
 export class JSONResponseBody extends HttpResponseBody<object> {
-    async write(response: http.ServerResponse, body: object, code: number, contentType?:string): Promise<boolean> {
+    async write(response: http.ServerResponse, body: object = {}, code: number = 200, contentType?:string): Promise<boolean> {
         if(response.writable && !response.headersSent) {
             response.setHeader(CONTENT_TYPE_RESPONSE_HEADER, 
                                contentType ?? (body as any).$contentType ?? DEFAULT_JSON_CONTENT_TYPE);

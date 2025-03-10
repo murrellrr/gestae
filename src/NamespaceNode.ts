@@ -26,7 +26,7 @@ import {
     hasMetadata,
 } from "./Gestae";
 import { 
-    formatEvent,
+    createEventPathFromNode
 } from "./GestaeEvent";
 import { GestaeError } from "./GestaeError";
 import { 
@@ -66,19 +66,19 @@ export class NamespaceNode extends AbstractTaskableNode<INamespaceOptions> imple
 
     public async beforeRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
-        _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.OnBefore)}`;
+        _event.path = `${createEventPathFromNode(this, NamespaceEvents.Traverse.OnBefore)}`;
         await this.emitEvent(context, _event, this.getInstance());
     }
 
     public async onRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
-        _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.On)}`;
+        _event.path = `${createEventPathFromNode(this, NamespaceEvents.Traverse.On)}`;
         await this.emitEvent(context, _event, this.getInstance());
     }
 
     public async afterRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
-        _event.path = `${this.fullyQualifiedPath}:${formatEvent(NamespaceEvents.Traverse.OnAfter)}`;
+        _event.path = `${createEventPathFromNode(this, NamespaceEvents.Traverse.OnAfter)}`;
         await this.emitEvent(context, _event, this.getInstance());
     }
 

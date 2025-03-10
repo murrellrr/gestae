@@ -22,10 +22,6 @@
 
 import { INode } from "./Node";
 import { 
-    IOptions, 
-    HttpMethodEnum
-} from "./Gestae";
-import { 
     EventRegisterType,
     HttpEvent, 
     IEventOptions, 
@@ -34,20 +30,7 @@ import {
 import { 
     IHttpContext 
 } from "./HttpContext";
-
-/**
- * @description Options for a resource.
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export interface ITaskOptions extends IOptions {
-    name?: string;
-    requestMethod?: HttpMethodEnum;
-    dataAsTarget?: boolean;
-    $method?: string;
-    $asynchrounous?: boolean;
-};
+import { Envelope, ITaskOptions } from "./Task";
 
 /**
  * @description
@@ -70,11 +53,6 @@ export const TaskEvents = {
         OnBefore: {operation: "execute", action: "before"} as EventRegisterType,
         On:       {operation: "execute", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "execute", action: "after" } as EventRegisterType,
-    },
-    Error: {
-        OnBefore: {operation: "error", action: "before"} as EventRegisterType,
-        On:       {operation: "error", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "error", action: "after" } as EventRegisterType,
     }
 };
 
@@ -84,10 +62,10 @@ export const TaskEvents = {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class TaskEvent<T> extends HttpEvent<T> {
+export class TaskEvent<I extends Object, O extends Object> extends HttpEvent<Envelope<I, O>> {
     public readonly task: ITaskNode;
 
-    constructor(task: ITaskNode, context: IHttpContext, data: T) {
+    constructor(task: ITaskNode, context: IHttpContext, data: Envelope<I, O>) {
         super(context, data);
         this.task = task;
     }
@@ -99,9 +77,9 @@ export class TaskEvent<T> extends HttpEvent<T> {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnTaskEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
+export function OnTaskEvent<I extends Object, O extends Object>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: TaskEvent<I>) => void>) {
+                                       descriptor: TypedPropertyDescriptor<(event: TaskEvent<I, O>) => void>) {
         options.dataAsTarget = options.dataAsTarget ?? true;
         setEventMetadata(target, event, property, options);
     };
@@ -113,9 +91,9 @@ export function OnTaskEvent<I>(event: EventRegisterType, options: IEventOptions 
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnAsyncTaskEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
+export function OnAsyncTaskEvent<I extends Object, O extends Object>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: TaskEvent<I>) => Promise<void>>) {
+                                       descriptor: TypedPropertyDescriptor<(event: TaskEvent<I, O>) => Promise<void>>) {
         options.dataAsTarget = options.dataAsTarget ?? true;
         setEventMetadata(target, event, property, options);
     };

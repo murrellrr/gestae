@@ -26,11 +26,10 @@ import { IApplicationContext } from "./ApplicationContext";
 import { 
     getsertClassMetadata,
     hasClassMetadata,
-    hasMetadata,
     IOptions,
 } from "./Gestae";
 import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
-import { AbstractNode } from "./Node";
+import { AbstractNode, INode } from "./Node";
 import { GestaeError } from "./GestaeError";
 
 const EVENT_OPTIONS_KEY = "gestaejs:event";
@@ -74,11 +73,11 @@ export interface IEventOptions extends IOptions {
 export class GestaeEvent<T> {
     private _cancled: boolean = false;
     private _casue: any = null;
-    public data?: T;
+    public data: T;
     public path: string = "gestaejs";
 
-    constructor(data?: T) {
-        this.data = data;
+    constructor(data: T) {
+        this.data = data ?? {} as T;
     }
 
     cancel(cause?: any): void {
@@ -117,7 +116,7 @@ export class ApplicationEvent<T> extends GestaeEvent<T> {
 export class HttpEvent<T> extends GestaeEvent<T> {
     public readonly context: IHttpContext;
 
-    constructor(context: IHttpContext, data?: T, ) {
+    constructor(context: IHttpContext, data: T, ) {
         super(data);
         this.context = context;
     }
@@ -126,15 +125,28 @@ export class HttpEvent<T> extends GestaeEvent<T> {
 /**
  * @description Formats an EventRegisterType to a delimitted string using ':'.
  * @param event The event to format.
+ * @param topic Optional, The topic to use.
  * @returns A ':' delimited string of the event.
  * @example employee:task:before or resource:after
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const formatEvent = (event: EventRegisterType): string => {
+export const createEventPathFromRegister = (event: EventRegisterType, topic?: string): string => {
+    event.topic = topic ?? event.topic;
     return (event.topic ? event.topic + ":" : "") + event.operation + ":" + event.action;
 }
+
+/**
+ * @description
+ * @param node @description
+ * @param event 
+ * @param topic 
+ * @returns 
+ */
+export const createEventPathFromNode = (node: INode, event: EventRegisterType, topic?: string): string => {
+    return `gestaejs:${node.fullyQualifiedPath}:${createEventPathFromRegister(event, topic)}`;
+};
 
 /**
  * @desciription
@@ -142,8 +154,8 @@ export const formatEvent = (event: EventRegisterType): string => {
  * @param path 
  * @returns 
  */
-export const generateEventName = (event: EventRegisterType, path: string): string => {
-    return `gestaejs:${path}:${formatEvent(event)}`;
+export const createEventPath = (event: EventRegisterType, path: string): string => {
+    return `gestaejs:${path}:${createEventPathFromRegister(event)}`;
 }
 
 /**
@@ -156,7 +168,7 @@ export const generateEventName = (event: EventRegisterType, path: string): strin
  * @copyright 2024 KRI, LLC
  */
 export const setEventMetadata = (target: any, event: EventRegisterType, property: string, options: IEventOptions = {}): void => {
-    let _namesapce = formatEvent(event);
+    let _namesapce = createEventPathFromRegister(event);
     let _metadata: Record<string, any> = getsertClassMetadata(target, EVENT_OPTIONS_KEY);
 
     let _event = _metadata[_namesapce];
@@ -182,17 +194,16 @@ export const setEventMetadata = (target: any, event: EventRegisterType, property
  */
 export class EventFeatureFactory extends AbstractFeatureFactoryChain<AbstractNode<any>> {
     isFeatureFactory(node: AbstractNode<any>): boolean {
-        this.log.debug(`${node.constructor.name} '${node.model.name}' has event metadata: ${hasMetadata(node.model.name, EVENT_OPTIONS_KEY)}`);
         return hasClassMetadata(node.model, EVENT_OPTIONS_KEY);
     }
 
     onApply(node: AbstractNode<any>): void {
         const _metadata = getsertClassMetadata(node.model, EVENT_OPTIONS_KEY);
-        this.log.debug(`Binding events for node '${node.model.name}' using metadata ${JSON.stringify(_metadata)}.`);
+        this.log.debug(`Binding events for node '${node.model.name}'.`);
         for(const _key in _metadata) {
             const _eventsMetadata = _metadata[_key];
             for(const _eventMetadata of _eventsMetadata) {
-                const _fullyQualifiedEventPath = `${node.fullyQualifiedPath}:${formatEvent(_eventMetadata.register)}`;
+                const _fullyQualifiedEventPath = `${createEventPathFromNode(node, _eventMetadata.register)}`;
                 const _method = node.model.prototype[_eventMetadata.register.method] as (event: GestaeEvent<unknown>) => void | Promise<void>;
 
                 // Check Method.

@@ -45,7 +45,7 @@ import {
     AbstractNode, 
     INode 
 } from "./Node";
-import { CancelError } from "./GestaeError";
+import { CancelError, GestaeError } from "./GestaeError";
 
 const LEAP_PATH_PREFIX = `gestaejs:leap:`;
 
@@ -61,11 +61,11 @@ export interface IHttpContext extends IContext {
     get request():            IHttpRequest;
     get response():           IHttpResponse;
     get log():                ILogger;
-    get currentNode():        INode | undefined;
+    get currentNode():        INode;
     cancel(reason?: any):     void;
+    fail(cause?: any):        void;
     get canceled():           boolean;
     get failed():             boolean;
-    get cause():              any;
 }
 
 /**
@@ -79,15 +79,18 @@ export class HttpContext extends AbstractContext implements IHttpContext {
     public readonly _response:           HttpResponse;
     public readonly log:                 ILogger;
     public readonly _resources:          ResourceManager;
-    public          _currentNode?:       AbstractNode<any>;
+    public          _currentNode:        AbstractNode<any>;
     public          _canceled:           boolean = false;
+    public          _failed:             boolean = false;
 
-    constructor(applicationContext: ApplicationContext, request: HttpRequest, response: HttpResponse) {
+    constructor(applicationContext: ApplicationContext, request: HttpRequest, response: HttpResponse,
+                currentNode: AbstractNode<any>) {
         super();
-        this._resources = new ResourceManager();
+        this._currentNode        = currentNode;
+        this._resources          = new ResourceManager();
         this._applicationContext = applicationContext;
-        this._request  = request;
-        this._response = response;
+        this._request            = request;
+        this._response           = response;
         this.log = this.applicationContext.log.child({name: `http`, method: this._request.method,
                                                       path: this._request.url.pathname });
     }
@@ -108,25 +111,26 @@ export class HttpContext extends AbstractContext implements IHttpContext {
         return this._response;
     }
 
-    get currentNode(): INode | undefined {
+    get currentNode(): INode {
         return this._currentNode;
     }
 
     cancel(reason?: any): void {
         this._canceled = true;
-        throw new CancelError(reason ?? "Request canceled.");
+        this.fail(new CancelError(reason ?? "Request canceled."));
     }
 
     get canceled(): boolean {
         return this._canceled;
     }
 
-    get failed(): boolean {
-        return this._response.failed;
+    fail(cause?: any): void {
+        this._failed = true;
+        throw GestaeError.toError(cause);
     }
 
-    get cause(): any {
-        return this._response.body;
+    get failed(): boolean {
+        return this._failed;
     }
 
     /**
@@ -141,8 +145,10 @@ export class HttpContext extends AbstractContext implements IHttpContext {
         return this.getValue(`${LEAP_PATH_PREFIX}${path}`);
     }
 
-    static create(context: ApplicationContext, request: HttpRequest, response: HttpResponse): HttpContext {
-        return new HttpContext(context, request, response);
+    static create(context: ApplicationContext, request: HttpRequest, response: HttpResponse, 
+                  currentNode: AbstractNode<any>): HttpContext {
+        return new HttpContext(context, request, 
+                               response, currentNode);
     }
 }
 

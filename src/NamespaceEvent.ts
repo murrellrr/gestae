@@ -38,11 +38,6 @@ export const NamespaceEvents = {
         OnBefore: {operation: "traverse", action: "before"} as EventRegisterType,
         On:       {operation: "traverse", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "traverse", action: "after" } as EventRegisterType,
-    },
-    Error: {
-        OnBefore: {operation: "error", action: "before"} as EventRegisterType,
-        On:       {operation: "error", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "error", action: "after" } as EventRegisterType,
     }
 };
 

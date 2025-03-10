@@ -20,7 +20,6 @@
  *  THE SOFTWARE.
  */
 
-import { GestaeError } from "./GestaeError";
 import { Cookie, createCookieString } from "./Gestae";
 import { HttpResponseBody } from "./HttpBody";
 import http from 'http';
@@ -37,10 +36,8 @@ export interface IHttpResponse {
     get http(): http.ServerResponse;
     get code(): number;
     get body(): object;
-    get failed(): boolean;
     get cookies(): Map<string, Cookie>;
     send(msg: object, code?:number): void;
-    error(error: GestaeError): void;
     setHeader(key: string, value: string): IHttpResponse;
     setCookie(key: string, value: Cookie): IHttpResponse;
 }
@@ -51,7 +48,6 @@ export interface IHttpResponse {
  * @copyright 2024 KRI, LLC
  */
 export class HttpResponse implements IHttpResponse {
-    private            _failed:   boolean = false;
     protected readonly content:   HttpResponseBody<any>;
     protected readonly _cookies:  Map<string, Cookie> = new Map<string, Cookie>();
     public    readonly _response: http.ServerResponse;
@@ -71,10 +67,6 @@ export class HttpResponse implements IHttpResponse {
         return this._response.statusCode;
     }
 
-    get failed(): boolean {
-        return this._failed;
-    }
-
     setHeader(key: string, value: number | string | readonly string[]): IHttpResponse {
         this._response.setHeader(key, value);
         return this;
@@ -90,17 +82,8 @@ export class HttpResponse implements IHttpResponse {
     }
 
     send(body: any, code:number = 200): void {
-        if(!this._failed) {
-            this.code = code;
-            this.body = body;
-        }
-    }
-
-    error(error: any, code?:number) {
-        const _error = GestaeError.toError(error, code);
-        this._failed = true;
-        this.code = _error.code;
-        this.body = _error.safe;
+        this.code = code;
+        this.body = body;
     }
 
     async write(content?: HttpResponseBody<any>): Promise<boolean> {

@@ -293,7 +293,7 @@ export class Application {
                                                    this.requestBody, this.responseBody, 
                                                    this.sizeMB, this.timeoutMS); // Setting up the request handler.
         this._server = http.createServer(async (req, res) => {
-            await _handler.handleRequest(req, res);
+            await _handler.handleRequest(req, res, this._root!);
         });
         this._server.listen(this.port);
     }

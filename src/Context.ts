@@ -58,7 +58,7 @@ export class AbstractContext implements IContext {
         return _value;
     }
 
-    setValue(key: string, value: any): void {
+    setValue<T>(key: string, value: T): void {
         this._values[key] = value;
     }
 
