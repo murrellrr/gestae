@@ -20,11 +20,18 @@
  *  THE SOFTWARE.
  */
 
-import { HttpMethodEnum } from "./Gestae";
+import { 
+    Cookie, 
+    GestaeHeaderValue 
+} from "./Gestae";
 import { 
     EventRegisterType, 
-    HttpEvent 
+    GestaeEvent,
+    IEventOptions,
+    setEventMetadata
 } from "./GestaeEvent";
+import { HttpRequestBody } from "./HttpBody";
+import { IHttpContext } from "./HttpContext";
 
 /**
  * @description
@@ -76,11 +83,43 @@ export const HttpEvents = {
 };
 
 /**
- * @description
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class HttpRequestEvent extends HttpEvent<HttpMethodEnum> {
-    //
+export class HttpEvent<T = {}> extends GestaeEvent<T> {
+    public readonly context: IHttpContext;
+
+    constructor(context: IHttpContext, data: T, path?: string) {
+        super(data, path);
+        this.context = context;
+    }
+
+    async getBody<T>(content?: HttpRequestBody<T>): Promise<T> {
+        return this.context.request.getBody<T>(content);
+    }
+
+    getSearchParam(key: string, defaultValue?: string): string | undefined {
+        return this.context.request.searchParams.get(key, defaultValue);
+    }
+
+    getRequestHeader(key: string, defaultValue?: string): GestaeHeaderValue {
+        return this.context.request.getHeader(key, defaultValue);
+    }
+
+    getCookie(key: string, defaultValue?: Cookie): Cookie | undefined {
+        return this.context.request.getCookie(key, defaultValue);
+    }
 }
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export function OnHttpEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
+    return function <T extends Object>(target: T, property: string, 
+                                       descriptor: TypedPropertyDescriptor<(event: HttpEvent) => Promise<void>>) {
+        setEventMetadata(target, event, property, options);
+    };
+} // Cant be constant because it is used as a decorator.

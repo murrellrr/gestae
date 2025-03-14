@@ -23,7 +23,6 @@
 import { INode } from "./Node";
 import { 
     EventRegisterType,
-    HttpEvent, 
     IEventOptions, 
     setEventMetadata 
 } from "./GestaeEvent";
@@ -31,7 +30,7 @@ import {
     IHttpContext 
 } from "./HttpContext";
 import { Envelope, ITaskOptions } from "./Task";
-
+import { HttpEvent } from "./HttpEvent";
 /**
  * @description
  * @author Robert R Murrell
@@ -78,20 +77,6 @@ export class TaskEvent<I extends Object, O extends Object> extends HttpEvent<Env
  * @copyright 2024 KRI, LLC
  */
 export function OnTaskEvent<I extends Object, O extends Object>(event: EventRegisterType, options: IEventOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: TaskEvent<I, O>) => void>) {
-        options.dataAsTarget = options.dataAsTarget ?? true;
-        setEventMetadata(target, event, property, options);
-    };
-}
-
-/**
- * @description
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function OnAsyncTaskEvent<I extends Object, O extends Object>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: TaskEvent<I, O>) => Promise<void>>) {
         options.dataAsTarget = options.dataAsTarget ?? true;

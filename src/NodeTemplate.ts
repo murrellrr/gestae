@@ -22,7 +22,7 @@
 
 import { InitializationContext } from "./ApplicationContext";
 import { 
-    ClassType, 
+    GestaeClassType, 
     IOptions, 
     isClassConstructor 
 } from "./Gestae";
@@ -34,7 +34,7 @@ import { AbstractNode } from "./Node";
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type NodeTemplateType = AbstractNode<any> | ClassType | string;
+export type NodeTemplateType = AbstractNode<any> | GestaeClassType | string;
 
 /**
  * @description

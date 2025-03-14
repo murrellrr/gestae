@@ -29,8 +29,8 @@ import {
     AbstractContext, 
     IContext 
 } from "./Context";
-import { 
-    IResourceManager, 
+import {
+    IResourceReader, 
     ResourceManager 
 } from "./ResourceManager";
 import { 
@@ -57,14 +57,13 @@ const LEAP_PATH_PREFIX = `gestaejs:leap:`;
  */
 export interface IHttpContext extends IContext {
     get applicationContext(): IApplicationContext;
-    get resources():          IResourceManager;
+    get resources():          IResourceReader;
     get request():            IHttpRequest;
     get response():           IHttpResponse;
     get log():                ILogger;
     get currentNode():        INode;
     cancel(reason?: any):     void;
     fail(cause?: any):        void;
-    get canceled():           boolean;
     get failed():             boolean;
 }
 
@@ -74,41 +73,40 @@ export interface IHttpContext extends IContext {
  * @copyright 2024 KRI, LLC
  */
 export class HttpContext extends AbstractContext implements IHttpContext {
-    public readonly _applicationContext: ApplicationContext;
-    public readonly _request:            HttpRequest;
-    public readonly _response:           HttpResponse;
-    public readonly log:                 ILogger;
-    public readonly _resources:          ResourceManager;
-    public          _currentNode:        AbstractNode<any>;
-    public          _canceled:           boolean = false;
-    public          _failed:             boolean = false;
+    public readonly context:         ApplicationContext;
+    public readonly httpRequest:     HttpRequest;
+    public readonly httpResponse:    HttpResponse;
+    public readonly log:             ILogger;
+    public readonly resourceManager: ResourceManager;
+    public          _currentNode:    AbstractNode<any>;
+    public          _failed:         boolean = false;
 
-    constructor(applicationContext: ApplicationContext, request: HttpRequest, response: HttpResponse,
+    constructor(context: ApplicationContext, request: HttpRequest, response: HttpResponse,
                 currentNode: AbstractNode<any>) {
         super();
-        this._currentNode        = currentNode;
-        this._resources          = new ResourceManager();
-        this._applicationContext = applicationContext;
-        this._request            = request;
-        this._response           = response;
-        this.log = this.applicationContext.log.child({name: `http`, method: this._request.method,
-                                                      path: this._request.url.pathname });
+        this._currentNode    = currentNode;
+        this.resourceManager = new ResourceManager();
+        this.context         = context;
+        this.httpRequest     = request;
+        this.httpResponse    = response;
+        this.log = context.log.child({name: `http`, method: this.httpRequest.method,
+                                      path: this.httpRequest.url.pathname });
     }
 
-    get resources(): IResourceManager {
-        return this._resources;
+    get resources(): IResourceReader {
+        return this.resourceManager;
     }
 
     get applicationContext(): IApplicationContext { // Supports the Interface
-        return this._applicationContext;
+        return this.context;
     }
 
     get request(): IHttpRequest {
-        return this._request;
+        return this.httpRequest;
     }
 
     get response(): IHttpResponse {
-        return this._response;
+        return this.httpResponse;
     }
 
     get currentNode(): INode {
@@ -116,12 +114,7 @@ export class HttpContext extends AbstractContext implements IHttpContext {
     }
 
     cancel(reason?: any): void {
-        this._canceled = true;
         this.fail(new CancelError(reason ?? "Request canceled."));
-    }
-
-    get canceled(): boolean {
-        return this._canceled;
     }
 
     fail(cause?: any): void {

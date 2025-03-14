@@ -22,7 +22,7 @@
 
 import { 
     Cookie, 
-    HeaderValue,
+    GestaeHeaderValue,
     HttpMethodEnum 
 } from "./Gestae";
 import { SearchParams } from "./SearchParams";
@@ -116,7 +116,8 @@ export interface IHttpRequest {
     get method(): HttpMethodEnum;
     get searchParams(): SearchParams;
     getContentType(): string;
-    getHeader(key: string, defaultValue?: HeaderValue): HeaderValue;
+    getHeader(key: string, defaultValue?: GestaeHeaderValue): GestaeHeaderValue;
+    getCookie(key: string, defaultValue?: Cookie | undefined): Cookie | undefined;
     isMethod(method: HttpMethodEnum): boolean;
 
     /**
@@ -289,7 +290,7 @@ export class HttpRequest implements IHttpRequest{
         return this.getHeader(DEFAULT_CONTENT_TYPE_HEADER) as string;
     }
 
-    getHeader(key: string, defaultValue?: HeaderValue): HeaderValue {
+    getHeader(key: string, defaultValue?: GestaeHeaderValue): GestaeHeaderValue {
         return this._request.headers[key.toLowerCase()] ?? defaultValue;
     }
 

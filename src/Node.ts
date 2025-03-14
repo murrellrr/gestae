@@ -21,7 +21,7 @@
  */
 
 import { InitializationContext } from "./ApplicationContext";
-import { ClassType, IOptions } from "./Gestae";
+import { GestaeClassType, IOptions, GestaeObjectType } from "./Gestae";
 import { 
     MethodNotAllowedError, 
     NotFoundError 
@@ -46,6 +46,7 @@ export interface INodeOptions extends IOptions {
 export interface INode {
     get name(): string;
     get type(): string;
+    get model(): GestaeClassType<any>;
     get parentNode(): INode | undefined;
     get childNodes(): Map<string, INode>;
     get fullyQualifiedPath(): string;
@@ -59,18 +60,18 @@ export interface INode {
 export abstract class AbstractNode<O extends INodeOptions> implements INode {
     protected readonly _children: Map<string, AbstractNode<any>> = new Map<string, AbstractNode<any>>();
     protected readonly options:   O;
-    protected readonly _model:    ClassType<any>;
+    protected readonly _model:    GestaeClassType<any>;
     protected          parent?:   AbstractNode<any>;
     protected          uri:       string = "";
     protected readonly _name:     string;
 
-    constructor(model: ClassType<any>, options?: O) {
+    constructor(model: GestaeClassType<any>, options?: O) {
         this._model  = model;
         this.options = (options ?? {}) as O;
         this._name   = this.options.name?.toLowerCase() ?? this.constructor.name.toLowerCase();
     }
 
-    get model(): ClassType<any> {
+    get model(): GestaeClassType<any> {
         return this._model;
     }
 
@@ -106,8 +107,8 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
 
     abstract get type(): string;
 
-    getInstance<T extends Object>(...args: any[]): T {
-        return new this.model(...args) as T;
+    getInstance(...args: any[]): GestaeObjectType {
+        return new this.model(...args);
     }
 
     public async beforeInitialize(context: InitializationContext): Promise<void> {
@@ -157,7 +158,7 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
         await this.afterInitialize(context);
     }
 
-    protected async emitEvent(context: HttpContext, event: GestaeEvent<any>, instance?: object) {
+    protected async emitEvent(context: HttpContext, event: GestaeEvent) {
         await context.applicationContext.eventEmitter.emit(event);
     }
 

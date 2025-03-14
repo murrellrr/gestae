@@ -22,10 +22,13 @@
 
 import { 
     IOptions, 
+    GestaeObjectType, 
     setClassMetadata
 } from "./Gestae";
+import { INode } from "./Node";
 
-export const RESOURCE_METADATA_KEY = "gestaejs:resource";
+export const RESOURCE_NAME         = "resource";
+export const RESOURCE_METADATA_KEY = `gestaejs:${RESOURCE_NAME}`;
 
 /**
  * @description Action types for a resource.
@@ -40,6 +43,17 @@ export enum ResourceActionEnum {
     Delete      = "delete",
     MediaSearch = "mediaSearch",
     Search      = "search"
+}
+
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export interface IResourceNode extends INode {
+    get resourceKey(): string;
+    getResourceOptions(): IResourceOptions;
+    getInstance(... args: any[]): GestaeObjectType;
 }
 
 /**

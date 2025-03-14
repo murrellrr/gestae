@@ -37,12 +37,14 @@ export const getGestaeMetadata = (): Record<string, any> => {
 }
 
 /**
- * @description ClassType is a type that represents a class constructor.
+ * @description GestaeClassType is a type that represents a class constructor.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type ClassType<T = {}> = new (...args: any[]) => T;
+export type GestaeClassType<T = {}> = new (...args: any[]) => T;
+
+export type GestaeObjectType = {[key: symbol | string]: any};
 
 /**
  * @description IOptions is an interface that represents the options for a node, event, or decorator.
@@ -59,12 +61,12 @@ export interface IOptions {
 }
 
 /**
- * @description HeaderValue is a type that represents the value of an HTTP header.
+ * @description GestaeHeaderValue is a type that represents the value of an HTTP header.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type HeaderValue = string[] | string | undefined;
+export type GestaeHeaderValue = string[] | string | undefined;
 
 /**
  * @description HttpMethodEnum is an enum that represents the HTTP methods.
@@ -157,7 +159,7 @@ export const getTarget = (key: string): Record<string, any> | undefined => {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const getClassTarget = (key: ClassType<any>): Record<string, any> | undefined => {
+export const getClassTarget = (key: GestaeClassType<any>): Record<string, any> | undefined => {
     return _GESTAE_METADATA[key.name];
 }
 
@@ -187,7 +189,7 @@ export const setTarget = (key: string, target: Record<string, any>): void => {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const setClassTarget = (key: ClassType<any>, target: Record<string, any>): void => {
+export const setClassTarget = (key: GestaeClassType<any>, target: Record<string, any>): void => {
     target.$name = key.name;
     const _super = Object.getPrototypeOf(key);
     if(_super?.name && _super !== Object) target.$extends = _super.name;
@@ -201,7 +203,7 @@ export const setClassTarget = (key: ClassType<any>, target: Record<string, any>)
  * @copyright 2024 KRI, LLC
  */
 export const setObjectTarget = <T extends Object>(key: T, target: Record<string, any>): void => {
-    setClassTarget(key.constructor as ClassType, target);
+    setClassTarget(key.constructor as GestaeClassType, target);
 }
 
 /**
@@ -225,7 +227,7 @@ export const getsertTarget = (target: string): Record<string, any> => {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const getsertClassTarget = (target: ClassType<any>): Record<string, any> => {
+export const getsertClassTarget = (target: GestaeClassType<any>): Record<string, any> => {
     let _target = getClassTarget(target);
     if(!_target) {
         _target = {};
@@ -250,7 +252,7 @@ export const hasMetadata = (target: string, key: string): boolean => {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const hasClassMetadata = (target: ClassType<any>, key: string): boolean => {
+export const hasClassMetadata = (target: GestaeClassType<any>, key: string): boolean => {
     return hasMetadata(target.name, key);
 }
 
@@ -260,7 +262,7 @@ export const hasClassMetadata = (target: ClassType<any>, key: string): boolean =
  * @copyright 2024 KRI, LLC
  */
 export const hasObjectMetadata = <T extends Object>(target: T, key: string): boolean => {
-    return hasClassMetadata(target.constructor as ClassType, key);
+    return hasClassMetadata(target.constructor as GestaeClassType, key);
 }
 
 /**
@@ -282,7 +284,7 @@ export const getMetadata = (target: string, key: string,
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const getClassMetadata = (target: ClassType<any>, key: string, 
+export const getClassMetadata = (target: GestaeClassType<any>, key: string, 
                                 defaultValue: Record<string, any> | undefined = undefined): Record<string, any> | undefined => {
     return getMetadata(target.name, key, defaultValue);
 }
@@ -294,7 +296,7 @@ export const getClassMetadata = (target: ClassType<any>, key: string,
  */
 export const getObjectMetadata = <T extends Object>(target: T, key: string, 
                                                     defaultValue: Record<string, any> | undefined = undefined): Record<string, any> | undefined => {
-    return getClassMetadata(target.constructor as ClassType, key, defaultValue);
+    return getClassMetadata(target.constructor as GestaeClassType, key, defaultValue);
 }
 
 /**
@@ -319,7 +321,7 @@ export const getsertMetadata = (target: string, key: string,
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const getsertClassMetadata = (target: ClassType<any>, key: string, 
+export const getsertClassMetadata = (target: GestaeClassType<any>, key: string, 
                                      defaultValue: Record<string, any> = {}): Record<string, any> => {
     let _targey = getsertClassTarget(target); // update getsertTarget
     let _metadata = _targey[key];
@@ -337,7 +339,7 @@ export const getsertClassMetadata = (target: ClassType<any>, key: string,
  */
 export const getsertObjectMetadata = <T extends Object>(target: T, key: string, 
                                     defaultValue: Record<string, any> = {}): Record<string, any> => {
-    return getsertClassMetadata(target.constructor as ClassType, key, defaultValue);
+    return getsertClassMetadata(target.constructor as GestaeClassType, key, defaultValue);
 }
 
 /**
@@ -355,7 +357,7 @@ export const setMetadata = (target: string, key: string, data: Record<string, an
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const setClassMetadata = (target: ClassType<any>, key: string, data: Record<string, any>): void => {
+export const setClassMetadata = (target: GestaeClassType<any>, key: string, data: Record<string, any>): void => {
     setMetadata(target.name, key, data);
 }
 
@@ -365,7 +367,7 @@ export const setClassMetadata = (target: ClassType<any>, key: string, data: Reco
  * @copyright 2024 KRI, LLC
  */
 export const setObjectMetadata = <T extends Object>(target: T, key: string, data: Record<string, any>): void => {
-    setClassMetadata(target.constructor as ClassType, key, data);
+    setClassMetadata(target.constructor as GestaeClassType, key, data);
 }
 
 /**
@@ -382,7 +384,7 @@ export const deleteTarget = (target: string): void => {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const deleteClassTarget = (target: ClassType<any>): void => {
+export const deleteClassTarget = (target: GestaeClassType<any>): void => {
     deleteTarget(target.name);
 };
 
@@ -410,7 +412,7 @@ export const deleteMetadata = (target: string, key: string): void => {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const deleteClassMetadata = (target: ClassType<any>, key: string): void => {
+export const deleteClassMetadata = (target: GestaeClassType<any>, key: string): void => {
     deleteMetadata(target.name, key);
 };
 
@@ -420,7 +422,7 @@ export const deleteClassMetadata = (target: ClassType<any>, key: string): void =
  * @copyright 2024 KRI, LLC
  */
 export const deleteObjectMetadata = <T extends Object>(target: T, key: string): void => {
-    deleteClassMetadata(target.constructor as ClassType, key);
+    deleteClassMetadata(target.constructor as GestaeClassType, key);
 };
 
 /**

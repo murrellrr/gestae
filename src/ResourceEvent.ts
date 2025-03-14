@@ -20,17 +20,20 @@
  *  THE SOFTWARE.
  */
 
-import { INode } from "./Node";
 import { 
+    createEventPathFromNode,
+    createEventRegister,
     EventRegisterType,
-    HttpEvent, 
     IEventOptions, 
     setEventMetadata 
 } from "./GestaeEvent";
 import { IHttpContext } from "./HttpContext";
+import { HttpEvent } from "./HttpEvent";
 import { 
-    IResourceOptions
+    IResourceNode,
+    ResourceActionEnum
 } from "./Resource";
+import { IResource } from "./ResourceManager";
 
 /**
  * @author Robert R Murrell
@@ -38,42 +41,47 @@ import {
  * @copyright 2024 KRI, LLC
  */
 export const ResourceEvents = {
+    before: "before" as string,
+    on:     "on" as string,
+    after:  "after" as string,
     Resource: {
+        opertaion: "resource" as string,
         OnBefore: {operation: "resource", action: "before"} as EventRegisterType,
         On:       {operation: "resource", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "resource", action: "after" } as EventRegisterType,
     },
     Create: {
+        opertaion: "create" as string,
         OnBefore: {operation: "create", action: "before"} as EventRegisterType,
         On:       {operation: "create", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "create", action: "after" } as EventRegisterType,
     },
-    Traverse: {
-        OnBefore: {operation: "traverse", action: "before"} as EventRegisterType,
-        On:       {operation: "traverse", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "traverse", action: "after" } as EventRegisterType,
-    },
     Read: {
+        opertaion: "read" as string,
         OnBefore: {operation: "read", action: "before"} as EventRegisterType,
         On:       {operation: "read", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "read", action: "after" } as EventRegisterType,
     },
     Search: {
+        opertaion: "search" as string,
         OnBefore: {operation: "search", action: "before"} as EventRegisterType,
         On:       {operation: "search", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "search", action: "after" } as EventRegisterType,
     },
     MediaSearch: {
+        opertaion: "mediaSearch" as string,
         OnBefore: {operation: "mediasearch", action: "before"} as EventRegisterType,
         On:       {operation: "mediasearch", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "mediasearch", action: "after" } as EventRegisterType,
     },
     Update: {
+        opertaion: "update" as string,
         OnBefore: {operation: "update", action: "before"} as EventRegisterType,
         On:       {operation: "update", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "update", action: "after" } as EventRegisterType,
     },
     Delete: {
+        opertaion: "delete" as string,
         OnBefore: {operation: "delete", action: "before"} as EventRegisterType,
         On:       {operation: "delete", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "delete", action: "after" } as EventRegisterType,
@@ -85,23 +93,55 @@ export const ResourceEvents = {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export interface IResourceNode extends INode {
-    get resourceKey(): string;
-    getResourceOptions(): IResourceOptions;
-    getInstance<T extends Object>(... args: [any]): T;
-    createInstance<T extends Object>(id: string): T
+export class ResourceEvent extends HttpEvent<IResource> {
+    public readonly resource: IResourceNode;
+    public readonly action:   ResourceActionEnum;
+    constructor(context: IHttpContext, resource: IResourceNode, action: ResourceActionEnum, 
+                event: string, data: IResource, path?: string) {
+        super(context, data, path);
+        this.action   = action;
+        this.resource = resource;
+        this.path     = createEventPathFromNode(resource, 
+                            createEventRegister(action, event));
+    }
 }
 
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export class ResourceEvent<T> extends HttpEvent<T> {
-    public readonly resource: IResourceNode;
-    constructor(context: IHttpContext, resource: IResourceNode, data: T) {
-        super(context, data);
-        this.resource = resource;
+export class IDResourceEvent extends ResourceEvent {
+    public readonly id: string;
+    constructor(context: IHttpContext, resource: IResourceNode, action: ResourceActionEnum, 
+                event: string, data: IResource, id: string, path?: string) {
+        super(context, resource, action, event, data, path);
+        this.id = id;
+    }
+}
+
+export class CreateResourceEvent extends ResourceEvent {
+    constructor(context: IHttpContext, resource: IResourceNode, event: string, 
+                data: IResource, path?: string) {
+        super(context, resource, ResourceActionEnum.Create, event, data, path);
+    }
+}
+
+export class ReadResourceEvent extends IDResourceEvent {
+    constructor(context: IHttpContext, resource: IResourceNode, event: string,  
+                id: string, data: IResource) {
+        super(context, resource, ResourceActionEnum.Update, event, data, id);
+    }
+}
+
+export class UpdateResourceEvent extends IDResourceEvent {
+    public readonly patch: boolean;
+    constructor(context: IHttpContext, resource: IResourceNode, event: string,  
+                id: string, data: IResource, patch: boolean = false) {
+        super(context, resource, ResourceActionEnum.Update, event, data, id);
+        this.patch = patch;
+    }
+}
+
+export class DeleteResourceEvent extends IDResourceEvent {
+    constructor(context: IHttpContext, resource: IResourceNode, event: string,  
+                id: string, data: IResource) {
+        super(context, resource, ResourceActionEnum.Delete, event, data, id);
     }
 }
 
@@ -110,22 +150,9 @@ export class ResourceEvent<T> extends HttpEvent<T> {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnResourceEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
+export function OnResourceEvent(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: ResourceEvent<I>) => void>) {
-        options.dataAsTarget = options.dataAsTarget ?? true;
-        setEventMetadata(target, event, property, options);
-    };
-} // Cant be constant because it is used as a decorator.
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function OnAsyncResourceEvent<I>(event: EventRegisterType, options: IEventOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: ResourceEvent<I>) => Promise<void>>) {
+                                       descriptor: TypedPropertyDescriptor<(event: ResourceEvent) => Promise<void>>) {
         options.dataAsTarget = options.dataAsTarget ?? true;
         setEventMetadata(target, event, property, options);
     };

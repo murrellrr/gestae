@@ -20,54 +20,29 @@
  *  THE SOFTWARE.
  */
 
-import { INode } from "./Node";
-import { 
-    EventRegisterType,  
-    IEventOptions, 
-    setEventMetadata 
-} from "./GestaeEvent";
-import { HttpEvent } from "./HttpEvent";
 import { GestaeObjectType } from "./Gestae";
+import { HttpContext } from "./HttpContext";
+import { IDResourceHandler } from "./IDResourceHandler";
+import { ResourceActionEnum } from "./Resource";
+import { ResourceEvent, ReadResourceEvent } from "./ResourceEvent";
+import { IResource } from "./ResourceManager";
 
 /**
+ * @description
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const NamespaceEvents = {
-    Traverse: {
-        OnBefore: {operation: "traverse", action: "before"} as EventRegisterType,
-        On:       {operation: "traverse", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "traverse", action: "after" } as EventRegisterType,
+export class ReadResourceHandler extends IDResourceHandler {
+    get action(): ResourceActionEnum {
+        return ResourceActionEnum.Read;
     }
-};
 
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export interface INamesapceNode extends INode {
-    //
+    async getData(context: HttpContext): Promise<GestaeObjectType> {
+        return this.resource.getInstance();
+    }
+
+    createEvent(context: HttpContext, event: string, data: IResource): ResourceEvent {
+        return new ReadResourceEvent(context, this.resource, event, this.id, data);
+    }
 }
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export class NamespaceEvent extends HttpEvent<GestaeObjectType> {
-    //
-}
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function OnNamespaceEvent(event: EventRegisterType, options: IEventOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: NamespaceEvent) => Promise<void>>) {
-        setEventMetadata(target, event, property, options);
-    };
-} // Cant be constant because it is used as a decorator.

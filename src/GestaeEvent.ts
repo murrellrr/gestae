@@ -21,7 +21,6 @@
  */
 
 import "reflect-metadata";
-import { IHttpContext } from "./HttpContext";
 import { IApplicationContext } from "./ApplicationContext";
 import { 
     getsertClassMetadata,
@@ -70,14 +69,15 @@ export interface IEventOptions extends IOptions {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class GestaeEvent<T> {
+export class GestaeEvent<T = {[key: symbol | string]: any}> {
     private _cancled: boolean = false;
-    private _casue: any = null;
-    public data: T;
-    public path: string = "gestaejs";
+    private _casue:   any = null;
+    public data:      T;
+    public path:      string = "gestaejs";
 
-    constructor(data: T) {
+    constructor(data: T, path?: string) {
         this.data = data ?? {} as T;
+        this.path = path ?? "gestaejs";
     }
 
     cancel(cause?: any): void {
@@ -99,28 +99,28 @@ export class GestaeEvent<T> {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class ApplicationEvent<T> extends GestaeEvent<T> {
+export class ApplicationEvent<T = {}> extends GestaeEvent<T> {
     public readonly context: IApplicationContext;
 
-    constructor(context: IApplicationContext, data: T, ) {
-        super(data);
+    constructor(context: IApplicationContext, data: T, path?: string) {
+        super(data, path);
         this.context = context;
     }
 }
 
 /**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
+ * @description
+ * @param operation
+ * @param action 
+ * @returns 
  */
-export class HttpEvent<T> extends GestaeEvent<T> {
-    public readonly context: IHttpContext;
-
-    constructor(context: IHttpContext, data: T, ) {
-        super(data);
-        this.context = context;
-    }
-}
+export const createEventRegister = (operation: string, action: string, topic?: string) => {
+    return {
+        operation: operation, 
+        action:    action,
+        ...(topic ? { topic } : {})
+    } as EventRegisterType;
+};
 
 /**
  * @description Formats an EventRegisterType to a delimitted string using ':'.
@@ -199,12 +199,11 @@ export class EventFeatureFactory extends AbstractFeatureFactoryChain<AbstractNod
 
     onApply(node: AbstractNode<any>): void {
         const _metadata = getsertClassMetadata(node.model, EVENT_OPTIONS_KEY);
-        this.log.debug(`Binding events for node '${node.model.name}'.`);
         for(const _key in _metadata) {
             const _eventsMetadata = _metadata[_key];
             for(const _eventMetadata of _eventsMetadata) {
                 const _fullyQualifiedEventPath = `${createEventPathFromNode(node, _eventMetadata.register)}`;
-                const _method = node.model.prototype[_eventMetadata.register.method] as (event: GestaeEvent<unknown>) => void | Promise<void>;
+                const _method = node.model.prototype[_eventMetadata.register.method] as (event: GestaeEvent) => void | Promise<void>;
 
                 // Check Method.
                 if(!_method) 
@@ -237,43 +236,7 @@ export function OnEvent(event: EventRegisterType, options: IEventOptions = {}) {
  */
 export function OnApplicationEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: ApplicationEvent<E>) => void>) {
-        setEventMetadata(target, event, property, options);
-    };
-} // Cant be constant because it is used as a decorator.
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function OnAsyncApplicationEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: ApplicationEvent<E>) => Promise<void>>) {
-        setEventMetadata(target, event, property, options);
-    };
-} // Cant be constant because it is used as a decorator.
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function OnHttpEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: HttpEvent<E>) => void>) {
-        setEventMetadata(target, event, property, options);
-    };
-} // Cant be constant because it is used as a decorator.
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function OnAsyncHttpEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: HttpEvent<E>) => Promise<void>>) {
+                                       descriptor: TypedPropertyDescriptor<(event: ApplicationEvent) => Promise<void>>) {
         setEventMetadata(target, event, property, options);
     };
 } // Cant be constant because it is used as a decorator.

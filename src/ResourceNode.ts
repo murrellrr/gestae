@@ -21,46 +21,43 @@
  */
 
 import { 
-    ClassType,
+    GestaeClassType,
     HttpMethodEnum,
     getsertClassMetadata,
     hasClassMetadata,
     isClassConstructor,
 } from "./Gestae";
-import { 
-    createEventPathFromNode,
-    EventRegisterType
-} from "./GestaeEvent";
-import { 
-    HttpContext 
-} from "./HttpContext";
+import { EventRegisterType} from "./GestaeEvent";
+import { HttpContext } from "./HttpContext";
 import { 
     AbstractNodeFactoryChain, 
     FactoryReturnType 
 } from "./AbstractNodeFactoryChain";
 import { NodeTemplate } from "./NodeTemplate";
-import { 
-    BadRequestError, 
-    MethodNotAllowedError 
-} from "./GestaeError";
-import { 
-    IResourceNode,
-    ResourceEvent, 
-    ResourceEvents,
-} from "./ResourceEvent";
+import { InternalServerError, MethodNotAllowedError } from "./GestaeError";
+import { ResourceEvent } from "./ResourceEvent";
 import { 
     ResourceActionEnum, 
     RESOURCE_METADATA_KEY, 
-    IResourceOptions
+    IResourceOptions,
+    IResourceNode,
+    RESOURCE_NAME
 } from "./Resource";
 import { AbstractTaskableNode } from "./TaskNode";
-import { HttpRequest } from "./HttpRequest";
+import { CreateResourceHandler } from "./CreateResourceHandler";
+import { ResourceHandler } from "./ResourceHandler";
+import { ReadResourceHandler } from "./ReadResourceHandler";
+import { UpdateResourceHandler } from "./UpdateResourceHandler";
+import { DeleteResourceHandler } from "./DeleteResourceHandler";
+import { IDResourceHandler } from "./IDResourceHandler";
+
+const RESOURCE_HANDLER_KEY = "resourceHandler";
 
 interface IResourceContext {
     id?:            string;
     instance:       any;
     action:         ResourceActionEnum;
-    overrideEvent?: ResourceEvent<any>;
+    overrideEvent?: ResourceEvent;
     doBeforeEvents: EventRegisterType[];
     doAfterEvents:  EventRegisterType[];
 }
@@ -71,14 +68,12 @@ interface IResourceContext {
  * @copyright 2024 KRI, LLC
  */
 export class ResourceNode extends AbstractTaskableNode<IResourceOptions> implements IResourceNode {
-    public static readonly RESOURCE_TYPE: string = "resource";
-
     protected readonly idProperty:       string;
     protected readonly lazyLoad:         boolean;
     protected readonly supportedActions: ResourceActionEnum[];
     protected readonly resourceId:       string | undefined;
 
-    constructor(target: ClassType, options: IResourceOptions = {}) {
+    constructor(target: GestaeClassType, options: IResourceOptions = {}) {
         super(target, options);
         options.name = options.name?.toLowerCase() ?? target.name.toLowerCase();
         this.idProperty = options.idProperty ?? "id";
@@ -94,7 +89,7 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
     }
 
     get type(): string {
-        return ResourceNode.RESOURCE_TYPE;
+        return RESOURCE_NAME;
     }
 
     get endpoint(): boolean {
@@ -128,108 +123,64 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
         }
 
         if(!_action || !this.supportedActions.includes(_action))
-            throw new MethodNotAllowedError(`Method '${method}' is not supported on resource '${this.name}'.`);
+            throw new MethodNotAllowedError(
+                `Method '${method}' is not supported on resource '${this.name}'.`
+            );
         return _action;
     }
 
-    createInstance<T extends Object>(id?: string): T {
-        const _instance = this.getInstance<T>();
-        if(id) (_instance as any)[this.options.idProperty!] = id;
-        return _instance;
+    protected getIdResourceHandler(action: ResourceActionEnum, id: string): IDResourceHandler {
+        switch(action) {
+            case ResourceActionEnum.Read:
+                return new ReadResourceHandler(this, id);
+            case ResourceActionEnum.Update:
+                return new UpdateResourceHandler(this, id);
+            case ResourceActionEnum.Delete:
+                return new DeleteResourceHandler(this, id);
+            default: 
+                throw new MethodNotAllowedError(`'${this.constructor.name}' '${this.name}' does not support action '${action}'`);
+        }
     }
 
-    public async emitResourceEvent(context: HttpContext, type: EventRegisterType): Promise<void> {
-        const _event = new ResourceEvent(context, this, 
-                                         context.resources.getResource(this.resourceKey));
-        _event.path = createEventPathFromNode(this, type)
-        await this.emitEvent(context, _event);
-        context.resources.setResource(this.resourceKey, _event.data);
+    protected getResourceHandler(action: ResourceActionEnum, id?: string): ResourceHandler {
+        if(action === ResourceActionEnum.Create)
+            return new CreateResourceHandler(this);
+        else {
+            if(!id)
+                throw new MethodNotAllowedError(
+                    `'${this.constructor.name}' '${this.name}' requires an ID for action '${action}'.`
+                );
+            return this.getIdResourceHandler(action, id);
+        }
     }
 
     public async beforeRequest(context: HttpContext): Promise<void> {
         const _id     = context.request.uriTree.next;
         const _action = this.getSupportedAction(context.request.method, _id, 
                                                 context.request.uriTree.target);
-        // Validate whether the ID is required or not..
-        if((_action !== ResourceActionEnum.Create) && !_id)
-            throw new BadRequestError(`Id required for '${_action}' actions on entity '${this.name}'.`);
+        
+        // Got the resource handler.
+        const _handler = this.getResourceHandler(_action, _id);
+        context.setValue(`${this.fullyQualifiedPath}:${RESOURCE_HANDLER_KEY}`, _handler);
 
-        let _instance = this.createInstance(_id);
-        const _resource = {
-            id:             _id,
-            instance:       _instance,
-            action:         _action,
-            doBeforeEvents: [],
-            doAfterEvents:  []
-        } as IResourceContext;
-        context.setValue(this.resourceKey, _resource);
-        context.resources.setResource(this.resourceKey, _resource.instance);
-
-        this.prepareEvents(_resource, context._request);
-        await this.prepareBody(_resource, context);
-    }
-
-    protected async prepareBody(resource: IResourceContext, context: HttpContext): Promise<void> {
-        if(resource.action === ResourceActionEnum.Create || 
-                resource.action === ResourceActionEnum.Update || 
-                resource.action === ResourceActionEnum.Delete) {
-            // Update the body and reset into the resource and events.
-            resource.instance = await context.request.mergeBody(resource.instance);
-            context.resources.setResource(this.resourceKey, resource.instance);
-        }
-    }
-
-    protected prepareEvents(resource: IResourceContext, request: HttpRequest): void {
-        switch(resource.action) {
-            case ResourceActionEnum.Create:
-                resource.doBeforeEvents.push(ResourceEvents.Create.OnBefore);
-                resource.doBeforeEvents.push(ResourceEvents.Create.On);
-                resource.doAfterEvents.push(ResourceEvents.Create.OnAfter);
-                break;
-            case ResourceActionEnum.Read:
-                resource.doBeforeEvents.push(ResourceEvents.Read.OnBefore);
-                resource.doBeforeEvents.push(ResourceEvents.Read.On);
-                break;
-            case ResourceActionEnum.Update:
-                resource.doBeforeEvents.push(ResourceEvents.Update.OnBefore);
-                resource.doBeforeEvents.push(ResourceEvents.Update.On);
-                resource.doAfterEvents.push(ResourceEvents.Update.OnAfter);
-                break;
-            case ResourceActionEnum.Delete:
-                resource.doBeforeEvents.push(ResourceEvents.Delete.OnBefore);
-                resource.doBeforeEvents.push(ResourceEvents.Delete.On);
-                resource.doAfterEvents.push(ResourceEvents.Delete.OnAfter);
-                break;
-            default: 
-                throw new MethodNotAllowedError(`Resource '${this.name}' does not support action '${resource.action}'`);
-        }
-
-        resource.doBeforeEvents.unshift(ResourceEvents.Resource.On);
-        resource.doBeforeEvents.unshift(ResourceEvents.Resource.OnBefore);
-        resource.doAfterEvents.push(ResourceEvents.Resource.OnAfter);
-    }
-
-    protected async loopEvents(context: HttpContext, actions: EventRegisterType[]): Promise<void> {
-        // Perform the before events.
-        for(const _action of actions) {
-            await this.emitResourceEvent(context, _action);
-        }
+        await _handler.beforeRequest(context); // do nothing with the results.
     }
 
     public async onRequest(context: HttpContext): Promise<void> {
-        const _resource = context.getValue<IResourceContext>(this.resourceKey);
-        // Perform the before events.
-        await this.loopEvents(context, _resource.doBeforeEvents);
-        context.response.send(_resource.instance);
+        const _handler = context.getValue<ResourceHandler>(`${this.fullyQualifiedPath}:${RESOURCE_HANDLER_KEY}`);
+        if(!_handler) // defensive coding
+            throw new InternalServerError(`Resource handler not found for '${this.constructor.name}' '${this.name}'.`);
+        context.response.send(await _handler.onRequest(context));
     }
 
     public async afterRequest(context: HttpContext): Promise<void> {
-        const _resource = context.getValue<IResourceContext>(this.resourceKey);
-        // Perform the before events.
-        await this.loopEvents(context, _resource.doAfterEvents);
+        const _handler = context.getValue<ResourceHandler>(`${this.fullyQualifiedPath}:${RESOURCE_HANDLER_KEY}`);
+        if(!_handler) // defensive coding
+            throw new InternalServerError(`Resource handler not found for '${this.constructor.name}' '${this.name}'.`);
+        await _handler.afterRequest(context); // do nothing with the results.
     }
 
-    static create(aClass: ClassType, options: IResourceOptions = {}): ResourceNode {
+    static create(aClass: GestaeClassType, options: IResourceOptions = {}): ResourceNode {
         return new ResourceNode(aClass, getsertClassMetadata(aClass, RESOURCE_METADATA_KEY, options));
     }
 }
@@ -245,6 +196,6 @@ export class ResourceNodeFactory extends AbstractNodeFactoryChain<IResourceOptio
     }
 
     onCreate(target: NodeTemplate): FactoryReturnType<IResourceOptions, ResourceNode> {
-        return {top: ResourceNode.create((target.node as ClassType))};
+        return {top: ResourceNode.create((target.node as GestaeClassType))};
     }
 }

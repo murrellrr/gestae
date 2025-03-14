@@ -48,7 +48,7 @@ const        DEFAULT_SEARCH_NAME = "search";
 
 interface SearchResourceContext {
     searchRequest: SearchRequest<any>;
-    searchEvent:   ResourceEvent<any>;
+    searchEvent:   ResourceEvent;
 }
 
 export interface ISearchOptions extends IOptions {
@@ -173,12 +173,12 @@ export class SearchableResourceFeatureFactory extends AbstractFeatureFactoryChai
         if(!_method) 
             throw new GestaeError(`Method '${_metadata.method}' not found on '${node.model.name}'.`);
 
-        const _eventName = `${createEventPathFromNode(node, ResourceEvents.Search.On)}`;
+        const _eventName = createEventPathFromNode(node, ResourceEvents.Search.On);
 
         //Binding method 'Employee.onRead' on action 'read' to event 'gestaejs:resource:my:test:root:api:busniess:company:people:labor:employee:read:on' for node 'employee'.
         this.log.debug(`Binding method '${node.model.constructor.name}.${_metadata.method}' on action 'search' to event '${_eventName}' for node '${node.name}'`);
-        this.context.eventQueue.on(_eventName, async (event: ResourceEvent<SearchRequest<any>>): Promise<void> => {
-                                        return _method(event.data, event.context);
+        this.context.eventQueue.on(_eventName, async (event: ResourceEvent): Promise<void> => {
+                                        return _method(event.data as SearchRequest<any>, event.context);
                                     });
     }
 }
@@ -207,40 +207,41 @@ export const makeResourceSearchable = (source: ResourceNode, options: ISearchOpt
 
     // wrapping source functions
     source.beforeRequest = async (context: HttpContext) => {
-        if(context.request.uriTree.peek === _pathName && (context.request.isMethod(HttpMethodEnum.Get) || 
-                                                          context.request.isMethod(HttpMethodEnum.Post))) {
-            // We are the search request, performing the pre-search operations.
-            context.request.uriTree.next; //NOSONAR: advance past the search keyword leaf on the tree.
-            // we do this to prevent upstream processesing think there are still leafs to process.
+        // if(context.request.uriTree.peek === _pathName && (context.request.isMethod(HttpMethodEnum.Get) || 
+        //                                                   context.request.isMethod(HttpMethodEnum.Post))) {
+        //     // We are the search request, performing the pre-search operations.
+        //     context.request.uriTree.next; //NOSONAR: advance past the search keyword leaf on the tree.
+        //     // we do this to prevent upstream processesing think there are still leafs to process.
 
-            const _searchRequest = SearchRequest.create(context._request);
-            context.resources.setResource(source.resourceKey, _searchRequest);
-            context.setValue(_contextKey, true);
+        //     const _searchRequest = SearchRequest.create(context.httpRequest);
+        //     context.resourceManager.set(source.resourceKey, _searchRequest);
+        //     context.setValue(_contextKey, true);
 
-            // Fire the before events.
-            await source.emitResourceEvent(context, ResourceEvents.Search.OnBefore);
-        }
-        else
-            return _originBeforeRequest(context);
+        //     // Fire the before events.
+        //     //await source.emitResourceEvent(context, ResourceEvents.Search.OnBefore);
+        // }
+        // else
+        //     return _originBeforeRequest(context);
     };
 
     source.onRequest = async (context: HttpContext) => {
         // check to see if this is a search request.
-        if(context.getValue<boolean>(_contextKey))
-            await source.emitResourceEvent(context, ResourceEvents.Search.On);
-        else 
-            return _originOnRequest(context);
+        // if(context.getValue<boolean>(_contextKey)){
+        //     //await source.emitResourceEvent(context, ResourceEvents.Search.On);
+        //     }
+        // else 
+        //     return _originOnRequest(context);
     };
 
     source.afterRequest = async (context: HttpContext) => {
         // check to see if this is a search request.
-        const _searchRequest = context.resources.getResource<SearchRequest<any>>(source.resourceKey);
-        if(context.getValue<boolean>(_contextKey)) {
-            await source.emitResourceEvent(context, ResourceEvents.Search.OnAfter);
-            context.response.send(_searchRequest.response);
-        }
-        else 
-            return _originAfterRequest(context);
+        // const _searchRequest = context.resources.getResource<SearchRequest<any>>(source.resourceKey);
+        // if(context.getValue<boolean>(_contextKey)) {
+        //     await source.emitResourceEvent(context, ResourceEvents.Search.OnAfter);
+        //     context.response.send(_searchRequest.response);
+        // }
+        // else 
+        //     return _originAfterRequest(context);
     };
 };
 
@@ -252,20 +253,6 @@ export const makeResourceSearchable = (source: ResourceNode, options: ISearchOpt
  * @copyright 2024 KRI, LLC
  */
 export function SearchResource<S extends AbstractSearchResult>(options: ISearchOptions = {}) {
-                                                               options.dataAsTarget = options.dataAsTarget ?? true;
-    return function <T extends Object>(target: T, property: string,
-                                       descriptor: TypedPropertyDescriptor<(firstArg: SearchRequest<S>, context: HttpContext) => void>) {
-        setSearchMetadata(target, property, options);
-    };
-} // Cant be constant because it is used as a decorator.
-
-/**
- * @description `@Search` decorator for synchronous functions.
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function AsyncSearchResource<S extends AbstractSearchResult>(options: ISearchOptions = {}) {
     return function <T extends Object>(target: T, property: string,
                                        descriptor: TypedPropertyDescriptor<(firstArg: SearchRequest<S>, context: HttpContext) => Promise<void>>) {
         options.dataAsTarget = options.dataAsTarget ?? true;

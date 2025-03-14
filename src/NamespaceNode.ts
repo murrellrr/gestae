@@ -21,7 +21,7 @@
  */
 
 import { 
-    ClassType,
+    GestaeClassType,
     getsertClassMetadata,
     hasMetadata,
 } from "./Gestae";
@@ -53,7 +53,7 @@ import {
  * @copyright 2024 KRI, LLC
  */
 export class NamespaceNode extends AbstractTaskableNode<INamespaceOptions> implements INamesapceNode {
-    constructor(options: INamespaceOptions = {}, model?: ClassType<any>) {
+    constructor(options: INamespaceOptions = {}, model?: GestaeClassType<any>) {
         super(model ?? Object, options);
         options.name = options.name ?? this.constructor.name.toLowerCase();
         options.traversable = options.traversable ?? true;
@@ -66,23 +66,23 @@ export class NamespaceNode extends AbstractTaskableNode<INamespaceOptions> imple
 
     public async beforeRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
-        _event.path = `${createEventPathFromNode(this, NamespaceEvents.Traverse.OnBefore)}`;
-        await this.emitEvent(context, _event, this.getInstance());
+        _event.path = createEventPathFromNode(this, NamespaceEvents.Traverse.OnBefore);
+        await this.emitEvent(context, _event);
     }
 
     public async onRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
-        _event.path = `${createEventPathFromNode(this, NamespaceEvents.Traverse.On)}`;
-        await this.emitEvent(context, _event, this.getInstance());
+        _event.path = createEventPathFromNode(this, NamespaceEvents.Traverse.On);
+        await this.emitEvent(context, _event);
     }
 
     public async afterRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
-        _event.path = `${createEventPathFromNode(this, NamespaceEvents.Traverse.OnAfter)}`;
-        await this.emitEvent(context, _event, this.getInstance());
+        _event.path = createEventPathFromNode(this, NamespaceEvents.Traverse.OnAfter);
+        await this.emitEvent(context, _event);
     }
 
-    public static create(aClass: ClassType<any> | string, options: INamespaceOptions = {}): NamespaceNode {
+    public static create(aClass: GestaeClassType<any> | string, options: INamespaceOptions = {}): NamespaceNode {
         if(typeof aClass === "string") {
             const _result = NamespaceNodeFactory.createFromString(aClass);
             return _result.bottom ?? _result.top;
@@ -107,7 +107,7 @@ export class NamespaceNodeFactory extends AbstractNodeFactoryChain<INamespaceOpt
         if(target.isString)
             return NamespaceNodeFactory.createFromString((target.node as string));
         else 
-            return { top: NamespaceNode.create((target.node as ClassType)) };
+            return { top: NamespaceNode.create((target.node as GestaeClassType)) };
     }
 
     public static hasNamespaceMetadata(target: NodeTemplateType, key: string): boolean {

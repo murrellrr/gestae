@@ -28,8 +28,7 @@ import {
 import { ResourceEvent } from "./ResourceEvent";
 import { 
     AbstractSearchResult,
-    ISearchOptions,
-    SearchRequest
+    ISearchOptions
 } from "./Search";
 
 export interface ISearchEventOptions extends IEventOptions {
@@ -59,22 +58,9 @@ export const SearchEvents = {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnSearchResource<R extends AbstractSearchResult>(event: EventRegisterType, options: ISearchEventOptions = {}) {
+export function OnSearchResource(event: EventRegisterType, options: ISearchEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: ResourceEvent<SearchRequest<R>>) => void>) {
-        options.dataAsTarget = options.dataAsTarget ?? false;
-        setEventMetadata(target, event, property, options);
-    };
-}
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function OnAsyncSearchResource<R extends AbstractSearchResult>(event: EventRegisterType, options: ISearchEventOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: ResourceEvent<SearchRequest<R>>) => Promise<void>>) {
+                                       descriptor: TypedPropertyDescriptor<(event: ResourceEvent) => Promise<void>>) {
         options.dataAsTarget = options.dataAsTarget ?? false;
         setEventMetadata(target, event, property, options);
     };

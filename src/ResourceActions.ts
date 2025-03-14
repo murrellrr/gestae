@@ -89,7 +89,7 @@ const setResourceActionMetadata = (target: Object, action: ResourceActionEnum, p
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function AsyncCreateResource<T>(options: IResourceActionOptions = {}) {
+export function CreateResource(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(context: IHttpContext) => Promise<void>>) {
         setResourceActionMetadata(target, ResourceActionEnum.Create, property, options);
@@ -101,20 +101,7 @@ export function AsyncCreateResource<T>(options: IResourceActionOptions = {}) {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function CreateResource<T>(options: IResourceActionOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(context: IHttpContext) => void>) {
-        // options.dataAsTarget = options.dataAsTarget ?? true;
-        setResourceActionMetadata(target, ResourceActionEnum.Create, property, options);
-    };
-} // Cant be constant because it is used as a decorator.
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function AsyncReadResource<T>(options: IResourceActionOptions = {}) {
+export function ReadResource(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(context: IHttpContext) => Promise<void>>) {
         // options.dataAsTarget = options.dataAsTarget ?? true;
@@ -127,20 +114,7 @@ export function AsyncReadResource<T>(options: IResourceActionOptions = {}) {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function ReadResource<T>(options: IResourceActionOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(context: IHttpContext) => void>) {
-        // options.dataAsTarget = options.dataAsTarget ?? true;
-        setResourceActionMetadata(target, ResourceActionEnum.Read, property, options);
-    };
-} // Cant be constant because it is used as a decorator.
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function AsyncUpdateResource<T>(options: IResourceActionOptions = {}) {
+export function UpdateResource(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(context: IHttpContext) => Promise<void>>) {
         // options.dataAsTarget = options.dataAsTarget ?? true;
@@ -153,35 +127,9 @@ export function AsyncUpdateResource<T>(options: IResourceActionOptions = {}) {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function UpdateResource<T>(options: IResourceActionOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(context: IHttpContext) => void>) {
-        // options.dataAsTarget = options.dataAsTarget ?? true;
-        setResourceActionMetadata(target, ResourceActionEnum.Update, property, options);
-    };
-} // Cant be constant because it is used as a decorator.
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function AsyncDeleteResource<T>(options: IResourceActionOptions = {}) {
+export function DeleteResource(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(context: IHttpContext) => Promise<void>>) {
-        // options.dataAsTarget = options.dataAsTarget ?? true;
-        setResourceActionMetadata(target, ResourceActionEnum.Delete, property, options);
-    };
-} // Cant be constant because it is used as a decorator.
-
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export function DeleteResource<T>(options: IResourceActionOptions = {}) {
-    return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(context: IHttpContext) => void>) {
         // options.dataAsTarget = options.dataAsTarget ?? true;
         setResourceActionMetadata(target, ResourceActionEnum.Delete, property, options);
     };
@@ -194,7 +142,6 @@ export class ResourceFeatureFactory extends AbstractFeatureFactoryChain<Resource
 
     onApply(node: ResourceNode): void {
         const _metadata = getsertClassMetadata(node.model, RESOUREC_ACTION_METADATA_KEY);
-        this.log.debug(`Binding events for node '${node.name}'.`);
         for(const _action in _metadata) {
             const _actionMetadata = _metadata[_action];
 
@@ -204,10 +151,10 @@ export class ResourceFeatureFactory extends AbstractFeatureFactoryChain<Resource
                 throw new GestaeError(`Method '${_actionMetadata.method}' not found on '${node.model.constructor.name}'.`);
 
             let _event     = ResourceFeatureFactory.getResourceEvent(_actionMetadata.action);
-            let _eventName = `${createEventPathFromNode(node, _event)}`;
+            let _eventName = createEventPathFromNode(node, _event);
 
-            this.log.debug(`Binding method '${node.model.constructor.name}.${_actionMetadata.method}' on action '${_action}' to event '${_eventName}' for node '${node.name}'.`);
-            this.context.eventQueue.on(_eventName, async (event: ResourceEvent<any>) => {
+            this.log.debug(`Binding method '${node.model.name}.${_actionMetadata.method}' on action '${_action}' to event '${_eventName}' for node '${node.name}'.`);
+            this.context.eventQueue.on(_eventName, async (event: ResourceEvent) => {
                 try {
                     if(!event.data) throw new GestaeError(`ResourceEvent must have data.`); // Defensive coding.
                     await _method.call(event.data, event.context);
