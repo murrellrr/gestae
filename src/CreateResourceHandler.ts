@@ -45,7 +45,7 @@ export class CreateResourceHandler extends ResourceHandler {
         return context.request.getBody<GestaeObjectType>();
     }
 
-    createEvent(context: HttpContext, event: string, data: IResource): ResourceEvent {
+    createEvent(context: HttpContext, event: string, data: IResource<any>): ResourceEvent {
         return new CreateResourceEvent(context, this.resource, event, data);
     }
 }

@@ -47,12 +47,10 @@ export abstract class ResourceHandler {
 
     async emit(context: HttpContext, event: ResourceEvent): Promise<GestaeObjectType> {
         await context.applicationContext.eventEmitter.emit(event, event.data);
-        if(event.cancled)
-            context.cancel(event.cause);
         return event.data;
     }
 
-    async emitData(context: HttpContext, event: string, data: IResource): Promise<GestaeObjectType> {
+    async emitData(context: HttpContext, event: string, data: IResource<any>): Promise<GestaeObjectType> {
         let _data = await this.emit(context, this.createEvent(context, event, data));
         context.resourceManager.setValue(this.resource, _data);
         return _data;
@@ -64,7 +62,7 @@ export abstract class ResourceHandler {
         return context.request.getBody<GestaeObjectType>();
     }
 
-    abstract createEvent(context: HttpContext, event: string, data: IResource): ResourceEvent;
+    abstract createEvent(context: HttpContext, event: string, data: IResource<any>): ResourceEvent;
 
     async beforeRequest(context: HttpContext): Promise<GestaeObjectType> {
         const _data     = await this.getData(context);

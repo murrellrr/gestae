@@ -21,6 +21,7 @@
  */
 
 import { Cookie, createCookieString } from "./Gestae";
+import { UnsupportedMediaTypeError } from "./GestaeError";
 import { HttpResponseBody } from "./HttpBody";
 import http from 'http';
 
@@ -51,8 +52,8 @@ export class HttpResponse implements IHttpResponse {
     protected readonly content:   HttpResponseBody<any>;
     protected readonly _cookies:  Map<string, Cookie> = new Map<string, Cookie>();
     public    readonly _response: http.ServerResponse;
-    public             body:      any;
-    public             code:      number = 200;
+    public             body:      any    = undefined;
+    public             code:      number = 500;
 
     constructor(response: http.ServerResponse, responseBody:HttpResponseBody<any>) {
         this._response = response;
@@ -82,8 +83,13 @@ export class HttpResponse implements IHttpResponse {
     }
 
     send(body: any, code:number = 200): void {
+        if(!body) body = "";
         this.code = code;
         this.body = body;
+    }
+
+    get sent(): boolean {
+        return this._response.headersSent;
     }
 
     async write(content?: HttpResponseBody<any>): Promise<boolean> {
@@ -92,6 +98,8 @@ export class HttpResponse implements IHttpResponse {
             (cookie: Cookie) => createCookieString(cookie))
         );
         const _content = content ?? this.content;
+        if(!_content.supports(this.body)) 
+            throw new UnsupportedMediaTypeError(_content.contentType);
         return _content.write(this._response, this.body, this.code);
     }
 }

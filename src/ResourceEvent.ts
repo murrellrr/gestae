@@ -93,11 +93,11 @@ export const ResourceEvents = {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class ResourceEvent extends HttpEvent<IResource> {
+export class ResourceEvent extends HttpEvent<IResource<any>> {
     public readonly resource: IResourceNode;
     public readonly action:   ResourceActionEnum;
     constructor(context: IHttpContext, resource: IResourceNode, action: ResourceActionEnum, 
-                event: string, data: IResource, path?: string) {
+                event: string, data: IResource<any>, path?: string) {
         super(context, data, path);
         this.action   = action;
         this.resource = resource;
@@ -109,7 +109,7 @@ export class ResourceEvent extends HttpEvent<IResource> {
 export class IDResourceEvent extends ResourceEvent {
     public readonly id: string;
     constructor(context: IHttpContext, resource: IResourceNode, action: ResourceActionEnum, 
-                event: string, data: IResource, id: string, path?: string) {
+                event: string, data: IResource<any>, id: string, path?: string) {
         super(context, resource, action, event, data, path);
         this.id = id;
     }
@@ -117,14 +117,14 @@ export class IDResourceEvent extends ResourceEvent {
 
 export class CreateResourceEvent extends ResourceEvent {
     constructor(context: IHttpContext, resource: IResourceNode, event: string, 
-                data: IResource, path?: string) {
+                data: IResource<any>, path?: string) {
         super(context, resource, ResourceActionEnum.Create, event, data, path);
     }
 }
 
 export class ReadResourceEvent extends IDResourceEvent {
     constructor(context: IHttpContext, resource: IResourceNode, event: string,  
-                id: string, data: IResource) {
+                id: string, data: IResource<any>) {
         super(context, resource, ResourceActionEnum.Update, event, data, id);
     }
 }
@@ -132,7 +132,7 @@ export class ReadResourceEvent extends IDResourceEvent {
 export class UpdateResourceEvent extends IDResourceEvent {
     public readonly patch: boolean;
     constructor(context: IHttpContext, resource: IResourceNode, event: string,  
-                id: string, data: IResource, patch: boolean = false) {
+                id: string, data: IResource<any>, patch: boolean = false) {
         super(context, resource, ResourceActionEnum.Update, event, data, id);
         this.patch = patch;
     }
@@ -140,7 +140,7 @@ export class UpdateResourceEvent extends IDResourceEvent {
 
 export class DeleteResourceEvent extends IDResourceEvent {
     constructor(context: IHttpContext, resource: IResourceNode, event: string,  
-                id: string, data: IResource) {
+                id: string, data: IResource<any>) {
         super(context, resource, ResourceActionEnum.Delete, event, data, id);
     }
 }

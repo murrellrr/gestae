@@ -40,7 +40,7 @@ export class DeleteResourceHandler extends BodyResourceHandler {
         return ResourceActionEnum.Delete;
     }
 
-    createEvent(context: HttpContext, event: string, data: IResource): ResourceEvent {
+    createEvent(context: HttpContext, event: string, data: IResource<any>): ResourceEvent {
         return new DeleteResourceEvent(context, this.resource, event, this.id, data);
     }
 }

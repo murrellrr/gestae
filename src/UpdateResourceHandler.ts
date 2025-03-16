@@ -40,7 +40,7 @@ export class UpdateResourceHandler extends BodyResourceHandler {
         return ResourceActionEnum.Update;
     }
 
-    createEvent(context: HttpContext, event: string, data: IResource): ResourceEvent {
+    createEvent(context: HttpContext, event: string, data: IResource<any>): ResourceEvent {
         return new UpdateResourceEvent(context, this.resource, event, this.id, 
                                        data, context.request.isPatch);
     }

@@ -20,40 +20,40 @@
  *  THE SOFTWARE.
  */
 
-import { AbstractFeatureFactoryChain } from "./AbstractFeatureFactoryChain";
 import { 
-    getsertClassMetadata,
     getsertObjectMetadata, 
-    hasClassMetadata,  
     HttpMethodEnum, 
     IOptions
 } from "./Gestae";
-import { GestaeError } from "./GestaeError";
-import { createEventPathFromNode } from "./GestaeEvent";
-import { 
-    HttpContext, 
-    IHttpContext 
-} from "./HttpContext";
+import { IHttpContext } from "./HttpContext";
 import { HttpRequest } from "./HttpRequest";
-import { AbstractNode } from "./Node";
-import { 
-    ResourceEvent, 
-    ResourceEvents 
-} from "./ResourceEvent";
-import { ResourceNode } from "./ResourceNode";
 import { SearchParams } from "./SearchParams";
 
 export const SEARCH_METADATA_KEY = "gestaejs:search";
-const        DEFAULT_SEARCH_NAME = "search";
+export const DEFAULT_SEARCH_NAME = "search";
 
-interface SearchResourceContext {
-    searchRequest: SearchRequest<any>;
-    searchEvent:   ResourceEvent;
-}
+/**
+ * @description Search Function Type for resources. This function enforces a pagable request/response type for search.
+ *              Note: Because no resource is resolved when search is invoked, 'this' keyword is not mapped when this 
+ *              method is invoked.
+ * @abstract
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export type SearchResourceFunctionType<S extends AbstractSearchResult> = 
+    (context: IHttpContext, request: SearchRequest, response: SearchResponse<S>) => Promise<void>;
 
+/**
+ * @abstract
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
 export interface ISearchOptions extends IOptions {
     pathName?: string;
     method?:   string;
+    requestMethod?: HttpMethodEnum.Get | HttpMethodEnum.Post;
 };
 
 /**
@@ -86,8 +86,8 @@ export class SearchResponse<R extends AbstractSearchResult> {
     constructor(data: R[] = [], page?: number, pageSize?: number, total?: number) {
         this._data    = data;
         this._count   = data.length;
-        this.total    = total ?? this._count;
-        this.page     = page ?? 0;
+        this.total    = total    ?? this._count;
+        this.page     = page     ?? 0;
         this.pageSize = pageSize ?? this._count;
     }
 
@@ -137,112 +137,31 @@ export class SearchResponse<R extends AbstractSearchResult> {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class SearchRequest<R extends AbstractSearchResult> {
-    public response: SearchResponse<R>;
+export class SearchRequest {
+    public readonly page:      number;
+    public readonly pageSize:  number;
+    public readonly filter:    SearchParams;
 
-    constructor(
-        public readonly page:      number,
-        public readonly pageSize:  number,
-        public readonly filter:    SearchParams,
-        response?: SearchResponse<R>
-    ) {
-        this.response = response ?? new SearchResponse<R>();
+    constructor(page: number, pageSize: number, filter: SearchParams) {
+        this.page     = page;
+        this.pageSize = pageSize;
+        this.filter   = filter;
     }
 
-    static create<R extends AbstractSearchResult>(request: HttpRequest): SearchRequest<R> {
+    static create(request: HttpRequest): SearchRequest {
         return new SearchRequest(request.searchParams.getNumber("page", 1)!, 
                                  request.searchParams.getNumber("pageSize", 10)!, 
                                  request.searchParams);
     }
 }
 
-export class SearchableResourceFeatureFactory extends AbstractFeatureFactoryChain<AbstractNode<any>> {
-    isFeatureFactory(node: AbstractNode<any>): boolean {
-        return hasClassMetadata(node.model, SEARCH_METADATA_KEY);
-    }
 
-    onApply(node: ResourceNode): void {
-        const _metadata: ISearchOptions = getsertClassMetadata(node.model, SEARCH_METADATA_KEY);
-
-        // check to see if the target implements the search method.
-        if(!node.model.prototype[_metadata.method!]) 
-            throw new Error(`Search resource method '${node.model.name}.${_metadata.method}' not implemented.`);
-        makeResourceSearchable(node, _metadata);
-
-        const _method = node.model.prototype[_metadata.method!] as (firstArg: SearchRequest<any>, context: IHttpContext) => void;
-        if(!_method) 
-            throw new GestaeError(`Method '${_metadata.method}' not found on '${node.model.name}'.`);
-
-        const _eventName = createEventPathFromNode(node, ResourceEvents.Search.On);
-
-        //Binding method 'Employee.onRead' on action 'read' to event 'gestaejs:resource:my:test:root:api:busniess:company:people:labor:employee:read:on' for node 'employee'.
-        this.log.debug(`Binding method '${node.model.constructor.name}.${_metadata.method}' on action 'search' to event '${_eventName}' for node '${node.name}'`);
-        this.context.eventQueue.on(_eventName, async (event: ResourceEvent): Promise<void> => {
-                                        return _method(event.data as SearchRequest<any>, event.context);
-                                    });
-    }
-}
 
 export const setSearchMetadata = <T extends Object>(target: T, property: string, options: ISearchOptions = {}) => {
     let _target = getsertObjectMetadata(target, SEARCH_METADATA_KEY, options);
     _target.pathName      = options.pathName ?? DEFAULT_SEARCH_NAME;
     _target.requestMethod = options.requestMethod ?? HttpMethodEnum.Get;
     _target.method        = property;
-};
-
-/**
- * @description
- * @param source 
- * @param options 
- * @returns 
- */
-export const makeResourceSearchable = (source: ResourceNode, options: ISearchOptions = {}): void => {
-    // binding the source functions to be wrapped.
-    const _originBeforeRequest = source.beforeRequest.bind(source);
-    const _originOnRequest     = source.onRequest.bind(source);
-    const _originAfterRequest  = source.afterRequest.bind(source);
-
-    const _pathName   = options.pathName ?? DEFAULT_SEARCH_NAME;
-    const _contextKey = `${_pathName}:${source.resourceKey}`;
-
-    // wrapping source functions
-    source.beforeRequest = async (context: HttpContext) => {
-        // if(context.request.uriTree.peek === _pathName && (context.request.isMethod(HttpMethodEnum.Get) || 
-        //                                                   context.request.isMethod(HttpMethodEnum.Post))) {
-        //     // We are the search request, performing the pre-search operations.
-        //     context.request.uriTree.next; //NOSONAR: advance past the search keyword leaf on the tree.
-        //     // we do this to prevent upstream processesing think there are still leafs to process.
-
-        //     const _searchRequest = SearchRequest.create(context.httpRequest);
-        //     context.resourceManager.set(source.resourceKey, _searchRequest);
-        //     context.setValue(_contextKey, true);
-
-        //     // Fire the before events.
-        //     //await source.emitResourceEvent(context, ResourceEvents.Search.OnBefore);
-        // }
-        // else
-        //     return _originBeforeRequest(context);
-    };
-
-    source.onRequest = async (context: HttpContext) => {
-        // check to see if this is a search request.
-        // if(context.getValue<boolean>(_contextKey)){
-        //     //await source.emitResourceEvent(context, ResourceEvents.Search.On);
-        //     }
-        // else 
-        //     return _originOnRequest(context);
-    };
-
-    source.afterRequest = async (context: HttpContext) => {
-        // check to see if this is a search request.
-        // const _searchRequest = context.resources.getResource<SearchRequest<any>>(source.resourceKey);
-        // if(context.getValue<boolean>(_contextKey)) {
-        //     await source.emitResourceEvent(context, ResourceEvents.Search.OnAfter);
-        //     context.response.send(_searchRequest.response);
-        // }
-        // else 
-        //     return _originAfterRequest(context);
-    };
 };
 
 
@@ -254,7 +173,7 @@ export const makeResourceSearchable = (source: ResourceNode, options: ISearchOpt
  */
 export function SearchResource<S extends AbstractSearchResult>(options: ISearchOptions = {}) {
     return function <T extends Object>(target: T, property: string,
-                                       descriptor: TypedPropertyDescriptor<(firstArg: SearchRequest<S>, context: HttpContext) => Promise<void>>) {
+                                       descriptor: TypedPropertyDescriptor<SearchResourceFunctionType<S>>) {
         options.dataAsTarget = options.dataAsTarget ?? true;
         setSearchMetadata(target, property, options);
     };

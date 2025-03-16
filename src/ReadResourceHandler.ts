@@ -42,7 +42,7 @@ export class ReadResourceHandler extends IDResourceHandler {
         return this.resource.getInstance();
     }
 
-    createEvent(context: HttpContext, event: string, data: IResource): ResourceEvent {
+    createEvent(context: HttpContext, event: string, data: IResource<any>): ResourceEvent {
         return new ReadResourceEvent(context, this.resource, event, this.id, data);
     }
 }

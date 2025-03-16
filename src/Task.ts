@@ -21,14 +21,23 @@
  */
 
 import { 
+    GestaeObjectType,
     HttpMethodEnum,
     IOptions,
     getsertObjectMetadata
 } from "./Gestae";
 import { GestaeError } from "./GestaeError";
-import { HttpContext, IHttpContext } from "./HttpContext";
+import { IHttpContext } from "./HttpContext";
 
 export const TASK_METDADATA_KEY = "gestaejs:task";
+
+/**
+ * @description Utility type to infer `void` return type when omitted.
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export type InferReturnType<O extends GestaeObjectType | void> = O extends undefined ? void : O;
 
 /**
  * @description
@@ -36,17 +45,18 @@ export const TASK_METDADATA_KEY = "gestaejs:task";
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class Envelope<I extends Object, O extends Object> {
+export class Envelope<I extends GestaeObjectType, O extends GestaeObjectType> {
     public input:  I;
-    public output?: O;
+    public output?: InferReturnType<O>;
 
-    constructor(input: I, output?: O) {
+    constructor(input: I, output?: InferReturnType<O>) {
         this.input  = input;
         this.output = output;
     }
 }
 
-export type TaskMethodType = (envelope: Envelope<any, any>, context: IHttpContext) => void | Promise<void>;
+export type TaskMethodType<I extends GestaeObjectType, O extends GestaeObjectType | void> = 
+    (context: IHttpContext, input: I) => Promise<InferReturnType<O>>;
 
 /**
  * @description Options for a resource.
@@ -55,21 +65,16 @@ export type TaskMethodType = (envelope: Envelope<any, any>, context: IHttpContex
  * @copyright 2024 KRI, LLC
  */
 export interface ITaskOptions extends IOptions {
-    name?: string;
-    requestMethod?: HttpMethodEnum;
-    dataAsTarget?: boolean;
-    method?: string;
-    $method?:  TaskMethodType;
-    resourceKey?: string;
+    name?:           string;
+    dataAsTarget?:   boolean;
+    method?:         string;
+    $method?:        TaskMethodType<any, any>;
+    $asynchrounous?: boolean;
 };
 
-/**
- * @description Utility type to infer `void` return type when omitted.
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-type InferReturnType<R> = R extends undefined ? void : R;
+export interface ITaskNode {
+    getResourceValue<T extends {}>(context: IHttpContext, options?: Record<string, any>): Promise<T>;
+};
 
 /**
  * @description Sets the event configuration for a target.
@@ -90,8 +95,8 @@ export const setTaskMetadata = <T extends Object>(target: T, property: string, o
     // set the task type info...
     _task.method         = property;
     _task.name           = _taskName;
-    _task.requestMethod  = options.requestMethod ?? HttpMethodEnum.Post;
     _task.$overloads     = options.$overloads ?? true;
+    _task.$asynchrounous = options.$asynchrounous ?? false;
 };
 
 /**
@@ -100,10 +105,10 @@ export const setTaskMetadata = <T extends Object>(target: T, property: string, o
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function TaskExecute<I, R = void>(options: ITaskOptions = {}) {
+export function TaskExecute<I extends GestaeObjectType, O extends GestaeObjectType | void>(options: ITaskOptions = {}) {
     options.dataAsTarget = options.dataAsTarget ?? true;
     return function <T extends Object>(target: T, property: string,
-                                       descriptor: TypedPropertyDescriptor<(firstArg: I, context: HttpContext) => Promise<InferReturnType<R>>>) {
+                                       descriptor: TypedPropertyDescriptor<TaskMethodType<I, O>>) {
         const originalMethod = descriptor.value;
         if (!originalMethod) return;
 
@@ -111,27 +116,26 @@ export function TaskExecute<I, R = void>(options: ITaskOptions = {}) {
         const returnType = Reflect.getMetadata("design:returntype", target, property);
 
         if(paramTypes.length != 2)
-            throw GestaeError.toError(`AsyncTask decorator requires the first parameter as an input type and the second as context in method: ${property}`);
+            throw GestaeError.toError(`Task decorator requires the first parameter as a context and the second as input type in method: ${property}`);
 
-        const FirstArgType = paramTypes[0];
-        const ContextType  = paramTypes[1];
+        const ContextType = paramTypes[0];
+        const InputType   = paramTypes[1];
 
-        descriptor.value = async function (firstArg: I, context: HttpContext) {
-            if (!(firstArg instanceof FirstArgType))
+        descriptor.value = async function (context: IHttpContext, input: I) {
+            if(!(context instanceof ContextType))
                 throw GestaeError.toError(
-                    `AsyncTask decorator '${property}' expected first argument of type ${FirstArgType.name}, but received ${typeof firstArg}`
+                    `Task decorator '${property}' expected second argument of type ${ContextType.name}, but received ${typeof context}`
+                );
+            if(!(input instanceof InputType))
+                throw GestaeError.toError(
+                    `Task decorator '${property}' expected first argument of type ${InputType.name}, but received ${typeof input}`
                 );
 
-            if (!(context instanceof ContextType))
-                throw GestaeError.toError(
-                    `AsyncTask decorator '${property}' expected second argument of type ${ContextType.name}, but received ${typeof context}`
-                );
+            const result = await originalMethod.call(this, context, input); // Only passing the required arguments
 
-            const result = await originalMethod.apply(this, [firstArg, context]); // Only passing the required arguments
-
-            if (returnType && !(result instanceof returnType))
+            if(returnType && !(result instanceof returnType))
                 throw GestaeError.toError(
-                    `AsyncTask decorator '${property}' expected return type ${returnType.name}, but got ${typeof result}`
+                    `Task decorator '${property}' expected return type ${returnType.name}, but got ${typeof result}`
                 );
 
             return result;

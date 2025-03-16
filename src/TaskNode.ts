@@ -22,33 +22,39 @@
 
 import { 
     GestaeClassType,
+    GestaeObjectType,
     HttpMethodEnum,
     getsertClassMetadata,
     hasClassMetadata
 } from "./Gestae";
-import { GestaeError } from "./GestaeError";
+import { GestaeError, MethodNotAllowedError } from "./GestaeError";
 import { 
     AbstractNode, 
     INodeOptions 
 } from "./Node";
 import { InitializationContext } from "./ApplicationContext";
 import { 
-    ITaskNode,
     TaskEvent, 
     TaskEvents 
 } from "./TaskEvent";
 import { 
     Envelope,
+    InferReturnType,
+    ITaskNode,
     ITaskOptions, 
     TASK_METDADATA_KEY, 
     TaskMethodType 
 } from "./Task";
-import { HttpContext } from "./HttpContext";
-import { createEventPathFromNode } from "./GestaeEvent";
+import { HttpContext, IHttpContext } from "./HttpContext";
+import { 
+    createEventPathFromNode, 
+    createEventRegister 
+} from "./GestaeEvent";
 import { 
     IResourceNode, 
     RESOURCE_NAME 
 } from "./Resource";
+import { ResourceNode } from "./ResourceNode";
 
 /**
  * @description
@@ -57,17 +63,15 @@ import {
  * @copyright 2024 KRI, LLC
  */
 export class TaskNode extends AbstractNode<ITaskOptions> implements ITaskNode {
-    protected readonly method:       TaskMethodType;
+    protected readonly method:       TaskMethodType<any, any>;
     protected readonly resourceKey?: string;
 
-    constructor(model: GestaeClassType<any>, method: TaskMethodType, resourceKey?: string, 
+    constructor(model: GestaeClassType<any>, method: TaskMethodType<any, any>, resourceKey?: string, 
                 options: ITaskOptions = {}, ) {
         super(model, options);
         this.method            = method;
-        this.resourceKey       = resourceKey;
-        options.name           = options.name ?? this.constructor.name.toLowerCase();
+        options.name           = options.name           ?? this.constructor.name.toLowerCase();
         options.$asynchrounous = options.$asynchrounous ?? false;
-        options.requestMethod  = options.requestMethod ?? HttpMethodEnum.Post;
     }
 
     get type(): string {
@@ -82,10 +86,6 @@ export class TaskNode extends AbstractNode<ITaskOptions> implements ITaskNode {
         return true;
     }
 
-    getTakOptions(): ITaskOptions {
-        return this.options;
-    }
-
     /**
      * 
      * @param child 
@@ -95,33 +95,49 @@ export class TaskNode extends AbstractNode<ITaskOptions> implements ITaskNode {
         throw GestaeError.toError("Tasks do not supoport child nodes.");
     }
 
+    async getResourceValue<T extends {}>(context: IHttpContext, options?: Record<string, any>): Promise<T> {
+        if(!this.parent) return {} as T;
+        else if(parent instanceof ResourceNode)
+            return (this.parent as ResourceNode).getResourceValue<T>(context, options);
+        else
+            return this.parent.getInstance() as T;
+    }
+
     public async afterInitialize(context: InitializationContext): Promise<void> {
         let _eventName = createEventPathFromNode(this, TaskEvents.Execute.On);
         let _this      = this;
         context.log.debug(`Binding method '${this.parent!.model.name}.${this.options.method}' on action '${this.name}' to event '${_eventName}' for node '${this.name}'.`);
-        // context.applicationContext.eventQueue.on(_eventName, async (event: TaskEvent<any, any>) => {
-        //     let _target;
-        //     // if(_this.resourceKey)
-        //     //     event.context.resources.getResource(_this.resourceKey);
-        //     if(!_target)
-        //         _target = _this.getInstance();
-        //     //event.data.output = await _this.method.call(_target, event.data.input, event.context);
-        // });
+        context.applicationContext.eventQueue.on(_eventName, async (event: TaskEvent<any, any>) => {
+            const _target = await event.task.getResourceValue<GestaeObjectType>(event.context);
+            event.data.output = await _this.method.call(_target, event.context, event.data.input);
+        });
+    }
+
+    protected async emitTaskEvent(context: HttpContext, event: string): Promise<InferReturnType<any>> {
+        const _envelope = new Envelope(await context.httpRequest.getBody<GestaeObjectType>());
+        const _event    = new TaskEvent(this, context, _envelope);
+        _event.path     = createEventPathFromNode(this, createEventRegister(TaskEvents.Execute.operation, event));
+        await this.emitEvent(context, _event);
+        return undefined;
     }
 
     public async beforeRequest(context: HttpContext): Promise<void> {
-        const _envelope = new Envelope(await context.httpRequest.getBody<Object>());
-        const _event    = new TaskEvent(this, context, _envelope);
-        //_event.path     = createEventPathFromNode(this, TaskEvents.Execute.OnBefore);
-        //await this.emitEvent(context, _event);
+        if(context.request.method !== HttpMethodEnum.Post)
+            throw new MethodNotAllowedError(`Method '${context.request.method}' is not supported on task '${this.name}'.`);
+
+        const _envelope = new Envelope(await context.httpRequest.getBody<GestaeObjectType>());
+        context.setValue(this.fullyQualifiedPath, _envelope);
+
+        //await this.emitTaskEvent(context, TaskEvents.before);
     }
 
     public async onRequest(context: HttpContext): Promise<void> {
-        //
+        //await this.emitTaskEvent(context, TaskEvents.on);
+        // TODO: get from context session and send the envelope output to the response.
     }
 
     public async afterRequest(context: HttpContext): Promise<void> {
-        //
+        //await this.emitTaskEvent(context, TaskEvents.after);
     }
 }
 
@@ -144,7 +160,7 @@ export abstract class AbstractTaskableNode<O extends INodeOptions> extends Abstr
                 context.log.debug(`${this.constructor.name} '${this.name}' adding task '${_taskConfig.name}' to children.`);
                 
                 // Get the method.
-                let _method = this.model.prototype[_taskConfig.method!] as TaskMethodType;
+                let _method = this.model.prototype[_taskConfig.method!] as TaskMethodType<any, any>;
                 if(!_method) 
                     throw new GestaeError(`Task method '${_taskConfig.method}' not found on '${this.model.name}'.`);
                 

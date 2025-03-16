@@ -21,14 +21,19 @@
  */
 
 import { 
+    createEventPathFromNode,
     EventRegisterType, 
     IEventOptions, 
     setEventMetadata 
 } from "./GestaeEvent";
-import { ResourceEvent } from "./ResourceEvent";
+import { IHttpContext } from "./HttpContext";
+import { HttpEvent } from "./HttpEvent";
+import { INode } from "./Node";
 import { 
     AbstractSearchResult,
-    ISearchOptions
+    ISearchOptions,
+    SearchRequest,
+    SearchResponse
 } from "./Search";
 
 export interface ISearchEventOptions extends IEventOptions {
@@ -41,16 +46,39 @@ export interface ISearchEventOptions extends IEventOptions {
  * @copyright 2024 KRI, LLC
  */
 export const SearchEvents = {
+    before: "before" as string,
+    on:     "on"    as string,  
+    after:  "after" as string,
     Search: {
+        operation: "search",
         OnBefore: {operation: "search", action: "before"} as EventRegisterType,
         On:       {operation: "search", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "search", action: "after" } as EventRegisterType,
     },
     MediaSearch: {
+        operation: "mediasearch",
         OnBefore: {operation: "mediasearch", action: "before"} as EventRegisterType,
         On:       {operation: "mediasearch", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "mediasearch", action: "after" } as EventRegisterType,
     }
+};
+
+export class SearchEvent<R extends AbstractSearchResult> extends HttpEvent<SearchResponse<R>> {
+    public readonly request:  SearchRequest;
+
+    constructor(context: IHttpContext, request: SearchRequest, response: SearchResponse<R>, 
+                path?: string) {
+        super(context, response, path);
+        this.request = request;
+    }
+}
+
+export const emitSearchEvent = async (source: INode, context: IHttpContext, event: EventRegisterType, request: SearchRequest, 
+                                      response: SearchResponse<any>): Promise<SearchResponse<any>> => {
+    const _event = new SearchEvent(context, request, response);
+    _event.path = createEventPathFromNode(source, event);
+    await context.applicationContext.eventEmitter.emit(_event);
+    return _event.data;
 };
 
 /**
@@ -58,9 +86,9 @@ export const SearchEvents = {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnSearchResource(event: EventRegisterType, options: ISearchEventOptions = {}) {
+export const OnSearchResource = (event: EventRegisterType, options: ISearchEventOptions = {}) => {
     return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: ResourceEvent) => Promise<void>>) {
+                                       descriptor: TypedPropertyDescriptor<(event: SearchEvent<any>) => Promise<void>>) {
         options.dataAsTarget = options.dataAsTarget ?? false;
         setEventMetadata(target, event, property, options);
     };

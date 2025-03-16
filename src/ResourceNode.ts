@@ -22,13 +22,14 @@
 
 import { 
     GestaeClassType,
+    GestaeObjectType,
     HttpMethodEnum,
     getsertClassMetadata,
     hasClassMetadata,
     isClassConstructor,
 } from "./Gestae";
 import { EventRegisterType} from "./GestaeEvent";
-import { HttpContext } from "./HttpContext";
+import { HttpContext, IHttpContext } from "./HttpContext";
 import { 
     AbstractNodeFactoryChain, 
     FactoryReturnType 
@@ -50,6 +51,7 @@ import { ReadResourceHandler } from "./ReadResourceHandler";
 import { UpdateResourceHandler } from "./UpdateResourceHandler";
 import { DeleteResourceHandler } from "./DeleteResourceHandler";
 import { IDResourceHandler } from "./IDResourceHandler";
+import { IResource } from "./ResourceManager";
 
 const RESOURCE_HANDLER_KEY = "resourceHandler";
 
@@ -100,8 +102,12 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
         return this.resourceId ?? this.model.name;
     }
 
-    getResourceOptions(): IResourceOptions {
-        return this.options;
+    getResource<T extends {}>(context: HttpContext): IResource<T> {
+        return context.resourceManager.get<T>(this);
+    }
+
+    async getResourceValue<T extends {}>(context: IHttpContext, options?: Record<string, any>): Promise<T> {
+        return context.resources.getValue<T>(this, options);
     }
 
     getSupportedAction(method: string, id?:string, target?: boolean): ResourceActionEnum {

@@ -25,7 +25,9 @@ import {
     GestaeObjectType, 
     setClassMetadata
 } from "./Gestae";
+import { HttpContext } from "./HttpContext";
 import { INode } from "./Node";
+import { IResource } from "./ResourceManager";
 
 export const RESOURCE_NAME         = "resource";
 export const RESOURCE_METADATA_KEY = `gestaejs:${RESOURCE_NAME}`;
@@ -52,7 +54,8 @@ export enum ResourceActionEnum {
  */
 export interface IResourceNode extends INode {
     get resourceKey(): string;
-    getResourceOptions(): IResourceOptions;
+    getResource<T extends {}>(context: HttpContext): IResource<T>;
+    getResourceValue<T extends {}>(context: HttpContext, options?: Record<string, any>): Promise<T>;
     getInstance(... args: any[]): GestaeObjectType;
 }
 

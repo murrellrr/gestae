@@ -29,17 +29,9 @@ import {
 import { 
     IHttpContext 
 } from "./HttpContext";
-import { Envelope, ITaskOptions } from "./Task";
+import { Envelope, ITaskNode } from "./Task";
 import { HttpEvent } from "./HttpEvent";
-/**
- * @description
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export interface ITaskNode extends INode {
-    getTakOptions(): ITaskOptions;
-}
+
 
 /**
  * @description
@@ -48,7 +40,11 @@ export interface ITaskNode extends INode {
  * @copyright 2024 KRI, LLC
  */
 export const TaskEvents = {
+    before: "before" as string,
+    on:     "on"    as string,  
+    after:  "after" as string,
     Execute: {
+        operation: "execute" as string,
         OnBefore: {operation: "execute", action: "before"} as EventRegisterType,
         On:       {operation: "execute", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "execute", action: "after" } as EventRegisterType,

@@ -30,63 +30,63 @@ import { NotFoundError } from "./GestaeError";
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type ResourceResolverType = (options?: Record<string, any>) => Promise<GestaeObjectType>;
+export type ResourceResolverType = <T = {}>(options?: Record<string, any>) => Promise<T>;
 
 /**
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export interface IResource {
+export interface IResource<T = {}> {
     get name(): string;
     get key(): string;
     get resources(): IResourceReader;
-    get next(): IResource | undefined;
-    get previous(): IResource | undefined;
-    getValue(options?: Record<string, any>): Promise<GestaeObjectType>;
-    setValue(value: GestaeObjectType | ResourceResolverType): void;
+    get next(): IResource<T> | undefined;
+    get previous(): IResource<T> | undefined;
+    getValue<T extends {}>(options?: Record<string, any>): Promise<T>;
+    setValue<T extends {}>(value: T | ResourceResolverType): void;
 };
 
 
-class Resource implements IResource {
-    public           node?:      Node<IResource>;
+class Resource implements IResource<any> {
+    public           node?:      Node<IResource<any>>;
     public           resources:  IResourceReader;
     public  readonly key:        string;
     public  readonly name:       string;
-    private          _value:     GestaeObjectType | ResourceResolverType;
+    private          _value:     {} | ResourceResolverType;
 
     constructor(key: IResourceNode, resources: IResourceReader, 
-                value: GestaeObjectType | ResourceResolverType) {
+                value: {} | ResourceResolverType) {
         this.key       = key.fullyQualifiedPath;
         this.name      = key.name;
         this._value    = value;
         this.resources = resources;
     }
 
-    get next(): IResource | undefined {
+    get next(): IResource<any> | undefined {
         if(this.node?.next)
             this.node = this.node.next;
         return this.node?.value;
     }
 
-    get previous(): IResource | undefined {
+    get previous(): IResource<any> | undefined {
         if(this.node?.prev)
             this.node = this.node.prev;
         return this.node?.value;
     }
 
-    async getValue(options: Record<string, any> = {}): Promise<GestaeObjectType> {
+    async getValue<T = {}>(options: Record<string, any> = {}): Promise<T> {
         if(this._value instanceof Function)
-            this._value = await this._value(options);
-        return this._value;
+            this._value = await this._value<T>(options);
+        return this._value as T;
     }
 
-    setValue(value: GestaeObjectType | ResourceResolverType): void {
+    setValue<T extends {}>(value: T | ResourceResolverType): void {
         this._value = value;
     }
 }
 
-export type ResourceKeyType = string | GestaeClassType | IResourceNode | IResource;
+export type ResourceKeyType = string | GestaeClassType | IResourceNode | IResource<any>;
 
 /**
  * @author Robert R Murrell
@@ -95,9 +95,10 @@ export type ResourceKeyType = string | GestaeClassType | IResourceNode | IResour
  */
 export interface IResourceReader {
     contains(key: IResourceNode): boolean;
-    get current(): IResource | undefined;
-    get(key: ResourceKeyType): IResource;
-    [Symbol.iterator](): IterableIterator<IResource>;
+    get current(): IResource<any> | undefined;
+    get<T extends {}>(key: ResourceKeyType): IResource<T>;
+    getValue<T extends {}>(key: ResourceKeyType, options?: Record<string, any>): Promise<T>
+    [Symbol.iterator](): IterableIterator<IResource<any>>;
 }
 
 /**
@@ -106,8 +107,8 @@ export interface IResourceReader {
  * @copyright 2024 KRI, LLC
  */
 export interface IResourceWriter {
-    set(key: IResourceNode, value: GestaeObjectType | ResourceResolverType): IResource;
-    setValue(key: IResourceNode, value: GestaeObjectType | ResourceResolverType): IResource;
+    set(key: IResourceNode, value: GestaeObjectType | ResourceResolverType): IResource<any>;
+    setValue(key: IResourceNode, value: GestaeObjectType | ResourceResolverType): IResource<any>;
 }
 
 /**
@@ -126,7 +127,7 @@ export class ResourceManager implements IResourceReader, IResourceWriter {
         else if(typeof key === "function")
             _key = key.name;
         else 
-            _key = (key as IResourceNode).resourceKey || (key as IResource).key;
+            _key = (key as IResourceNode).resourceKey || (key as IResource<any>).key;
         return _key;
     }
 
@@ -138,11 +139,11 @@ export class ResourceManager implements IResourceReader, IResourceWriter {
         return false;
     }
 
-    get current(): IResource | undefined {
-        return this._currentResource?.value as IResource;
+    get current(): IResource<any> | undefined {
+        return this._currentResource?.value as IResource<any>;
     }
 
-    get(key: ResourceKeyType): IResource {
+    get<T extends {}>(key: ResourceKeyType): IResource<T> {
         let _key = this._getKeyValue(key);
         for(const _resource of this._resources) {
             if(_resource.key === _key) return _resource;
@@ -150,8 +151,8 @@ export class ResourceManager implements IResourceReader, IResourceWriter {
         throw new NotFoundError(_key);
     }
 
-    async getValue(key: ResourceKeyType, options?: Record<string, any>): Promise<GestaeObjectType> {
-        let _resource = this.get(key);
+    async getValue<T extends {}>(key: ResourceKeyType, options?: Record<string, any>): Promise<T> {
+        let _resource = this.get<T>(key);
         return _resource.getValue(options);
     }
 
@@ -162,26 +163,24 @@ export class ResourceManager implements IResourceReader, IResourceWriter {
         return undefined;
     }
 
-    set(key: IResourceNode, value: GestaeObjectType | ResourceResolverType): IResource {
-        
+    set<T extends {}>(key: IResourceNode, value: T | ResourceResolverType): IResource<T> {
         const _resource = new Resource(key, this, value);
         this._resources.push(_resource);
         this._currentResource = this._resources.tail;
         _resource.node = this._resources.tail;
-
         return _resource;
     }
 
-    setValue(key: IResourceNode, value: GestaeObjectType | ResourceResolverType): IResource {
-        let _resource: IResource | Resource | undefined = this._get(key);
+    setValue<T extends {}>(key: IResourceNode, value: T | ResourceResolverType): IResource<T> {
+        let _resource: IResource<any> | Resource | undefined = this._get(key);
         if(!_resource)
-            _resource = this.set(key, value);
+            _resource = this.set<T>(key, value);
         else 
-            _resource.setValue(value);
+            _resource.setValue<T>(value);
         return _resource;
     }
 
-    [Symbol.iterator](): IterableIterator<IResource> {
+    [Symbol.iterator](): IterableIterator<IResource<any>> {
         return this._resources[Symbol.iterator]();
     }
 }

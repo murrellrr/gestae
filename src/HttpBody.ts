@@ -47,7 +47,9 @@ export abstract class HttpRequestBody<T> {
  * @copyright 2024 KRI, LLC
  */
 export abstract class HttpResponseBody<T> {
-    abstract write(response: http.ServerResponse, body: object, code: number, 
+    abstract supports(body: any): boolean;
+    abstract get contentType(): string;
+    abstract write(response: http.ServerResponse, body: T, code: number, 
                    contentType?:string): Promise<boolean>;
 }
 
@@ -114,8 +116,18 @@ export class JSONRequestBody extends HttpRequestBody<object> {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class JSONResponseBody extends HttpResponseBody<object> {
-    async write(response: http.ServerResponse, body: object = {}, code: number = 200, contentType?:string): Promise<boolean> {
+export class JSONResponseBody extends HttpResponseBody<object | string> {
+    supports(body: any): boolean {
+        return typeof body === "object" || typeof body === "string";
+    }
+
+    get contentType(): string {
+        return DEFAULT_JSON_CONTENT_TYPE;
+    }
+
+    async write(response: http.ServerResponse, body: object | string = {}, code: number = 200, contentType?:string): Promise<boolean> {
+        body = (typeof body === "string")? JSON.parse(body) : body;
+        code = (Object.keys(body).length === 0)? 204 : code;
         if(response.writable && !response.headersSent) {
             response.setHeader(CONTENT_TYPE_RESPONSE_HEADER, 
                                contentType ?? (body as any).$contentType ?? DEFAULT_JSON_CONTENT_TYPE);
