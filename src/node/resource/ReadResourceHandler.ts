@@ -24,8 +24,9 @@ import { GestaeObjectType } from "../../Gestae";
 import { HttpContext } from "../../http/HttpContext";
 import { AbstractIDResourceHandler } from "./AbstractIDResourceHandler";
 import { IResourceItem } from "./manager/IResourceItem";
+import { ReadResourceEvent } from "./ReadResourceEvent";
 import { ResourceActionEnum } from "./Resource";
-import { ResourceEvent, ReadResourceEvent } from "./ResourceEvent";
+import { ResourceEvent } from "./ResourceEvent";
 
 /**
  * @description
@@ -39,12 +40,11 @@ export class ReadResourceHandler extends AbstractIDResourceHandler {
     }
 
     async getData(context: HttpContext): Promise<GestaeObjectType> {
-        context.log.debug(`ReadResourceHandler:getData(context)`);
-        return this.resource.getInstance();
+        return this.resource.createResource(this.id);
     }
 
     createEvent(context: HttpContext, event: string, data: IResourceItem<any>): ResourceEvent {
-        context.log.debug(`ReadResourceHandler:createEvent(event): ${event}`);
-        return new ReadResourceEvent(context, this.resource, event, this.id, data);
+        const _event = new ReadResourceEvent(context, this.resource, event, this.id, data);
+        return _event;
     }
 }

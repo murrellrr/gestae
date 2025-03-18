@@ -60,15 +60,15 @@ export abstract class AbstractNodeFactoryChain<O extends INodeOptions, P extends
 
     abstract isNodeFactory(target: NodeTemplate): boolean;
 
-    abstract onCreate(target: NodeTemplate): FactoryReturnType<O, P>;
+    abstract onCreate(target: NodeTemplate, bindings?: Record<string, any>): FactoryReturnType<O, P>;
 
-    create(target: NodeTemplate): FactoryReturnType<O, P> {
+    create(target: NodeTemplate, bindings: Record<string, any> = {}): FactoryReturnType<O, P> {
         if(target.isNode)
             return {top: target.node as P};
         if(this.isNodeFactory(target)) 
-            return this.onCreate(target);
+            return this.onCreate(target, bindings);
         else if(this.link) 
-            return this.link.create(target);
+            return this.link.create(target, bindings);
         else 
             throw GestaeError.toError(`Cannot create node for target ${target.name}.`);
     }

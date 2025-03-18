@@ -30,7 +30,6 @@ import { Envelope } from "./Envelope";
 import { ITaskNode } from "./ITaskNode";
 import { HttpEvent } from "../../http/HttpEvent";
 
-
 /**
  * @description
  * @author Robert R Murrell

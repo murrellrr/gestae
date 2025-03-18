@@ -86,7 +86,7 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
 
     abstract get type(): string;
 
-    getInstance(...args: any[]): GestaeObjectType {
+    getInstance<T extends GestaeObjectType>(...args: any[]): T {
         return new this.model(...args);
     }
 

@@ -26,11 +26,18 @@ import {
 } from "yallist";
 import { NotFoundError } from "../../../error/NotFoundError";
 import { IHttpContext } from "../../../http/IHttpContext";
-import { IResourceItem, ResourceResolverType } from "./IResourceItem";
+import { 
+    IResourceItem, 
+    ResourceResolverType 
+} from "./IResourceItem";
 import { IResourceReader } from "./IResourceReader";
 import { IResourceWriter } from "./IResourceWriter";
 import { ResourceItem } from "./ResourceItem";
 import { IResourceNode } from "../IResourceNode";
+import { 
+    GestaeClassType, 
+    GestaeObjectType 
+} from "../../../Gestae";
 
 /**
  * @author Robert R Murrell
@@ -39,8 +46,8 @@ import { IResourceNode } from "../IResourceNode";
  */
 export class ResourceManager implements IResourceReader, IResourceWriter {
     protected readonly context:          IHttpContext
-    private   readonly _resources:       Yallist<ResourceItem> = Yallist.create();
-    private            _currentResource: Node<ResourceItem> | undefined = this._resources.head;
+    private   readonly _resources:       Yallist<ResourceItem<any>> = Yallist.create();
+    private            _currentResource: Node<ResourceItem<any>> | undefined = this._resources.head;
 
     constructor(context: IHttpContext) {
         this.context = context;
@@ -57,46 +64,68 @@ export class ResourceManager implements IResourceReader, IResourceWriter {
         return this._currentResource?.value as IResourceItem<any>;
     }
 
-    get<T extends {}>(key: IResourceNode): IResourceItem<T> {
+    get<T extends GestaeObjectType>(key: IResourceNode): IResourceItem<T> {
         for(const _resource of this._resources) {
             if(_resource.key === key.fullyQualifiedPath) return _resource;
         }
         throw new NotFoundError(key.fullyQualifiedPath);
     }
 
-    async getValue<T extends {}>(key: IResourceNode, options?: Record<string, any>): Promise<T> {
-        let _resource = this.get<T>(key);
+    getByName<T extends GestaeObjectType>(name: GestaeClassType | string): IResourceItem<T> {
+        const _name = typeof name === "string" ? name : name.name.toLowerCase();
+        for(const _resource of this._resources) {
+            if(_resource.name === _name) return _resource;
+        }
+        throw new NotFoundError(_name);
+    };
+
+    getByPath<T extends GestaeObjectType>(path: string): IResourceItem<T> {
+        for(const _resource of this._resources) {
+            if(_resource.key === path) return _resource;
+        }
+        throw new NotFoundError(path);
+    }
+
+    async getValue<T extends GestaeObjectType>(key: IResourceNode, options?: Record<string, any>): Promise<T> {
+        const _resource = this.get<T>(key);
         return _resource.getValue(options);
     }
 
-    protected _get(key: IResourceNode): ResourceItem | undefined {
+    async getValueByName<T extends GestaeObjectType>(name: GestaeClassType | string, options?: Record<string, any>): Promise<T> {
+        const _resource = this.getByName<T>(name);
+        return _resource.getValue(options);
+    }
+
+    async getValueByPath<T extends GestaeObjectType>(path: string, options?: Record<string, any>): Promise<T> {
+        const _resource = this.getByPath<T>(path);
+        return _resource.getValue(options);
+    }
+
+    protected _get<T extends GestaeObjectType>(key: IResourceNode): ResourceItem<T> | undefined {
         for(const _resource of this._resources) {
             if(_resource.key === key.fullyQualifiedPath) return _resource;
         }
         return undefined;
     }
 
-    set<T extends {}>(key: IResourceNode, value: T | ResourceResolverType): IResourceItem<T> {
-        this.context.log.debug(`ResourceManager:set(): Enter ${key.fullyQualifiedPath}`);
-        const _resource = new ResourceItem(key, this, value);
+    set<T extends GestaeObjectType>(key: IResourceNode, value: T | ResourceResolverType): IResourceItem<T> {
+        return this._set<T>(key, value);
+    }
+
+    protected _set<T extends GestaeObjectType>(key: IResourceNode, value: T | ResourceResolverType): ResourceItem<T> {
+        const _resource       = new ResourceItem<T>(key, this, value);
         this._resources.push(_resource);
         this._currentResource = this._resources.tail;
-        _resource.node = this._resources.tail;
+        _resource.node        = this._resources.tail;
         return _resource;
     }
 
-    setValue<T extends {}>(key: IResourceNode, value: T | ResourceResolverType): IResourceItem<T> {
-        this.context.log.debug(`ResourceManager:setValue(): Enter ${key.fullyQualifiedPath}`);
-        let _resource: IResourceItem<any> | ResourceItem | undefined = this._get(key);
-        this.context.log.debug(`ResourceManager:setValue(): Resource ${_resource?.key}`);
-        if(!_resource) {
-            this.context.log.debug(`ResourceManager:setValue(): Resource not found, creating new resource.`);
-            _resource = this.set<T>(key, value);
-        }
-        else {
-            this.context.log.debug(`ResourceManager:setValue(): Resource not found, creating new resource.`);
-            _resource.setValue<T>(value);
-        }
+    setValue<T extends GestaeObjectType>(key: IResourceNode, value: T | ResourceResolverType): IResourceItem<T> {
+        let _resource: ResourceItem<T> | undefined = this._get(key);
+        if(!_resource)
+            _resource = this._set<T>(key, value);
+        else
+            _resource.setValue(value);
         return _resource;
     }
 

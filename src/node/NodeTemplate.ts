@@ -61,8 +61,8 @@ export class NodeTemplate implements INodeTemplate {
     public  readonly bindings:  IOptions = {};
 
     constructor(node: NodeTemplateType, name: string, bindings: Record<string, any> = {}) {
-        this._node = node;
-        this.name = name;
+        this._node    = node;
+        this.name     = bindings.name ?? name;
         this.bindings = bindings;
     }
 
@@ -86,7 +86,7 @@ export class NodeTemplate implements INodeTemplate {
     }
 
     addTemplate(child: NodeTemplateType, bindings: Record<string, any> = {}): INodeTemplate {
-        const _name = NodeTemplate.toNodeName(child);
+        const _name = bindings.name ?? NodeTemplate.toNodeName(child);
         let _template = this._children.get(_name);
         if(!_template) {
              _template = new NodeTemplate(child, _name, bindings);

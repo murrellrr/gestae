@@ -33,8 +33,8 @@ import { AbstractResourceHandler } from "./AbstractResourceHandler";
 export abstract class AbstractIDResourceHandler extends AbstractResourceHandler {
     protected id: string; // Will be set beforeRequest
 
-    constructor(resource: IResourceNode, id: string) {
-        super(resource);
+    constructor(resource: IResourceNode, target: boolean, id: string) {
+        super(resource, target);
         this.id = id;
     }
 

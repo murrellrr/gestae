@@ -1,3 +1,26 @@
+/*
+ *  Copyright (c) 2024, KRI, LLC.
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *  THE SOFTWARE.
+ */
+
+import { GestaeObjectType } from "../../../Gestae";
 import { IResourceReader } from "./IResourceReader";
 
 /**
@@ -5,19 +28,19 @@ import { IResourceReader } from "./IResourceReader";
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export type ResourceResolverType = <T = {}>(options?: Record<string, any>) => Promise<T>;
+export type ResourceResolverType = <T extends GestaeObjectType>(options?: Record<string, any>) => Promise<T>;
 
 /**
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export interface IResourceItem<T = {}> {
+export interface IResourceItem<T extends GestaeObjectType> {
     get name(): string;
     get key(): string;
     get resources(): IResourceReader;
     get next(): IResourceItem<T> | undefined;
     get previous(): IResourceItem<T> | undefined;
-    getValue<T extends {}>(options?: Record<string, any>): Promise<T>;
-    setValue<T extends {}>(value: T | ResourceResolverType): void;
+    getValue<T extends GestaeObjectType>(options?: Record<string, any>): Promise<T>;
+    setValue<T extends GestaeObjectType>(value: T | ResourceResolverType): void;
 };

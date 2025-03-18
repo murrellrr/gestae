@@ -43,7 +43,7 @@ export class NamespaceNodeFactory extends AbstractNodeFactoryChain<INamespaceOpt
         return target.isString || NamespaceNodeFactory.hasNamespaceMetadata(target.node, NAMESPACE_METADATA_KEY);
     }
 
-    onCreate(target: NodeTemplate): FactoryReturnType<INamespaceOptions, NamespaceNode> {
+    onCreate(target: NodeTemplate, bindings: Record<string, any> = {}): FactoryReturnType<INamespaceOptions, NamespaceNode> {
         if(target.isString)
             return NamespaceNodeFactory.createFromString((target.node as string));
         else 

@@ -31,11 +31,11 @@ import { IContext } from "./IContext";
 export class AbstractContext implements IContext {
     private readonly _values: Record<string, any> = {};
 
-    getValue<T>(key:string, defaultValue?: T): T {
+    getValue<T>(key: string, defaultValue?: T): T {
         return this._values[key] ?? defaultValue;
     }
 
-    getInstance<T extends Object>(_Class: new (...args: any[]) => T, defaultValue?: T): T {
+    getInstance<T extends {}>(_Class: new (...args: any[]) => T, defaultValue?: T): T {
         const _value = this.getValue<T>(_Class.name, defaultValue);
         if(!(_value instanceof _Class)) 
             throw new GestaeError(`Property ${_value.constructor.name} is not an instance of ${_Class.name}`);
@@ -46,7 +46,7 @@ export class AbstractContext implements IContext {
         this._values[key] = value;
     }
 
-    setInstance<T extends Object>(_Class: new (...args: any[]) => T, value: T): void {
+    setInstance<T extends {}>(_Class: new (...args: any[]) => T, value: T): void {
         if(!(value instanceof _Class))
             throw new GestaeError(`Parameter 'value' is not an instance of ${_Class.name}`);
         this.setValue(_Class.name, value);
@@ -70,5 +70,9 @@ export class AbstractContext implements IContext {
 
     get entries(): [string, any][] {
         return Object.entries(this._values);
+    }
+
+    [Symbol.iterator](): IterableIterator<[string, any]> {
+        return Object.entries(this._values)[Symbol.iterator]();
     }
 }

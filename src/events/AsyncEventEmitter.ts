@@ -69,7 +69,7 @@ export class AsyncEventEmitter implements IAsyncEventEmitter, IAsyncEventQueue {
     }
 
     private async _processListener(_item: IListenerItem, event: GestaeEvent<any>, target?: object): Promise<void> {
-        if(target) _item.method.call(target, event); // bind the method to the target object if specified.
+        if(target) await _item.method.call(target, event); // bind the method to the target object if specified.
         await _item.method(event);
     }
 

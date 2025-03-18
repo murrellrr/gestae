@@ -27,12 +27,13 @@
  */
 export interface IContext {
     getValue<T>(key: string, defaultValue?: T): T;
-    getInstance<T extends Object>(_Class: new (...args: any[]) => T, defaultValue?: T): T;
+    getInstance<T extends {}>(_Class: new (...args: any[]) => T, defaultValue?: T): T;
     setValue(key: string, value: any): void;
-    setInstance<T extends Object>(_Class: new (...args: any[]) => T, value: T): void;
+    setInstance<T extends {}>(_Class: new (...args: any[]) => T, value: T): void;
     contains(key: string): boolean;
     remove(key: string): void;
     readonly values: any[];
     readonly keys: string[];
     readonly entries: [string, any][];
+    [Symbol.iterator](): IterableIterator<[string, any]>;
 }

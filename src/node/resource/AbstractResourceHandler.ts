@@ -40,21 +40,20 @@ import {
  */
 export abstract class AbstractResourceHandler {
     public readonly resource: IResourceNode;
+    public readonly target:   boolean;
 
-    constructor(resource: IResourceNode) {
+    constructor(resource: IResourceNode, target: boolean = false) {
         this.resource = resource;
+        this.target   = target;
     }
 
-    async emit(context: HttpContext, event: ResourceEvent): Promise<GestaeObjectType> {
-        await context.applicationContext.eventEmitter.emit(event, event.data);
-        return event.data;
+    async emit(context: HttpContext, event: ResourceEvent): Promise<void> {
+        await context.applicationContext.eventEmitter.emit(event);
     }
 
-    async emitData(context: HttpContext, event: string, data: IResourceItem<any>): Promise<GestaeObjectType> {
-        let _data = await this.emit(context, this.createEvent(context, event, data));
-        context.log.debug(`ResourceHandler:emitData(_data): \r\n${JSON.stringify(_data, null, 2)}`);
-        context.resourceManager.setValue(this.resource, _data);
-        return _data;
+    async emitData(context: HttpContext, event: string, data: IResourceItem<any>): Promise<void> {
+        const _event: ResourceEvent = this.createEvent(context, event, data);
+        await this.emit(context, _event);
     }
 
     abstract get action(): ResourceActionEnum;
@@ -66,27 +65,23 @@ export abstract class AbstractResourceHandler {
     abstract createEvent(context: HttpContext, event: string, data: IResourceItem<any>): ResourceEvent;
 
     async beforeRequest(context: HttpContext): Promise<void> {
-        const _data   = await this.getData(context);
-        context.log.debug(`${this.constructor.name}:beforeRequest(_data): \r\n${JSON.stringify(_data, null, 2)}`);
-        let _resource = context.resourceManager.setValue(this.resource, _data);
-        //context.log.debug(`${this.constructor.name}:beforeRequest(_resource): \r\n${JSON.stringify(_resource, null, 2)}`);
-        //context.log.debug(`${this.constructor.name}:beforeRequest(_resource): ${_resource.key}`);
-        //const _resevent = new ResourceEvent(context, this.resource, this.action, ResourceEvents.before, _resource);
-        // context.resourceManager.setValue(this.resource, await this.emit(context, _resevent));
-        //return await this.emitData(context, ResourceEvents.before, _resource);
+        context.log.debug(`${this.constructor.name}.beforeRequest(): Enter.`);
+        let _data: GestaeObjectType = await this.getData(context);
+        const _resource: IResourceItem<any> = context.resourceManager.setValue(this.resource, _data);
+        await this.emitData(context, ResourceEvents.before, _resource);
     }
 
     async onRequest(context: HttpContext): Promise<void> {
-        const _resource  = context.resourceManager.get(this.resource);
-        // const _resevent  = new ResourceEvent(context, this.resource, this.action, ResourceEvents.on, _resource);
-        // context.resourceManager.setValue(this.resource, await this.emit(context, _resevent));
+        context.log.debug(`${this.constructor.name}.onRequest(): Enter.`);
+        const _resource: IResourceItem<any> = context.resourceManager.get(this.resource);
+        await this.emitData(context, ResourceEvents.on, _resource);
+        if(this.target)
+            context.response.send(await _resource.getValue());
     }
 
     async afterRequest(context: HttpContext): Promise<void> {
-        const _resource = context.resourceManager.get(this.resource);
-        let   _data     = await this.emitData(context, ResourceEvents.after, _resource);
-        const _resevent = new ResourceEvent(context, this.resource, this.action, ResourceEvents.on, _resource);
-        // _data           = await this.emit(context, _resevent);
-        // context.resourceManager.setValue(this.resource, _data);
+        context.log.debug(`${this.constructor.name}.afterRequest(): Enter.`);
+        const _resource: IResourceItem<any> = context.resourceManager.get(this.resource);
+        await this.emitData(context, ResourceEvents.after, _resource);
     }
 }

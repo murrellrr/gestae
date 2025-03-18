@@ -23,11 +23,9 @@
 import { BodyResourceHandler } from "./BodyResourceHandler";
 import { HttpContext } from "../../http/HttpContext";
 import { ResourceActionEnum } from "./Resource";
-import { 
-    ResourceEvent, 
-    DeleteResourceEvent 
-} from "./ResourceEvent";
+import { ResourceEvent } from "./ResourceEvent";
 import { IResourceItem } from "./manager/IResourceItem";
+import { DeleteResourceEvent } from "./DeleteResourceEvent";
 
 /**
  * @description

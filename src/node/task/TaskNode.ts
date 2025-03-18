@@ -94,7 +94,7 @@ export class TaskNode extends AbstractNode<ITaskOptions> implements ITaskNode {
         else if(this.parent.type === RESOURCE_NAME)
             return (this.parent as unknown as IResourceNode).getResourceValue<T>(context, options);
         else
-            return this.parent.getInstance() as T;
+            return this.parent.getInstance();
     }
 
     public async afterInitialize(context: InitializationContext): Promise<void> {

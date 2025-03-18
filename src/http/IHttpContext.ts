@@ -24,7 +24,7 @@ import { IApplicationContext } from "../app/IApplicationContext";
 import { IContext } from "../context/IContext";
 import { ILogger } from "../log/ILogger";
 import { INode } from "../node/INode";
-import { IResourceReader } from "../node/resource/manager/ResourceManager";
+import { IResourceReader } from "../node/resource/manager/IResourceReader";
 import { IHttpResponse } from "./HttpResponse";
 import { IHttpRequest } from "./IHttpRequest";
 

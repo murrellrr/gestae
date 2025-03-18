@@ -23,12 +23,10 @@
 import { GestaeObjectType } from "../../Gestae";
 import { HttpContext } from "../../http/HttpContext";
 import { ResourceActionEnum } from "./Resource";
-import { 
-    CreateResourceEvent, 
-    ResourceEvent 
-} from "./ResourceEvent";
+import { ResourceEvent } from "./ResourceEvent";
 import { AbstractResourceHandler } from "./AbstractResourceHandler";
 import { IResourceItem } from "./manager/IResourceItem";
+import { CreateResourceEvent } from "./CreateResourceEvent";
 
 /**
  * @description
@@ -42,7 +40,8 @@ export class CreateResourceHandler extends AbstractResourceHandler {
     }
 
     async getData(context: HttpContext): Promise<GestaeObjectType> {
-        return context.request.getBody<GestaeObjectType>();
+        const _body = await context.request.getBody<GestaeObjectType>();
+        return this.resource.mergeResource(_body);
     }
 
     createEvent(context: HttpContext, event: string, data: IResourceItem<any>): ResourceEvent {

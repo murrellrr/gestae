@@ -21,14 +21,25 @@
  */
 
 import { GestaeError } from "../../error/GestaeError";
-import { GestaeObjectType, IOptions, getsertObjectMetadata } from "../../Gestae";
+import { 
+    GestaeObjectType, 
+    IOptions, 
+    getsertObjectMetadata 
+} from "../../Gestae";
 import { IHttpContext } from "../../http/IHttpContext";
-import { RESOURCE_METADATA_KEY, ResourceActionEnum } from "./Resource";
-import { CreateResourceEvent, ReadResourceEvent, UpdateResourceEvent, DeleteResourceEvent } from "./ResourceEvent";
+import { CreateResourceEvent } from "./CreateResourceEvent";
+import { DeleteResourceEvent } from "./DeleteResourceEvent";
+import { IResourceItem } from "./manager/IResourceItem";
+import { ReadResourceEvent } from "./ReadResourceEvent";
+import { 
+    RESOURCE_METADATA_KEY, 
+    ResourceActionEnum 
+} from "./Resource";
+import { UpdateResourceEvent } from "./UpdateResourceEvent";
 
 export const RESOUREC_ACTION_METADATA_KEY = `${RESOURCE_METADATA_KEY}:action`;
 
-export type CreateResourceFunctionType = (context: IHttpContext, body: GestaeObjectType) => Promise<void>;
+export type CreateResourceFunctionType = (context: IHttpContext, resource: IResourceItem<any>, body: GestaeObjectType) => Promise<void>;
 export type ReadResourceFunctionType   = (context: IHttpContext, id: string) => Promise<void>;
 export type UpdateResourceFunctionType = (context: IHttpContext, body: GestaeObjectType, patch: boolean) => Promise<void>;
 export type DeleteResourceFunctionType = (context: IHttpContext, id: string, body?: GestaeObjectType) => Promise<void>;
@@ -133,19 +144,23 @@ export function DeleteResource(options: IResourceActionOptions = {}) {
     };
 } // Cant be constant because it is used as a decorator.
 
-export const handleCreateEvent = async (event: CreateResourceEvent, method: CreateResourceFunctionType) => {
-    await method.call(event.data, event.context, await event.getBody());
+export const handleCreateEvent = async (event: CreateResourceEvent, method: CreateResourceFunctionType): Promise<void> => {
+    event.context.log.debug(`ResourceActions.handleCreateEvent(${event.action}): Enter.`);
+    const _body: GestaeObjectType = await event.getBody();
+    const _data: GestaeObjectType = await event.data.getValue();
+    await method.call(_data, event.context, event.data, _body);
 };
 
-export const handleReadEvent = async (event: ReadResourceEvent, method: ReadResourceFunctionType) => {
-    event.context.log.debug(`handleReadEvent: ${event.id}`);
-    await method.call(event.data, event.context, event.id);
+export const handleReadEvent = async (event: ReadResourceEvent, method: ReadResourceFunctionType): Promise<void> => {
+    event.context.log.debug(`ResourceActions.handleReadEvent(${event.action}): Enter.`);
+    const _data = await event.data.getValue();
+    await method.call(_data, event.context, event.id);
 };
 
-export const handleUpdateEvent = async (event: UpdateResourceEvent, method: UpdateResourceFunctionType) => {
+export const handleUpdateEvent = async (event: UpdateResourceEvent, method: UpdateResourceFunctionType): Promise<void> => {
     await method.call(event.data, event.context, await event.getBody(), event.patch);
 };
 
-export const handleDeleteEvent = async (event: DeleteResourceEvent, method: DeleteResourceFunctionType) => {
+export const handleDeleteEvent = async (event: DeleteResourceEvent, method: DeleteResourceFunctionType): Promise<void> => {
     await method.call(event.data, event.context, event.id, await event.getBody());
 };

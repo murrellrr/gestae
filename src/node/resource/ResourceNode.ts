@@ -22,22 +22,13 @@
 
 import { 
     GestaeClassType,
+    GestaeObjectType,
     getsertClassMetadata,
-    hasClassMetadata,
-    isClassConstructor,
 } from "../../Gestae";
-import { EventRegisterType} from "../../events/GestaeEvent";
 import { IHttpContext } from "../../http/IHttpContext";
 import { HttpContext } from "../../http/HttpContext";
-import { 
-    AbstractNodeFactoryChain, 
-    FactoryReturnType 
-} from "../AbstractNodeFactoryChain";
-import { NodeTemplate } from "../NodeTemplate";
 import { InternalServerError } from "../../error/GestaeError";
 import { MethodNotAllowedError } from "../../error/MethodNotAllowedError";
-
-import { ResourceEvent } from "./ResourceEvent";
 import { 
     ResourceActionEnum, 
     RESOURCE_METADATA_KEY, 
@@ -54,17 +45,9 @@ import { AbstractIDResourceHandler } from "./AbstractIDResourceHandler";
 import { IResourceItem } from "./manager/IResourceItem";
 import { IResourceNode } from "./IResourceNode";
 import { HttpMethodEnum } from "../../http/HTTP";
+import _ from "lodash";
 
 const RESOURCE_HANDLER_KEY = "resourceHandler";
-
-interface IResourceContext {
-    id?:            string;
-    instance:       any;
-    action:         ResourceActionEnum;
-    overrideEvent?: ResourceEvent;
-    doBeforeEvents: EventRegisterType[];
-    doAfterEvents:  EventRegisterType[];
-}
 
 /**
  * @author Robert R Murrell
@@ -75,14 +58,13 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
     protected readonly idProperty:       string;
     protected readonly lazyLoad:         boolean;
     protected readonly supportedActions: ResourceActionEnum[];
-    protected readonly resourceId:       string | undefined;
 
     constructor(target: GestaeClassType, options: IResourceOptions = {}) {
+        // Ensure the resource name is properly overridden.
+        options.name = options.resourceId ?? options.name?.toLowerCase() ?? target.name.toLowerCase();
         super(target, options);
-        options.name = options.name?.toLowerCase() ?? target.name.toLowerCase();
         this.idProperty = options.idProperty ?? "id";
         this.lazyLoad   = options.lazyLoad ?? true;
-        this.resourceId = options.resourceId;
         this.supportedActions = options.supportedActions ?? [
             ResourceActionEnum.Create,
             ResourceActionEnum.Read,
@@ -100,15 +82,23 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
         return true;
     }
 
-    get resourceKey(): string {
-        return this.resourceId ?? this.model.name;
+    createResource<T extends GestaeObjectType>(id: string): T {
+        let _instance = this.getInstance();
+        _instance[this.idProperty] = id;
+        return _instance as T;
     }
 
-    getResource<T extends {}>(context: IHttpContext): IResourceItem<T> {
+    mergeResource<T extends GestaeObjectType>(source: T, id?: string): T {
+        let _target = (id)? this.createResource(id) : this.getInstance();
+        return _.merge(_target, source) as T;
+    }
+
+    getResource<T extends GestaeObjectType>(context: IHttpContext): IResourceItem<T> {
         return context.resources.get<T>(this);
     }
 
-    async getResourceValue<T extends {}>(context: IHttpContext, options?: Record<string, any>): Promise<T> {
+    async getResourceValue<T extends GestaeObjectType>(context: IHttpContext, 
+                                                       options?: Record<string, any>): Promise<T> {
         return context.resources.getValue<T>(this, options);
     }
 
@@ -137,28 +127,28 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
         return _action;
     }
 
-    protected getIdResourceHandler(action: ResourceActionEnum, id: string): AbstractIDResourceHandler {
+    protected getIdResourceHandler(action: ResourceActionEnum, target:boolean, id: string): AbstractIDResourceHandler {
         switch(action) {
             case ResourceActionEnum.Read:
-                return new ReadResourceHandler(this, id);
+                return new ReadResourceHandler(this, target, id,);
             case ResourceActionEnum.Update:
-                return new UpdateResourceHandler(this, id);
+                return new UpdateResourceHandler(this, target, id);
             case ResourceActionEnum.Delete:
-                return new DeleteResourceHandler(this, id);
+                return new DeleteResourceHandler(this, target, id);
             default: 
                 throw new MethodNotAllowedError(`'${this.constructor.name}' '${this.name}' does not support action '${action}'`);
         }
     }
 
-    protected getResourceHandler(action: ResourceActionEnum, id?: string): AbstractResourceHandler {
+    protected getResourceHandler(action: ResourceActionEnum, target:boolean, id?: string): AbstractResourceHandler {
         if(action === ResourceActionEnum.Create)
-            return new CreateResourceHandler(this);
+            return new CreateResourceHandler(this, target);
         else {
             if(!id)
                 throw new MethodNotAllowedError(
                     `'${this.constructor.name}' '${this.name}' requires an ID for action '${action}'.`
                 );
-            return this.getIdResourceHandler(action, id);
+            return this.getIdResourceHandler(action, target, id);
         }
     }
 
@@ -166,9 +156,8 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
         const _id     = context.request.uriTree.next;
         const _action = this.getSupportedAction(context.request.method, _id, 
                                                 context.request.uriTree.target);
-        context.log.debug(`Resource '${this.name}' action '${_action}' for id '${_id}'.`);
         // Got the resource handler.
-        const _handler = this.getResourceHandler(_action, _id);
+        const _handler = this.getResourceHandler(_action, context.request.uriTree.target, _id);
         context.setValue(`${this.fullyQualifiedPath}:${RESOURCE_HANDLER_KEY}`, _handler);
 
         await _handler.beforeRequest(context);
@@ -178,8 +167,7 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
         const _handler = context.getValue<AbstractResourceHandler>(`${this.fullyQualifiedPath}:${RESOURCE_HANDLER_KEY}`);
         if(!_handler) // defensive coding
             throw new InternalServerError(`Resource handler not found for '${this.constructor.name}' '${this.name}'.`);
-        await _handler.onRequest(context); 
-        // TODO: Send result to requestor
+        await _handler.onRequest(context);
     }
 
     public async afterRequest(context: HttpContext): Promise<void> {

@@ -20,7 +20,7 @@
  *  THE SOFTWARE.
  */
 
-import { IAsyncEventEmitter } from "../events/AsyncEventEmitter";
+import { IAsyncEventEmitter } from "../events/IAsyncEventEmitter";
 import { IAsyncEventQueue } from "../events/IAsyncEventQueue";
 import { IContext } from "../context/IContext";
 import { ILogger } from "../log/ILogger";

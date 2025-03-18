@@ -42,12 +42,6 @@ export const ResourceEvents = {
     before: "before" as string,
     on:     "on" as string,
     after:  "after" as string,
-    Resource: {
-        opertaion: "resource" as string,
-        OnBefore: {operation: "resource", action: "before"} as EventRegisterType,
-        On:       {operation: "resource", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "resource", action: "after" } as EventRegisterType,
-    },
     Create: {
         opertaion: "create" as string,
         OnBefore: {operation: "create", action: "before"} as EventRegisterType,
@@ -104,44 +98,12 @@ export class ResourceEvent extends HttpEvent<IResourceItem<any>> {
     }
 }
 
-export class IDResourceEvent extends ResourceEvent {
-    public readonly id: string;
-    constructor(context: IHttpContext, resource: IResourceNode, action: ResourceActionEnum, 
-                event: string, data: IResourceItem<any>, id: string, path?: string) {
-        super(context, resource, action, event, data, path);
-        this.id = id;
-    }
-}
 
-export class CreateResourceEvent extends ResourceEvent {
-    constructor(context: IHttpContext, resource: IResourceNode, event: string, 
-                data: IResourceItem<any>, path?: string) {
-        super(context, resource, ResourceActionEnum.Create, event, data, path);
-    }
-}
 
-export class ReadResourceEvent extends IDResourceEvent {
-    constructor(context: IHttpContext, resource: IResourceNode, event: string,  
-                id: string, data: IResourceItem<any>) {
-        super(context, resource, ResourceActionEnum.Read, event, data, id);
-    }
-}
 
-export class UpdateResourceEvent extends IDResourceEvent {
-    public readonly patch: boolean;
-    constructor(context: IHttpContext, resource: IResourceNode, event: string,  
-                id: string, data: IResourceItem<any>, patch: boolean = false) {
-        super(context, resource, ResourceActionEnum.Update, event, data, id);
-        this.patch = patch;
-    }
-}
 
-export class DeleteResourceEvent extends IDResourceEvent {
-    constructor(context: IHttpContext, resource: IResourceNode, event: string,  
-                id: string, data: IResourceItem<any>) {
-        super(context, resource, ResourceActionEnum.Delete, event, data, id);
-    }
-}
+
+
 
 /**
  * @author Robert R Murrell
