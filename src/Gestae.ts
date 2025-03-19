@@ -56,7 +56,10 @@ export type GestaeObjectType = {[key: symbol | string]: any};
  * @copyright 2024 KRI, LLC
  */
 export interface IOptions {
-    $overloads?: boolean;
+    name?:         string;
+    $overloads?:   boolean;
+    $extends?:     string;
+    $type?:        string;
     [key: string]: any;
 }
 

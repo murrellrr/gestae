@@ -21,30 +21,12 @@
  */
 
 import { 
-    isClassConstructor, 
-    hasClassMetadata, 
-    GestaeClassType, 
-    IOptions
-} from "../../Gestae";
-import { 
-    AbstractNodeFactoryChain, 
-    FactoryReturnType 
-} from "../AbstractNodeFactoryChain";
-import { NodeTemplate } from "../NodeTemplate";
-import { IResourceOptions, RESOURCE_METADATA_KEY } from "./Resource";
-import { ResourceNode } from "./ResourceNode";
+    AbstractPlugin, 
+    IPluginOptions 
+} from "./AbstractPlugin";
 
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export class ResourceNodeFactory extends AbstractNodeFactoryChain<IResourceOptions, ResourceNode> {
-    isNodeFactory(target: NodeTemplate): boolean {
-        return isClassConstructor(target.node) && hasClassMetadata(target.node, RESOURCE_METADATA_KEY);
-    }
-
-    onCreate(target: NodeTemplate, options: IOptions = {}): FactoryReturnType<IResourceOptions, ResourceNode> {
-        return {top: ResourceNode.create((target.node as GestaeClassType), options)};
-    }
-}
+export interface IPluginManager {
+    addPlugin(plugin: AbstractPlugin<any>, options?: IPluginOptions): void;
+    getPlugin(uuid: string): AbstractPlugin<any> | undefined;
+    getPluginByCanonicalName(cononical: string): AbstractPlugin<any> | undefined;
+};

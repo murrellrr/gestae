@@ -37,7 +37,6 @@ export const DEFAULT_SEARCH_NAME = "search";
  * @description Search Function Type for resources. This function enforces a pagable request/response type for search.
  *              Note: Because no resource is resolved when search is invoked, 'this' keyword is not mapped when this 
  *              method is invoked.
- * @abstract
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
@@ -46,7 +45,6 @@ export type SearchResourceFunctionType<S extends AbstractSearchResult> =
     (context: IHttpContext, request: SearchRequest, response: SearchResponse<S>) => Promise<void>;
 
 /**
- * @abstract
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
@@ -57,13 +55,27 @@ export interface ISearchOptions extends IOptions {
     requestMethod?: HttpMethodEnum.Get | HttpMethodEnum.Post;
 };
 
-export const setSearchMetadata = <T extends Object>(target: T, property: string, options: ISearchOptions = {}) => {
-    let _target = getsertObjectMetadata(target, SEARCH_METADATA_KEY, options);
-    _target.pathName      = options.pathName ?? DEFAULT_SEARCH_NAME;
-    _target.requestMethod = options.requestMethod ?? HttpMethodEnum.Get;
-    _target.method        = property;
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const setSearchMethodMetadata = <T extends Object>(target: T, property: string, options: ISearchOptions = {}) => {
+    let _metadata    = getsertObjectMetadata(target, SEARCH_METADATA_KEY, options);
+    _metadata.method = property;
+    setSearchMetadata(target, _metadata);
 };
 
+/**
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const setSearchMetadata = <T extends Object>(target: T, options: ISearchOptions = {}) => {
+    const _metadata         = getsertObjectMetadata(target, SEARCH_METADATA_KEY, options);
+    _metadata.pathName      = options.pathName ?? DEFAULT_SEARCH_NAME;
+    _metadata.requestMethod = options.requestMethod ?? HttpMethodEnum.Get;
+};
 
 /**
  * @description `@Search` decorator for synchronous functions.
@@ -75,6 +87,21 @@ export function SearchResource<S extends AbstractSearchResult>(options: ISearchO
     return function <T extends Object>(target: T, property: string,
                                        descriptor: TypedPropertyDescriptor<SearchResourceFunctionType<S>>) {
         options.dataAsTarget = options.dataAsTarget ?? true;
-        setSearchMetadata(target, property, options);
+        setSearchMethodMetadata(target, property, options);
+    };
+} // Cant be constant because it is used as a decorator.
+
+/**
+ * @description Decorator for configuraing a plain-old object as a resource in Gestae.
+ * @param options 
+ * @returns 
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export function Searchable(options: ISearchOptions = {}) {
+    return function (target: new (... args: [any]) => any) {
+        options.dataAsTarget = options.dataAsTarget ?? true;
+        setSearchMetadata(target, options);
     };
 } // Cant be constant because it is used as a decorator.

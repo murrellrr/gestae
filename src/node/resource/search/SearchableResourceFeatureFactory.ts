@@ -20,7 +20,6 @@
  *  THE SOFTWARE.
  */
 
-import { GestaeError } from "../../../error/GestaeError";
 import { createEventPathFromNode } from "../../../events/GestaeEvent";
 import { 
     hasClassMetadata, 
@@ -46,21 +45,23 @@ export class SearchableResourceFeatureFactory extends AbstractFeatureFactoryChai
     onApply(node: ResourceNode): void {
         const _metadata: ISearchOptions = getsertClassMetadata(node.model, SEARCH_METADATA_KEY);
 
-        // check to see if the target implements the search method.
-        if(!node.model.prototype[_metadata.method!]) 
-            throw new Error(`Search resource method '${node.model.name}.${_metadata.method}' not implemented.`);
+        // Wrap all request handles to process search.
         makeResourceSearchable(node, _metadata);
 
-        const _method = node.model.prototype[_metadata.method!] as SearchResourceFunctionType<any>;
-        if(!_method) 
-            throw new GestaeError(`Method '${_metadata.method}' not found on '${node.model.name}'.`);
+        if(_metadata.method) {
+             // check to see if the target implements the search method.
+            if(!node.model.prototype[_metadata.method]) 
+                throw new Error(`Search resource method '${node.model.name}.${_metadata.method}' not implemented.`);
 
-        const _eventName = createEventPathFromNode(node, ResourceEvents.Search.On);
+            const _method    = node.model.prototype[_metadata.method] as SearchResourceFunctionType<any>;
+            const _eventName = createEventPathFromNode(node, ResourceEvents.Search.On);
 
-        //Binding method 'Employee.onRead' on action 'read' to event 'gestaejs:resource:my:test:root:api:busniess:company:people:labor:employee:read:on' for node 'employee'.
-        this.log.debug(`Binding method '${node.model.constructor.name}.${_metadata.method}' on action 'search' to event '${_eventName}' for node '${node.name}'`);
-        this.context.eventQueue.on(_eventName, async (event: SearchEvent<any>): Promise<void> => {
-                                         await _method(event.context, event.request, event.data);
-                                    });
+            this.log.debug(
+                `Binding method '${node.model.constructor.name}.${_metadata.method}' on action 'search' to event '${_eventName}' for node '${node.name}'`
+            );
+            this.context.eventQueue.on(_eventName, async (event: SearchEvent<any>): Promise<void> => {
+                                            await _method(event.context, event.request, event.data);
+                                        });
+        }
     }
 }

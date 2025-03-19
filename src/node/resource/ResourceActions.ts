@@ -43,13 +43,11 @@ export type CreateResourceFunctionType = (context: IHttpContext, resource: IReso
 export type ReadResourceFunctionType   = (context: IHttpContext, id: string) => Promise<void>;
 export type UpdateResourceFunctionType = (context: IHttpContext, body: GestaeObjectType, patch: boolean) => Promise<void>;
 export type DeleteResourceFunctionType = (context: IHttpContext, id: string, body?: GestaeObjectType) => Promise<void>;
-
-export type ResourceEventType    = CreateResourceEvent | ReadResourceEvent | 
-                            UpdateResourceEvent | DeleteResourceEvent;
-export type ResourceFunctionType = CreateResourceFunctionType | ReadResourceFunctionType | 
-                            UpdateResourceFunctionType | DeleteResourceFunctionType;
-
-export type ResourceEventHandlerType = (event: ResourceEventType, method: ResourceFunctionType) => Promise<void>;
+export type ResourceEventType          = CreateResourceEvent | ReadResourceEvent | 
+                                         UpdateResourceEvent | DeleteResourceEvent;
+export type ResourceFunctionType       = CreateResourceFunctionType | ReadResourceFunctionType | 
+                                         UpdateResourceFunctionType | DeleteResourceFunctionType;
+export type ResourceEventHandlerType   = (event: ResourceEventType, method: ResourceFunctionType) => Promise<void>;
 
 /**
  * @author Robert R Murrell
@@ -93,6 +91,29 @@ export const setResourceActionMetadata = (target: Object, action: ResourceAction
     _config.$overloads     = options.$overloads ?? false;
 };
 
+export const handleCreateEvent = async (event: CreateResourceEvent, method: CreateResourceFunctionType): Promise<void> => {
+    event.context.log.debug(`ResourceActions.handleCreateEvent(${event.resource.name}): '${event.action}'`);
+    const _body: GestaeObjectType = await event.getBody();
+    const _data: GestaeObjectType = await event.data.getValue();
+    await method.call(_data, event.context, event.data, _body);
+};
+
+export const handleReadEvent = async (event: ReadResourceEvent, method: ReadResourceFunctionType): Promise<void> => {
+    event.context.log.debug(`ResourceActions.handleReadEvent(${event.resource.name}): '${event.action}'`);
+    const _data = await event.data.getValue();
+    await method.call(_data, event.context, event.id);
+};
+
+export const handleUpdateEvent = async (event: UpdateResourceEvent, method: UpdateResourceFunctionType): Promise<void> => {
+    event.context.log.debug(`ResourceActions.handleUpdateEvent(${event.resource.name}): '${event.action}'`);
+    await method.call(event.data, event.context, await event.getBody(), event.patch);
+};
+
+export const handleDeleteEvent = async (event: DeleteResourceEvent, method: DeleteResourceFunctionType): Promise<void> => {
+    event.context.log.debug(`ResourceActions.handleDeleteEvent(${event.resource.name}): '${event.action}'`);
+    await method.call(event.data, event.context, event.id, await event.getBody());
+};
+
 /**
  * @author Robert R Murrell
  * @license MIT
@@ -113,7 +134,6 @@ export function CreateResource(options: IResourceActionOptions = {}) {
 export function ReadResource(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<ReadResourceFunctionType>) {
-        // options.dataAsTarget = options.dataAsTarget ?? true;
         setResourceActionMetadata(target, ResourceActionEnum.Read, property, options);
     };
 } // Cant be constant because it is used as a decorator.
@@ -126,7 +146,6 @@ export function ReadResource(options: IResourceActionOptions = {}) {
 export function UpdateResource(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<UpdateResourceFunctionType>) {
-        // options.dataAsTarget = options.dataAsTarget ?? true;
         setResourceActionMetadata(target, ResourceActionEnum.Update, property, options);
     };
 } // Cant be constant because it is used as a decorator.
@@ -139,28 +158,6 @@ export function UpdateResource(options: IResourceActionOptions = {}) {
 export function DeleteResource(options: IResourceActionOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<DeleteResourceFunctionType>) {
-        // options.dataAsTarget = options.dataAsTarget ?? true;
         setResourceActionMetadata(target, ResourceActionEnum.Delete, property, options);
     };
 } // Cant be constant because it is used as a decorator.
-
-export const handleCreateEvent = async (event: CreateResourceEvent, method: CreateResourceFunctionType): Promise<void> => {
-    event.context.log.debug(`ResourceActions.handleCreateEvent(${event.action}): Enter.`);
-    const _body: GestaeObjectType = await event.getBody();
-    const _data: GestaeObjectType = await event.data.getValue();
-    await method.call(_data, event.context, event.data, _body);
-};
-
-export const handleReadEvent = async (event: ReadResourceEvent, method: ReadResourceFunctionType): Promise<void> => {
-    event.context.log.debug(`ResourceActions.handleReadEvent(${event.action}): Enter.`);
-    const _data = await event.data.getValue();
-    await method.call(_data, event.context, event.id);
-};
-
-export const handleUpdateEvent = async (event: UpdateResourceEvent, method: UpdateResourceFunctionType): Promise<void> => {
-    await method.call(event.data, event.context, await event.getBody(), event.patch);
-};
-
-export const handleDeleteEvent = async (event: DeleteResourceEvent, method: DeleteResourceFunctionType): Promise<void> => {
-    await method.call(event.data, event.context, event.id, await event.getBody());
-};

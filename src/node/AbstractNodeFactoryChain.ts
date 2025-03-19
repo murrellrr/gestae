@@ -20,6 +20,7 @@
  *  THE SOFTWARE.
  */
 
+import { IOptions } from "../Gestae";
 import { IApplicationContext } from "../app/IApplicationContext";
 import { GestaeError } from "../error/GestaeError";
 import { ILogger } from "../log/ILogger";
@@ -60,15 +61,15 @@ export abstract class AbstractNodeFactoryChain<O extends INodeOptions, P extends
 
     abstract isNodeFactory(target: NodeTemplate): boolean;
 
-    abstract onCreate(target: NodeTemplate, bindings?: Record<string, any>): FactoryReturnType<O, P>;
+    abstract onCreate(target: NodeTemplate, options?: IOptions): FactoryReturnType<O, P>;
 
-    create(target: NodeTemplate, bindings: Record<string, any> = {}): FactoryReturnType<O, P> {
+    create(target: NodeTemplate, options: IOptions = {}): FactoryReturnType<O, P> {
         if(target.isNode)
             return {top: target.node as P};
         if(this.isNodeFactory(target)) 
-            return this.onCreate(target, bindings);
+            return this.onCreate(target, options);
         else if(this.link) 
-            return this.link.create(target, bindings);
+            return this.link.create(target, options);
         else 
             throw GestaeError.toError(`Cannot create node for target ${target.name}.`);
     }

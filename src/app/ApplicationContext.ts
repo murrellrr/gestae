@@ -27,6 +27,8 @@ import { AbstractContext, } from "../context/AbstractContext";
 import { ILogger } from "../log/ILogger";
 import { IProperties } from "../properties/IProperties";
 import { IApplicationContext } from "./IApplicationContext";
+import { IPluginManager } from "../plugins/IPluginManager";
+import { PluginManager } from "../plugins/PluginManager";
 
 /**
  * @author Robert R Murrell
@@ -43,17 +45,19 @@ export interface IApplicationContextOptions {
  * @copyright 2024 KRI, LLC
  */
 export class ApplicationContext extends AbstractContext implements IApplicationContext {
-    public    readonly properties: IProperties;
-    public    readonly log:        ILogger;
-    private   readonly events:     AsyncEventEmitter;
-    protected readonly options:    IApplicationContextOptions;
+    public    readonly properties:    IProperties;
+    public    readonly log:           ILogger;
+    public    readonly pluginManager: PluginManager;
+    protected readonly options:       IApplicationContextOptions;
+    private   readonly events:        AsyncEventEmitter;
     
     constructor(log: ILogger, properties: IProperties, options: IApplicationContextOptions = {}) {
         super();
-        this.options    = options;
-        this.log        = log;
-        this.properties = properties;
-        this.events     = new AsyncEventEmitter(this.log); 
+        this.options       = options;
+        this.log           = log;
+        this.properties    = properties;
+        this.events        = new AsyncEventEmitter(this.log); 
+        this.pluginManager = new PluginManager(this.log);
     }
 
     get eventEmitter(): IAsyncEventEmitter {
@@ -62,6 +66,10 @@ export class ApplicationContext extends AbstractContext implements IApplicationC
 
     get eventQueue(): IAsyncEventQueue {
         return this.events;
+    }
+
+    get plugins(): IPluginManager {
+        return this.pluginManager;
     }
 
     static create(log: ILogger, properties: IProperties, options: IApplicationContextOptions = {}) {

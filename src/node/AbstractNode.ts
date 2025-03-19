@@ -91,10 +91,12 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
     }
 
     public async beforeInitialize(context: InitializationContext): Promise<void> {
+        context.log.debug(`${this.constructor.name}.beforeInitialize('${this.name}')`);
         // do nothing, developers, override this method to take custom action.
     }
 
     public async afterInitialize(context: InitializationContext): Promise<void> {
+        context.log.debug(`${this.constructor.name}.afterInitialize('${this.name}')`);
         // do nothing, developers, override this method to take custom action.
     }
 
@@ -142,14 +144,17 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
     }
 
     public async beforeRequest(context: HttpContext): Promise<void> {
+        context.log.debug(`${this.constructor.name}.beforeRequest('${this.name}'): ${this.uri}.`);
         // do nothing, developers, override this method to take custom action.
     };
 
     public async onRequest(context: HttpContext): Promise<void> {
+        context.log.debug(`${this.constructor.name}.onRequest('${this.name}'): ${this.uri}.`);
         // do nothing, developers, override this method to take custom action.
     };
 
     public async afterRequest(context: HttpContext): Promise<void> {
+        context.log.debug(`${this.constructor.name}.afterRequest('${this.name}'): ${this.uri}.`);
         // do nothing, developers, override this method to take custom action.
     };
 

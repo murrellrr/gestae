@@ -44,8 +44,8 @@ export type NodeTemplateType = AbstractNode<any> | GestaeClassType | string;
  */
 export interface INodeTemplate {
     get name(): string;
-    get bindings(): Record<string, any>;
-    addTemplate(template: NodeTemplateType, options?: Record<string, any>): INodeTemplate;
+    get options(): Record<string, any>;
+    addTemplate(template: NodeTemplateType, options?: IOptions): INodeTemplate;
 }
 
 /**
@@ -58,12 +58,12 @@ export class NodeTemplate implements INodeTemplate {
     private readonly _node:     NodeTemplateType;
     private readonly _children: Map<string, NodeTemplate> = new Map();
     public  readonly name:      string;
-    public  readonly bindings:  IOptions = {};
+    public  readonly options:   IOptions = {};
 
-    constructor(node: NodeTemplateType, name: string, bindings: Record<string, any> = {}) {
-        this._node    = node;
-        this.name     = bindings.name ?? name;
-        this.bindings = bindings;
+    constructor(node: NodeTemplateType, name: string, options: IOptions = {}) {
+        this._node   = node;
+        this.name    = options.name ?? name;
+        this.options = options;
     }
 
     /**
@@ -103,7 +103,7 @@ export class NodeTemplate implements INodeTemplate {
      */
     async convert(context: InitializationContext): Promise<AbstractNode<any>> {
         // Checking to see if the base is a node.
-        const _result = context.nodeFactory.create(this);
+        const _result = context.nodeFactory.create(this, this.options);
         const _node   = _result.bottom ?? _result.top;
 
         // Converting child templates.

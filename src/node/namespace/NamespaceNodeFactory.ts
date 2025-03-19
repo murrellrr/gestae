@@ -22,7 +22,7 @@
 
 
 import { AbstractNodeFactoryChain, FactoryReturnType } from "../AbstractNodeFactoryChain";
-import { GestaeClassType, hasMetadata } from "../../Gestae";
+import { GestaeClassType, hasMetadata, IOptions } from "../../Gestae";
 import { GestaeError } from "../../error/GestaeError";
 import { NamespaceNode } from "./NamespaceNode";
 import { NAMESPACE_METADATA_KEY } from "./Namespace";
@@ -43,9 +43,9 @@ export class NamespaceNodeFactory extends AbstractNodeFactoryChain<INamespaceOpt
         return target.isString || NamespaceNodeFactory.hasNamespaceMetadata(target.node, NAMESPACE_METADATA_KEY);
     }
 
-    onCreate(target: NodeTemplate, bindings: Record<string, any> = {}): FactoryReturnType<INamespaceOptions, NamespaceNode> {
+    onCreate(target: NodeTemplate, options: IOptions = {}): FactoryReturnType<INamespaceOptions, NamespaceNode> {
         if(target.isString)
-            return NamespaceNodeFactory.createFromString((target.node as string));
+            return NamespaceNodeFactory.createFromString((target.node as string), options);
         else 
             return { top: NamespaceNode.create((target.node as GestaeClassType)) };
     }

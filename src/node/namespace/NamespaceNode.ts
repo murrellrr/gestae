@@ -34,6 +34,7 @@ import {
     NamespaceEvent, 
     NamespaceEvents 
 } from "./NamespaceEvent";
+import _ from "lodash";
 
 /**
  * @author Robert R Murrell
@@ -76,6 +77,8 @@ export class NamespaceNode extends AbstractTaskableNode<INamespaceOptions> imple
             return _result.bottom ?? _result.top;
         }
         else {
+            let _options = getsertClassMetadata(aClass, NAMESPACE_METADATA_KEY, options);
+            _options = _.merge(_options, options);
             return new NamespaceNode(getsertClassMetadata(aClass, NAMESPACE_METADATA_KEY, options));
         }
     }

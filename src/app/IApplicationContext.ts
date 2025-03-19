@@ -25,6 +25,7 @@ import { IAsyncEventQueue } from "../events/IAsyncEventQueue";
 import { IContext } from "../context/IContext";
 import { ILogger } from "../log/ILogger";
 import { IProperties } from "../properties/IProperties";
+import { IPluginManager } from "../plugins/IPluginManager";
 
 /**
  * @author Robert R Murrell
@@ -32,8 +33,9 @@ import { IProperties } from "../properties/IProperties";
  * @copyright 2024 KRI, LLC
  */
 export interface IApplicationContext extends IContext {
-    get log():            ILogger;
-    get properties():     IProperties;
-    get eventEmitter():   IAsyncEventEmitter;
-    get eventQueue():     IAsyncEventQueue;
+    get log():          ILogger;
+    get properties():   IProperties;
+    get eventEmitter(): IAsyncEventEmitter;
+    get eventQueue():   IAsyncEventQueue;
+    get plugins():      IPluginManager;
 }

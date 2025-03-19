@@ -65,14 +65,14 @@ export abstract class AbstractResourceHandler {
     abstract createEvent(context: HttpContext, event: string, data: IResourceItem<any>): ResourceEvent;
 
     async beforeRequest(context: HttpContext): Promise<void> {
-        context.log.debug(`${this.constructor.name}.beforeRequest(): Enter.`);
+        context.log.debug(`${this.constructor.name}.beforeRequest('${this.resource.name}')`);
         let _data: GestaeObjectType = await this.getData(context);
         const _resource: IResourceItem<any> = context.resourceManager.setValue(this.resource, _data);
         await this.emitData(context, ResourceEvents.before, _resource);
     }
 
     async onRequest(context: HttpContext): Promise<void> {
-        context.log.debug(`${this.constructor.name}.onRequest(): Enter.`);
+        context.log.debug(`${this.constructor.name}.onRequest('${this.resource.name}')`);
         const _resource: IResourceItem<any> = context.resourceManager.get(this.resource);
         await this.emitData(context, ResourceEvents.on, _resource);
         if(this.target)
@@ -80,7 +80,7 @@ export abstract class AbstractResourceHandler {
     }
 
     async afterRequest(context: HttpContext): Promise<void> {
-        context.log.debug(`${this.constructor.name}.afterRequest(): Enter.`);
+        context.log.debug(`${this.constructor.name}.afterRequest('${this.resource.name}')`);
         const _resource: IResourceItem<any> = context.resourceManager.get(this.resource);
         await this.emitData(context, ResourceEvents.after, _resource);
     }

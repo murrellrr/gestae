@@ -66,6 +66,7 @@ import { InitializationContext } from "./InitializationContext";
 import { AbstractHttpResponseBody } from "../http/AbstractHttpResponseBody";
 import { AbstractHttpRequestBody } from "../http/AbstractHttpRequestBody";
 import { EventFeatureFactory } from "../events/EventFeatureFactory";
+import { AbstractPlugin, IPluginOptions } from "../plugins/AbstractPlugin";
 
 /**
  * @description
@@ -180,6 +181,10 @@ export class Application {
     public    readonly options:      IApplicationOptions;
     public    readonly log:          ILogger;
     
+    /**
+     * @description Creates a new instance of the Gestae Application.
+     * @param options Configuration options for controlling Gestae during runtime.
+     */
     constructor(options: IApplicationOptions = {}) {
         this.options = options;
         // Setting up default options.
@@ -250,8 +255,13 @@ export class Application {
         return this._context;
     }
 
-    addTemplate(template: NodeTemplateType, bindings?: Record<string, any>): INodeTemplate {
-        return this._template.addTemplate(template);
+    addTemplate(template: NodeTemplateType, options?: IOptions): INodeTemplate {
+        return this._template.addTemplate(template, options);
+    }
+
+    addPlugin(plugin: AbstractPlugin<any>, options: IPluginOptions = {}): this {
+        this._context.pluginManager.addPlugin(plugin, options);
+        return this;
     }
 
     on<T, E extends GestaeEvent<T>>(event: string | RegExp, listener: (event: E) => Promise<void> | void, once?: boolean) : this {

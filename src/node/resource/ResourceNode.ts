@@ -61,7 +61,6 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
 
     constructor(target: GestaeClassType, options: IResourceOptions = {}) {
         // Ensure the resource name is properly overridden.
-        options.name = options.resourceId ?? options.name?.toLowerCase() ?? target.name.toLowerCase();
         super(target, options);
         this.idProperty = options.idProperty ?? "id";
         this.lazyLoad   = options.lazyLoad ?? true;
@@ -178,6 +177,8 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
     }
 
     static create(aClass: GestaeClassType, options: IResourceOptions = {}): ResourceNode {
-        return new ResourceNode(aClass, getsertClassMetadata(aClass, RESOURCE_METADATA_KEY, options));
+        let _options = getsertClassMetadata(aClass, RESOURCE_METADATA_KEY, options);
+        _options = _.merge(_options, options);
+        return new ResourceNode(aClass, _options);
     }
 }

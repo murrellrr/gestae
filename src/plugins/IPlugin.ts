@@ -20,31 +20,20 @@
  *  THE SOFTWARE.
  */
 
-import { 
-    isClassConstructor, 
-    hasClassMetadata, 
-    GestaeClassType, 
-    IOptions
-} from "../../Gestae";
-import { 
-    AbstractNodeFactoryChain, 
-    FactoryReturnType 
-} from "../AbstractNodeFactoryChain";
-import { NodeTemplate } from "../NodeTemplate";
-import { IResourceOptions, RESOURCE_METADATA_KEY } from "./Resource";
-import { ResourceNode } from "./ResourceNode";
+import { IPluginOptions } from "./AbstractPlugin";
 
-/**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export class ResourceNodeFactory extends AbstractNodeFactoryChain<IResourceOptions, ResourceNode> {
-    isNodeFactory(target: NodeTemplate): boolean {
-        return isClassConstructor(target.node) && hasClassMetadata(target.node, RESOURCE_METADATA_KEY);
-    }
-
-    onCreate(target: NodeTemplate, options: IOptions = {}): FactoryReturnType<IResourceOptions, ResourceNode> {
-        return {top: ResourceNode.create((target.node as GestaeClassType), options)};
-    }
-}
+export interface IPlugin<O extends IPluginOptions> {
+    get uuid(): string;
+    get name(): string;
+    get domain(): string;
+    get version(): string;
+    get vendor(): string;
+    get author(): string;
+    get description(): string;
+    get license(): string;
+    get canonicalName(): string;
+    get required(): boolean;
+    get dependencies(): string[];
+    get state(): string;
+    get options(): O;
+};
