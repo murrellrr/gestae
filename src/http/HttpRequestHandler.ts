@@ -20,7 +20,7 @@
  *  THE SOFTWARE.
  */
 
-import { ApplicationContext } from "../app/ApplicationContext";
+import { ApplicationContext } from "../application/ApplicationContext";
 import { HttpMethodEnum } from "./HTTP";
 import { GestaeError } from "../error/GestaeError";
 import { MethodNotAllowedError } from "../error/MethodNotAllowedError";
@@ -32,7 +32,11 @@ import { AbstractNode } from "../node/AbstractNode"
 import { AbstractHttpRequestBody } from "./AbstractHttpRequestBody";
 import { AbstractHttpResponseBody } from "./AbstractHttpResponseBody";
 import { HttpPassThrough } from "./HttpPassThrough";
+import { HttpEvent, HttpEvents } from "./HttpEvent";
+import { createApplicationEventPath, createHttpEventPath } from "../events/GestaeEvent";
 import http from "http";
+import { IHttpData } from "./IHttpData";
+import { ApplicationEvent, ApplicationEvents } from "../application/ApplicationEvent";
 
 /**
  * @author Robert R Murrell
@@ -54,8 +58,7 @@ export abstract class AbstractHttpRequestHandler {
         this.root         = root;
         this.requestBody  = requestBody;
         this.responseBody = responseBody;
-        this.size         = sizeMB;
-        this.size         = this.size * 1024 * 1024;
+        this.size         = sizeMB * 1024 * 1024;
         this.timeout      = timeoutMS;
     }
 
@@ -65,6 +68,60 @@ export abstract class AbstractHttpRequestHandler {
     protected abstract handleError(httpc: HttpContext, error?: any): Promise<void>;
 
     protected abstract processRequest(httpc: HttpContext): Promise<void>;
+
+    protected async _emitHttpBefore(httpc: HttpContext): Promise<void> {
+        this.context.eventEmitter.emit(
+            new HttpEvent<IHttpData>(httpc, {requestBody: this.requestBody, responseBody: this.responseBody},
+                createHttpEventPath(HttpEvents.Http.OnBefore)));
+    }
+
+    protected async _emitHttpAfter(httpc: HttpContext): Promise<void> {
+        this.context.eventEmitter.emit(
+            new HttpEvent<IHttpData>(httpc, {requestBody: this.requestBody, responseBody: this.responseBody},
+                createHttpEventPath(HttpEvents.Http.OnAfter)));
+    }
+
+    protected async _emitBeforeError(httpc: HttpContext): Promise<void> {
+        try {
+            this.context.eventEmitter.emit(
+                new ApplicationEvent<IHttpData>(this.context, {requestBody: this.requestBody, responseBody: this.responseBody},
+                    createApplicationEventPath(ApplicationEvents.Error.OnBefore)));
+        }
+        catch(error) {
+            this.context.log.error(`AbstractHttpRequestHandler._emitBeforeError(): Error raised in error event: ${error}`);
+        }
+    }
+
+    protected async _emitAfterError(httpc: HttpContext): Promise<void> {
+        try {
+            this.context.eventEmitter.emit(
+                new ApplicationEvent<IHttpData>(this.context, {requestBody: this.requestBody, responseBody: this.responseBody},
+                    createApplicationEventPath(ApplicationEvents.Error.OnAfter)));
+        }
+        catch(error) {
+            this.context.log.error(`AbstractHttpRequestHandler._emitAfterError(): Error raised in error event: ${error}`);
+        }
+    }
+
+    protected async _emitHttpMethodBefore(httpc: HttpContext): Promise<void> {
+        this.context.eventEmitter.emit(
+            new HttpEvent<IHttpData>(httpc, {requestBody: this.requestBody, responseBody: this.responseBody},
+                createHttpEventPath({
+                    operation: HttpEvents.Http.OnBefore.operation,
+                    action:    HttpEvents.Http.OnBefore.action,
+                    topic:     httpc.request.method
+                })));
+    }
+
+    protected async _emitHttpMethodAfter(httpc: HttpContext): Promise<void> {
+        this.context.eventEmitter.emit(
+            new HttpEvent<IHttpData>(httpc, {requestBody: this.requestBody, responseBody: this.responseBody},
+                createHttpEventPath({
+                    operation: HttpEvents.Http.OnAfter.operation,
+                    action:    HttpEvents.Http.OnAfter.action,
+                    topic:     httpc.request.method
+                })));
+    }
 
     async handleRequest(req: http.IncomingMessage, 
                         res: http.ServerResponse,
@@ -86,16 +143,22 @@ export abstract class AbstractHttpRequestHandler {
         const _httpc = this.createHttpContext(_req, _res, root);
 
         try {
+            await this._emitHttpBefore(_httpc);
+            await this._emitHttpMethodBefore(_httpc);
             await this.processRequest(_httpc);
         }
         catch(error) {
+            await this._emitBeforeError(_httpc);
             await this.handleError(_httpc, error);
+            await this._emitAfterError(_httpc);
         }
         finally {
             if(await _res.write()) 
-                _httpc.log.debug("Response written to client.");
+                _httpc.log.debug("AbstractHttpRequestHandler.handleRequest(): Response written to client.");
             else 
-                _httpc.log.warn("Failed to write response to client.");
+                _httpc.log.warn("AbstractHttpRequestHandler.handleRequest(): Failed to write response to client.");
+            await this._emitHttpMethodAfter(_httpc);
+            await this._emitHttpAfter(_httpc);
         }
     }
 }

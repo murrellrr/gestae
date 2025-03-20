@@ -20,8 +20,37 @@
  *  THE SOFTWARE.
  */
 
-import { IApplicationContext } from "../app/IApplicationContext";
-import { GestaeEvent } from "./GestaeEvent";
+import { IApplicationContext } from "./IApplicationContext";
+import { EventRegisterType, GestaeEvent } from "../events/GestaeEvent";
+
+/**
+ * @description
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export const ApplicationEvents = {
+    Initialize: {
+        OnBefore: {operation: "initialize", action: "before"} as EventRegisterType,
+        OnAfter:  {operation: "initialize", action: "after" } as EventRegisterType,
+    },
+    Start: {
+        OnBefore: {operation: "start", action: "before"} as EventRegisterType,
+        OnAfter:  {operation: "start", action: "after" } as EventRegisterType,
+    },
+    Stop: {
+        OnBefore: {operation: "stop", action: "before"} as EventRegisterType,
+        OnAfter:  {operation: "stop", action: "after" } as EventRegisterType,
+    },
+    Finalize: {
+        OnBefore: {operation: "finalize", action: "before"} as EventRegisterType,
+        OnAfter:  {operation: "finalize", action: "after" } as EventRegisterType,
+    },
+    Error: {
+        OnBefore: {operation: "error", action: "before"} as EventRegisterType,
+        OnAfter:  {operation: "error", action: "after" } as EventRegisterType,
+    }
+};
 
 /**
  * @author Robert R Murrell

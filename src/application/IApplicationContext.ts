@@ -20,39 +20,24 @@
  *  THE SOFTWARE.
  */
 
-import { IApplicationContext } from "../application/IApplicationContext";
+import { IAsyncEventEmitter } from "../events/IAsyncEventEmitter";
+import { IAsyncEventQueue } from "../events/IAsyncEventQueue";
+import { IContext } from "../context/IContext";
 import { ILogger } from "../log/ILogger";
-import { AbstractNode } from "./AbstractNode";
+import { IProperties } from "../properties/IProperties";
+import { IPluginManager } from "../plugins/IPluginManager";
+import { IApplication } from "./IApplication";
 
 /**
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export abstract class AbstractFeatureFactoryChain<P extends AbstractNode<any>> {
-    protected context: IApplicationContext;
-    protected log:      ILogger;
-    private   _link?: AbstractFeatureFactoryChain<any>;
-    
-    constructor(context: IApplicationContext, link?: AbstractFeatureFactoryChain<any>) {
-        this.context = context;
-        this._link = link;
-        this.log = this.context.log;
-    }
-
-    add(link: AbstractFeatureFactoryChain<any>) {
-        if(!this._link) this._link = link;
-        else this._link.add(link);
-    }
-
-    abstract isFeatureFactory(node: P): boolean;
-
-    abstract onApply(node: P): void;
-
-    apply(node: P): void {
-        if(this.isFeatureFactory(node))
-            this.onApply(node);
-        if(this._link) 
-            this._link.apply(node);
-    }
+export interface IApplicationContext extends IContext {
+    get log():          ILogger;
+    get application():  IApplication;
+    get properties():   IProperties;
+    get eventEmitter(): IAsyncEventEmitter;
+    get eventQueue():   IAsyncEventQueue;
+    get plugins():      IPluginManager;
 }

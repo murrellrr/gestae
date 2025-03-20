@@ -20,7 +20,7 @@
  *  THE SOFTWARE.
  */
 
-import { IApplicationContext } from "../app/IApplicationContext";
+import { IApplicationContext } from "../application/IApplicationContext";
 import { IContext } from "../context/IContext";
 import { ILogger } from "../log/ILogger";
 import { INode } from "../node/INode";

@@ -20,8 +20,8 @@
  *  THE SOFTWARE.
  */
 
-import { IApplicationContext } from "../app/IApplicationContext";
-import { ApplicationContext } from "../app/ApplicationContext";
+import { IApplicationContext } from "../application/IApplicationContext";
+import { ApplicationContext } from "../application/ApplicationContext";
 import { ILogger } from "../log/ILogger";
 import { AbstractContext } from "../context/AbstractContext";
 import { IResourceReader } from "../node/resource/manager/IResourceReader";

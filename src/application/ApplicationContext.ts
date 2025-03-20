@@ -29,6 +29,7 @@ import { IProperties } from "../properties/IProperties";
 import { IApplicationContext } from "./IApplicationContext";
 import { IPluginManager } from "../plugins/IPluginManager";
 import { PluginManager } from "../plugins/PluginManager";
+import { IApplication } from "./IApplication";
 
 /**
  * @author Robert R Murrell
@@ -45,19 +46,23 @@ export interface IApplicationContextOptions {
  * @copyright 2024 KRI, LLC
  */
 export class ApplicationContext extends AbstractContext implements IApplicationContext {
-    public    readonly properties:    IProperties;
-    public    readonly log:           ILogger;
-    public    readonly pluginManager: PluginManager;
-    protected readonly options:       IApplicationContextOptions;
-    private   readonly events:        AsyncEventEmitter;
+    public  readonly application:   IApplication;
+    public  readonly pluginManager: PluginManager;
+    private readonly events:        AsyncEventEmitter;
     
-    constructor(log: ILogger, properties: IProperties, options: IApplicationContextOptions = {}) {
+    constructor(application: IApplication) {
         super();
-        this.options       = options;
-        this.log           = log;
-        this.properties    = properties;
-        this.events        = new AsyncEventEmitter(this.log); 
-        this.pluginManager = new PluginManager(this.log);
+        this.application   = application;
+        this.events        = new AsyncEventEmitter(application.log); 
+        this.pluginManager = new PluginManager(application.log);
+    }
+
+    get log(): ILogger {
+        return this.application.log;
+    }
+
+    get properties(): IProperties {
+        return this.application.properties;
     }
 
     get eventEmitter(): IAsyncEventEmitter {
@@ -72,7 +77,7 @@ export class ApplicationContext extends AbstractContext implements IApplicationC
         return this.pluginManager;
     }
 
-    static create(log: ILogger, properties: IProperties, options: IApplicationContextOptions = {}) {
-        return new ApplicationContext(log, properties, options);
+    static create(application: IApplication) {
+        return new ApplicationContext(application);
     }
 }

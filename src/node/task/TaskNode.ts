@@ -27,7 +27,7 @@ import {
 import { GestaeError } from "../../error/GestaeError";
 import { MethodNotAllowedError } from "../../error/MethodNotAllowedError";
 import { AbstractNode, } from "../AbstractNode";
-import { InitializationContext } from "../../app/InitializationContext";
+import { InitializationContext } from "../../application/InitializationContext";
 import { 
     TaskEvent, 
     TaskEvents 

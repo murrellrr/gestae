@@ -98,13 +98,6 @@ export class ResourceEvent extends HttpEvent<IResourceItem<any>> {
     }
 }
 
-
-
-
-
-
-
-
 /**
  * @author Robert R Murrell
  * @license MIT

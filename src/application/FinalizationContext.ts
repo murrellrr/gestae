@@ -20,22 +20,25 @@
  *  THE SOFTWARE.
  */
 
-import { IAsyncEventEmitter } from "../events/IAsyncEventEmitter";
-import { IAsyncEventQueue } from "../events/IAsyncEventQueue";
-import { IContext } from "../context/IContext";
 import { ILogger } from "../log/ILogger";
-import { IProperties } from "../properties/IProperties";
-import { IPluginManager } from "../plugins/IPluginManager";
+import { IApplicationContext } from "./IApplicationContext";
 
 /**
+ * @description Context used during initialization of the Templates and Nodes.
  * @author Robert R Murrell
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export interface IApplicationContext extends IContext {
-    get log():          ILogger;
-    get properties():   IProperties;
-    get eventEmitter(): IAsyncEventEmitter;
-    get eventQueue():   IAsyncEventQueue;
-    get plugins():      IPluginManager;
+export class FinalizationContext {
+    public readonly applicationContext: IApplicationContext;
+    public readonly log:                ILogger;
+
+    constructor(context: IApplicationContext) {
+        this.applicationContext = context;
+        this.log                = context.log;
+    }
+
+    static create(context: IApplicationContext): FinalizationContext {
+        return new FinalizationContext(context);
+    }
 }

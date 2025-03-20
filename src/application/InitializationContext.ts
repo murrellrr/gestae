@@ -26,15 +26,6 @@ import { ILogger } from "../log/ILogger";
 import { IApplicationContext } from "./IApplicationContext";
 
 /**
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export interface IInitializationContextOptions {
-    //
-}
-
-/**
  * @description Context used during initialization of the Templates and Nodes.
  * @author Robert R Murrell
  * @license MIT
@@ -44,24 +35,20 @@ export class InitializationContext {
     public readonly applicationContext: IApplicationContext;
     public readonly nodeFactory:        AbstractNodeFactoryChain<any, any>;
     public readonly featureFactory:     AbstractFeatureFactoryChain<any>;
-    public readonly options:            IInitializationContextOptions;
     public readonly log:                ILogger;
 
     constructor(context: IApplicationContext, 
                 nodeChain: AbstractNodeFactoryChain<any, any>, 
-                featureChain: AbstractFeatureFactoryChain<any>, 
-                options: IInitializationContextOptions = {}) {
+                featureChain: AbstractFeatureFactoryChain<any>) {
         this.applicationContext = context;
         this.log                = context.log;
         this.nodeFactory        = nodeChain;
         this.featureFactory     = featureChain;
-        this.options            = options;
     }
 
     static create(context: IApplicationContext, 
                   nodeChain: AbstractNodeFactoryChain<any, any>, 
-                  featureChain: AbstractFeatureFactoryChain<any>, 
-                  options: IInitializationContextOptions = {}): InitializationContext {
-        return new InitializationContext(context, nodeChain, featureChain, options);
+                  featureChain: AbstractFeatureFactoryChain<any>): InitializationContext {
+        return new InitializationContext(context, nodeChain, featureChain);
     }
 }

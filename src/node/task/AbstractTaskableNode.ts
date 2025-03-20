@@ -25,7 +25,7 @@ import {
     hasClassMetadata, 
     getsertClassMetadata 
 } from "../../Gestae";
-import { InitializationContext } from "../../app/InitializationContext";
+import { InitializationContext } from "../../application/InitializationContext";
 import { AbstractNode } from "../AbstractNode";
 import { INodeOptions } from "../INode";
 import { IResourceNode } from "../resource/IResourceNode";

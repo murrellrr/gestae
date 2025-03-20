@@ -20,7 +20,7 @@
  *  THE SOFTWARE.
  */
 
-import { InitializationContext } from "../app/InitializationContext";
+import { InitializationContext } from "../application/InitializationContext";
 import { 
     GestaeClassType, 
     GestaeObjectType 
@@ -30,6 +30,7 @@ import { NotFoundError } from "../error/NotFoundError";
 import { GestaeEvent } from "../events/GestaeEvent";
 import { HttpContext } from "../http/HttpContext";
 import { INodeOptions, INode } from "./INode";
+import { FinalizationContext } from "../application/FinalizationContext";
 
 /**
  * @author Robert R Murrell
@@ -100,11 +101,13 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
         // do nothing, developers, override this method to take custom action.
     }
 
-    public async beforeFinalize(): Promise<void> {
+    public async beforeFinalize(context: FinalizationContext): Promise<void> {
+        context.log.debug(`${this.constructor.name}.beforeFinalize('${this.name}')`);
         // do nothing, developers, override this method to take custom action.
     };
 
-    public async afterFinalize(): Promise<void> {
+    public async afterFinalize(context:  FinalizationContext): Promise<void> {
+        context.log.debug(`${this.constructor.name}.afterFinalize('${this.name}')`);
         // do nothing, developers, override this method to take custom action.
     };
 
@@ -194,13 +197,12 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
         await this.afterRequest(context);
     }
 
-    public async finalize(): Promise<void> {
-        //this.log.debug(`Finalizing ${this.constructor.name} '${this.name}'.`);
-        await this.beforeFinalize();
+    public async finalize(context: FinalizationContext): Promise<void> {
+        context.log.debug(`${this.constructor.name}.finalize('${this.name}')`);
+        await this.beforeFinalize(context);
         for(const child of this.children.values()) {
-            await child.finalize();
+            await child.finalize(context);
         }
-        await this.afterFinalize();
-        //this.log.debug(`${this.constructor.name} '${this.name}' finalized.`);
+        await this.afterFinalize(context);
     }
 }

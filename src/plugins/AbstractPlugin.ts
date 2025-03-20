@@ -21,8 +21,10 @@
  */
 
 import { GestaeError } from "../error/GestaeError";
-import { IApplicationContext } from "../app/IApplicationContext";
+import { IApplicationContext } from "../application/IApplicationContext";
 import { IPlugin } from "./IPlugin";
+import { InitializationContext } from "../application/InitializationContext";
+import { FinalizationContext } from "../application/FinalizationContext";
 
 export const PluginStates = {
     Unloaded: "unloaded",
@@ -79,39 +81,39 @@ export abstract class AbstractPlugin<O extends IPluginOptions> implements IPlugi
         return this._state;
     }
 
-    async doLoad(context: IApplicationContext): Promise<void> {
+    async doLoad(context: InitializationContext): Promise<void> {
         // do nothing 
     }
 
-    async doStart(context: IApplicationContext): Promise<void> {
+    async doStart(context: InitializationContext): Promise<void> {
         // do nothing 
     }
 
-    async doStop(context: IApplicationContext): Promise<void> {
+    async doStop(context: FinalizationContext): Promise<void> {
         // do nothing 
     }
 
-    async doUnload(context: IApplicationContext): Promise<void> {
+    async doUnload(context: FinalizationContext): Promise<void> {
         // do nothing 
     }
 
-    async load(context: IApplicationContext): Promise<void> {
-        this._context = context;
+    async load(context: InitializationContext): Promise<void> {
+        this._context = context.applicationContext;
         await this.doLoad(context);
         this._state = PluginStates.Loaded;
     }
 
-    async start(context: IApplicationContext): Promise<void> {
+    async start(context: InitializationContext): Promise<void> {
         await this.doStart(context);
         this._state = PluginStates.Started;
     }
     
-    async stop(context: IApplicationContext): Promise<void> {
+    async stop(context: FinalizationContext): Promise<void> {
         await this.doStop(context);
         this._state = PluginStates.Loaded;
     }
 
-    async unload(context: IApplicationContext): Promise<void> {
+    async unload(context: FinalizationContext): Promise<void> {
         this._state = PluginStates.Unloaded;
         await this.doUnload(context);
     }

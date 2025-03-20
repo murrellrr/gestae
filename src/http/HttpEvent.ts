@@ -20,6 +20,7 @@
  *  THE SOFTWARE.
  */
 
+import { GestaeObjectType } from "../Gestae";
 import { 
     EventRegisterType, 
     GestaeEvent,
@@ -39,43 +40,35 @@ import { IHttpContext } from "./IHttpContext";
  */
 export const HttpEvents = {
     Http: {
-        OnBefore: {operation: "get", action: "before"} as EventRegisterType,
-        On:       {operation: "get", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "get", action: "after" } as EventRegisterType,
+        OnBefore: {action: "before"} as EventRegisterType,
+        OnAfter:  {action: "after" } as EventRegisterType,
     },
     Get: {
         OnBefore: {operation: "get", action: "before"} as EventRegisterType,
-        On:       {operation: "get", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "get", action: "after" } as EventRegisterType,
     },
     Post: {
         OnBefore: {operation: "post", action: "before"} as EventRegisterType,
-        On:       {operation: "post", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "post", action: "after" } as EventRegisterType,
     },
     Put: {
         OnBefore: {operation: "put", action: "before"} as EventRegisterType,
-        On:       {operation: "put", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "put", action: "after" } as EventRegisterType,
     },
     Delete: {
         OnBefore: {operation: "delete", action: "before"} as EventRegisterType,
-        On:       {operation: "delete", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "delete", action: "after" } as EventRegisterType,
     },
     Patch: {
         OnBefore: {operation: "patch", action: "before"} as EventRegisterType,
-        On:       {operation: "patch", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "patch", action: "after" } as EventRegisterType,
     },
     Options: {
         OnBefore: {operation: "options", action: "before"} as EventRegisterType,
-        On:       {operation: "options", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "options", action: "after" } as EventRegisterType,
     },
     Head: {
         OnBefore: {operation: "head", action: "before"} as EventRegisterType,
-        On:       {operation: "head", action: "on"    } as EventRegisterType,
         OnAfter:  {operation: "head", action: "after" } as EventRegisterType,
     }
 };
@@ -85,12 +78,16 @@ export const HttpEvents = {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class HttpEvent<T = {}> extends GestaeEvent<T> {
-    public readonly context: IHttpContext;
+export class HttpEvent<T extends GestaeObjectType> extends GestaeEvent<T> {
+    public readonly context : IHttpContext;
 
     constructor(context: IHttpContext, data: T, path?: string) {
         super(data, path);
         this.context = context;
+    }
+
+    get method(): string {
+        return this.context.request.method;
     }
 
     async getBody<T>(content?: AbstractHttpRequestBody<T>): Promise<T> {
@@ -117,7 +114,7 @@ export class HttpEvent<T = {}> extends GestaeEvent<T> {
  */
 export function OnHttpEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
-                                       descriptor: TypedPropertyDescriptor<(event: HttpEvent) => Promise<void>>) {
+                                       descriptor: TypedPropertyDescriptor<(event: HttpEvent<any>) => Promise<void>>) {
         setEventMetadata(target, event, property, options);
     };
 } // Cant be constant because it is used as a decorator.

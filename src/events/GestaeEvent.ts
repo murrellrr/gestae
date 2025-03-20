@@ -26,7 +26,7 @@ import {
     IOptions,
 } from "../Gestae";
 import { INode } from "../node/INode";
-import { ApplicationEvent } from "./ApplicationEvent";
+import { ApplicationEvent } from "../application/ApplicationEvent";
 
 export const EVENT_OPTIONS_KEY = "gestaejs:event";
 
@@ -117,7 +117,13 @@ export const createEventRegister = (operation: string, action: string, topic?: s
  */
 export const createEventPathFromRegister = (event: EventRegisterType, topic?: string): string => {
     event.topic = topic ?? event.topic;
-    return (event.topic ? event.topic + ":" : "") + event.operation + ":" + event.action;
+
+    let path = '';
+    if(event.topic) path += `${event.topic}:`;
+    if(event.operation) path += `${event.operation}:`;
+    path += event.action;
+
+    return path;
 }
 
 /**
@@ -139,6 +145,14 @@ export const createEventPathFromNode = (node: INode, event: EventRegisterType, t
  */
 export const createEventPath = (event: EventRegisterType, path: string): string => {
     return `gestaejs:${path}:${createEventPathFromRegister(event)}`;
+}
+
+export const createApplicationEventPath = (event: EventRegisterType) => {
+    return createEventPath(event, "application");
+}
+
+export const createHttpEventPath = (event: EventRegisterType) => {
+    return createEventPath(event, "http");
 }
 
 /**

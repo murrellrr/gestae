@@ -21,14 +21,12 @@
  */
 
 import { 
+    defaultFeatureChainFactory,
+    defaultNodeChainFactory,
     IOptions, 
 } from "../Gestae";
-import { 
-    NamespaceNodeFactory, 
-} from "../node/namespace/NamespaceNodeFactory";
 import { INode } from "../node/INode";
 import { AbstractNode } from "../node/AbstractNode";
-import { ResourceNodeFactory } from "../node/resource/ResourceNodeFactory";
 import { 
     ILogger, 
     ILoggerOptions 
@@ -40,11 +38,11 @@ import {
 } from "../properties/Properties";
 import { GestaeError } from "../error/GestaeError";
 import { 
-    EventRegisterType, 
+    createApplicationEventPath,
+    createHttpEventPath,
     GestaeEvent
 } from "../events/GestaeEvent";
 import { AbstractFeatureFactoryChain } from "../node/AbstractFeatureFactoryChain";
-import { SchemaFeatureFactory } from "../node/schema/SchemaFeatureFactory";
 import { 
     INodeTemplate, 
     NodeTemplateType, 
@@ -54,9 +52,6 @@ import { AbstractNodeFactoryChain } from "../node/AbstractNodeFactoryChain";
 import { 
     HttpRequestHandler 
 } from "../http/HttpRequestHandler";
-import { ResourceFeatureFactory } from "../node/resource/ResourceFeatureFactory";
-import { SearchableResourceFeatureFactory } from "../node/resource/search/SearchableResourceFeatureFactory";
-import http from "node:http";
 import { JSONRequestBody } from "../http/JSONRequestBody";
 import { JSONResponseBody } from "../http/JSONResponseBody";
 import { BaseProperties } from "../properties/BaseProperties";
@@ -65,8 +60,11 @@ import { IApplicationContext } from "./IApplicationContext";
 import { InitializationContext } from "./InitializationContext";
 import { AbstractHttpResponseBody } from "../http/AbstractHttpResponseBody";
 import { AbstractHttpRequestBody } from "../http/AbstractHttpRequestBody";
-import { EventFeatureFactory } from "../events/EventFeatureFactory";
 import { AbstractPlugin, IPluginOptions } from "../plugins/AbstractPlugin";
+import { IApplication } from "./IApplication";
+import { IProperties } from "../properties/IProperties";
+import { ApplicationEvent, ApplicationEvents } from "./ApplicationEvent";
+import http from "node:http";
 
 /**
  * @description
@@ -81,35 +79,6 @@ const DEFAULT_PORT               = 3000;
 const DEFAULT_ROOT               = "/";
 const DEFAULT_REQUEST_SIZE_MB    = 5;
 const DEFAULT_REQUEST_TIMEOUT_MS = 5;
-
-/**
- * @description
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export const ApplicationEvents = {
-    Initialize: {
-        OnBefore: {operation: "initialize", action: "before"} as EventRegisterType,
-        On:       {operation: "initialize", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "initialize", action: "after" } as EventRegisterType,
-    },
-    Start: {
-        OnBefore: {operation: "start", action: "before"} as EventRegisterType,
-        On:       {operation: "start", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "start", action: "after" } as EventRegisterType,
-    },
-    Finalize: {
-        OnBefore: {operation: "finalize", action: "before"} as EventRegisterType,
-        On:       {operation: "finalize", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "finalize", action: "after" } as EventRegisterType,
-    },
-    Error: {
-        OnBefore: {operation: "error", action: "before"} as EventRegisterType,
-        On:       {operation: "error", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "error", action: "after" } as EventRegisterType,
-    }
-};
 
 /**
  * @author Robert R Murrell
@@ -168,16 +137,16 @@ export interface IApplicationOptions extends IOptions {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class Application {
+export class Application implements IApplication {
     protected          _server:      http.Server | undefined;
     protected readonly _template:    NodeTemplate;
     protected          _root:        AbstractNode<any> | undefined;
     protected readonly _context:     ApplicationContext;
     protected readonly _properties:  Properties; 
-    protected readonly sizeMB:       number;
-    protected readonly timeoutMS:    number;
-    protected readonly requestBody:  AbstractHttpRequestBody<any>;
-    protected readonly responseBody: AbstractHttpResponseBody<any>;
+    public             sizeMB:       number;
+    public             timeoutMS:    number;
+    public             requestBody:  AbstractHttpRequestBody<any>;
+    public             responseBody: AbstractHttpResponseBody<any>;
     public    readonly options:      IApplicationOptions;
     public    readonly log:          ILogger;
     
@@ -212,23 +181,15 @@ export class Application {
 
         // Properties.
         options.propertyFactory = options.propertyFactory ?? BaseProperties.create;
-        options.properties = options.properties ?? {cache: false};
-        this._properties = options.propertyFactory(options.properties);                                   
+        options.properties      = options.properties ?? {cache: false};
+        this._properties        = options.propertyFactory(options.properties);                                   
 
         // Context.
-        this._context = ApplicationContext.create(this.log, this._properties, options);
+        this._context = ApplicationContext.create(this);
 
         // Node factories and features.
-        options.nodeChainFactory = options.nodeChainFactory ?? 
-                                    ((context: IApplicationContext): AbstractNodeFactoryChain<any, any> => 
-                                         new NamespaceNodeFactory(context, 
-                                             new ResourceNodeFactory(context)));
-        options.featureChainFactory = options.featureChainFactory ?? 
-                                   ((context: IApplicationContext): AbstractFeatureFactoryChain<any> => 
-                                        new EventFeatureFactory(context,  
-                                            new SchemaFeatureFactory(context, 
-                                                new SearchableResourceFeatureFactory(context, 
-                                                    new ResourceFeatureFactory(context)))));
+        options.nodeChainFactory    = options.nodeChainFactory    ?? defaultNodeChainFactory;
+        options.featureChainFactory = options.featureChainFactory ?? defaultFeatureChainFactory;
         
         // Application Root.
         options.root = options.root ?? DEFAULT_ROOT;
@@ -255,6 +216,10 @@ export class Application {
         return this._context;
     }
 
+    get properties(): IProperties {
+        return this._properties;
+    }
+
     addTemplate(template: NodeTemplateType, options?: IOptions): INodeTemplate {
         return this._template.addTemplate(template, options);
     }
@@ -279,19 +244,53 @@ export class Application {
         return this;
     }
 
+    protected async _emitBeforeInitialize(context: InitializationContext): Promise<void> {
+        return this._context.eventEmitter.emit(
+            new ApplicationEvent<InitializationContext>(this.context, context, 
+                createApplicationEventPath(ApplicationEvents.Initialize.OnBefore)));
+    }
+
+    protected async _emitAfterInitialize(context: InitializationContext): Promise<void> {
+        return this._context.eventEmitter.emit(
+            new ApplicationEvent<InitializationContext>(this.context, context, 
+                createApplicationEventPath(ApplicationEvents.Initialize.OnAfter)));
+    }
+
+    protected async _emitBeforeStart(): Promise<void> {
+        return this._context.eventEmitter.emit(
+            new ApplicationEvent<IApplication>(this.context, this, 
+                createApplicationEventPath(ApplicationEvents.Start.OnBefore)));
+    }
+
+    protected async _emitAfterStart(): Promise<void> {
+        return this._context.eventEmitter.emit(
+            new ApplicationEvent<IApplication>(this.context, this, 
+                createApplicationEventPath(ApplicationEvents.Start.OnAfter)));
+    }
+
     protected async onInitialize(): Promise<void> {
-        //this.log.warn(`Application '${JSON.stringify(getGestaeMetadata(), null, 2)}'`);
         const _initContext: InitializationContext = 
             InitializationContext.create(this.context, this.options.nodeChainFactory!(this.context), 
                                          this.options.featureChainFactory!(this.context));
+
+        // Fire the before initialize event.
+        await this._emitBeforeInitialize(_initContext);
+
+        // TODO: Initialize the plugins.
+
         // Initialize the templates to nodes.
         this._root = await this._template.convert(_initContext);
+
         // Initialize the nodes.
         await this._root.initialize(_initContext);
         this.log.debug(`Application '${this.name}' initialized on root '${this._root.name}'.`);
+
+        // Wrap up the events.
+        await this._emitAfterInitialize(_initContext);
     }
 
     protected async onStart(): Promise<void> {
+        await this._emitBeforeStart();
         const _handler = HttpRequestHandler.create(this._context, this._root!,
                                                    this.requestBody, this.responseBody, 
                                                    this.sizeMB, this.timeoutMS); // Setting up the request handler.
@@ -299,9 +298,10 @@ export class Application {
             await _handler.handleRequest(req, res, this._root!);
         });
         this._server.listen(this.port);
+        await this._emitAfterStart();
     }
 
-    async start(): Promise<Application> {
+    async start(): Promise<IApplication> {
         console.log();
         console.log();
         console.log("   ________                 __              /\\  _____________________ ____________________ ");

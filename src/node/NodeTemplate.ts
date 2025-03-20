@@ -20,7 +20,7 @@
  *  THE SOFTWARE.
  */
 
-import { InitializationContext } from "../app/InitializationContext";
+import { InitializationContext } from "../application/InitializationContext";
 import { 
     GestaeClassType, 
     IOptions, 

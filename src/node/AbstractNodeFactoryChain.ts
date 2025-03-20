@@ -21,7 +21,7 @@
  */
 
 import { IOptions } from "../Gestae";
-import { IApplicationContext } from "../app/IApplicationContext";
+import { IApplicationContext } from "../application/IApplicationContext";
 import { GestaeError } from "../error/GestaeError";
 import { ILogger } from "../log/ILogger";
 import { AbstractNode } from "./AbstractNode";

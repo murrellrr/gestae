@@ -45,6 +45,7 @@ export class AsyncEventEmitter implements IAsyncEventEmitter, IAsyncEventQueue {
      * @param event - The event data.
      */
     async emit<T>(event: GestaeEvent<T>, target?: object): Promise<void> {
+        this.log.debug(`AsyncEventEmitter.emit('${event.path}')`);
         if(this.listeners.length === 0) return;
 
         const _remaining: IListenerItem[] = [];

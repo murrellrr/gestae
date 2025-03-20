@@ -20,6 +20,16 @@
  *  THE SOFTWARE.
  */
 
+import { IApplicationContext } from "./application/IApplicationContext";
+import { EventFeatureFactory } from "./events/EventFeatureFactory";
+import { AbstractFeatureFactoryChain } from "./node/AbstractFeatureFactoryChain";
+import { AbstractNodeFactoryChain } from "./node/AbstractNodeFactoryChain";
+import { NamespaceNodeFactory } from "./node/namespace/NamespaceNodeFactory";
+import { ResourceFeatureFactory } from "./node/resource/ResourceFeatureFactory";
+import { ResourceNodeFactory } from "./node/resource/ResourceNodeFactory";
+import { SearchableResourceFeatureFactory } from "./node/resource/search/SearchableResourceFeatureFactory";
+import { SchemaFeatureFactory } from "./node/schema/SchemaFeatureFactory";
+
 /**
  * @description _GESTAE_METADATA contains all the meta-data set by decorators in Gestate.
  *              Prefer this over experimental reflect metatdata.
@@ -367,3 +377,13 @@ export const isClassConstructor = (target: any): target is new (...args: any[]) 
 export const isPlainOleObject = (target: unknown): target is Record<string, any> => {
     return typeof target === "object" && target !== null && target.constructor === Object;
 }
+
+export const defaultNodeChainFactory = ((context: IApplicationContext): AbstractNodeFactoryChain<any, any> => 
+                                         new NamespaceNodeFactory(context, 
+                                             new ResourceNodeFactory(context)));
+
+export const defaultFeatureChainFactory = ((context: IApplicationContext): AbstractFeatureFactoryChain<any> => 
+                                        new EventFeatureFactory(context,  
+                                            new SchemaFeatureFactory(context, 
+                                                new SearchableResourceFeatureFactory(context, 
+                                                    new ResourceFeatureFactory(context)))))
