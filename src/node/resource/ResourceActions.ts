@@ -92,25 +92,21 @@ export const setResourceActionMetadata = (target: Object, action: ResourceAction
 };
 
 export const handleCreateEvent = async (event: CreateResourceEvent, method: CreateResourceFunctionType): Promise<void> => {
-    event.context.log.debug(`ResourceActions.handleCreateEvent(${event.resource.name}): '${event.action}'`);
     const _body: GestaeObjectType = await event.getBody();
     const _data: GestaeObjectType = await event.data.getValue();
     await method.call(_data, event.context, event.data, _body);
 };
 
 export const handleReadEvent = async (event: ReadResourceEvent, method: ReadResourceFunctionType): Promise<void> => {
-    event.context.log.debug(`ResourceActions.handleReadEvent(${event.resource.name}): '${event.action}'`);
     const _data = await event.data.getValue();
     await method.call(_data, event.context, event.id);
 };
 
 export const handleUpdateEvent = async (event: UpdateResourceEvent, method: UpdateResourceFunctionType): Promise<void> => {
-    event.context.log.debug(`ResourceActions.handleUpdateEvent(${event.resource.name}): '${event.action}'`);
     await method.call(event.data, event.context, await event.getBody(), event.patch);
 };
 
 export const handleDeleteEvent = async (event: DeleteResourceEvent, method: DeleteResourceFunctionType): Promise<void> => {
-    event.context.log.debug(`ResourceActions.handleDeleteEvent(${event.resource.name}): '${event.action}'`);
     await method.call(event.data, event.context, event.id, await event.getBody());
 };
 

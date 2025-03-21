@@ -43,5 +43,7 @@ export interface IHttpContext extends IContext {
     get currentNode():        INode;
     cancel(reason?: any):     void;
     fail(cause?: any):        void;
+    set skip(skip: boolean);
+    get skipped():            boolean;
     get failed():             boolean;
 }

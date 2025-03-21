@@ -38,7 +38,7 @@ import { GestaeError } from "../error/GestaeError";
 import { CancelError } from "../error/CancelError";
 import { IHttpContext } from "./IHttpContext";
 
-const LEAP_PATH_PREFIX = `gestaejs:leap:`;
+const SKIP_PATH_PREFIX = `gestaejs:skip:`;
 
 /**
  * @author Robert R Murrell
@@ -53,6 +53,7 @@ export class HttpContext extends AbstractContext implements IHttpContext {
     public readonly resourceManager: ResourceManager;
     public          _currentNode:    AbstractNode<any>;
     public          _failed:         boolean = false;
+    private         _skip:           boolean = false;
 
     constructor(context: ApplicationContext, request: HttpRequest, response: HttpResponse,
                 currentNode: AbstractNode<any>) {
@@ -103,12 +104,14 @@ export class HttpContext extends AbstractContext implements IHttpContext {
      * @description Instructs the node to leap-from the path and move on to the next child node.
      * @param path 
      */
-    leap(path: string): void {
-        this.setValue(`${LEAP_PATH_PREFIX}${path}`, true);
+    set skip(skip: boolean) {
+        this._skip = skip;
     }
 
-    leapt(path: string): boolean {
-        return this.getValue(`${LEAP_PATH_PREFIX}${path}`);
+    get skipped(): boolean {
+        const _skipped = this._skip;
+        if(_skipped) this._skip = false;
+        return _skipped;
     }
 
     static create(context: ApplicationContext, request: HttpRequest, response: HttpResponse, 

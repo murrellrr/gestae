@@ -39,7 +39,6 @@ import {
 import { GestaeError } from "../error/GestaeError";
 import { 
     createApplicationEventPath,
-    createHttpEventPath,
     GestaeEvent
 } from "../events/GestaeEvent";
 import { AbstractFeatureFactoryChain } from "../node/AbstractFeatureFactoryChain";
@@ -276,7 +275,8 @@ export class Application implements IApplication {
         // Fire the before initialize event.
         await this._emitBeforeInitialize(_initContext);
 
-        // TODO: Initialize the plugins.
+        // Initialize the plugins.
+        this._context.pluginManager.initialize(_initContext);
 
         // Initialize the templates to nodes.
         this._root = await this._template.convert(_initContext);
@@ -291,9 +291,13 @@ export class Application implements IApplication {
 
     protected async onStart(): Promise<void> {
         await this._emitBeforeStart();
+        // start the plugins.
+        await this._context.pluginManager.start(this._context);
+        // Setting up the request handler.
         const _handler = HttpRequestHandler.create(this._context, this._root!,
                                                    this.requestBody, this.responseBody, 
-                                                   this.sizeMB, this.timeoutMS); // Setting up the request handler.
+                                                   this.sizeMB, this.timeoutMS); 
+        // Create the server and listen for requests.
         this._server = http.createServer(async (req, res) => {
             await _handler.handleRequest(req, res, this._root!);
         });

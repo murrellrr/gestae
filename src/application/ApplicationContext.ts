@@ -30,6 +30,7 @@ import { IApplicationContext } from "./IApplicationContext";
 import { IPluginManager } from "../plugins/IPluginManager";
 import { PluginManager } from "../plugins/PluginManager";
 import { IApplication } from "./IApplication";
+import { InitializationContext } from "./InitializationContext";
 
 /**
  * @author Robert R Murrell

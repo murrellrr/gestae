@@ -59,12 +59,6 @@ export class NamespaceNode extends AbstractTaskableNode<INamespaceOptions> imple
         await this.emitEvent(context, _event);
     }
 
-    public async onRequest(context: HttpContext): Promise<void> {
-        const _event = new NamespaceEvent(context, this);
-        _event.path = createEventPathFromNode(this, NamespaceEvents.Traverse.On);
-        await this.emitEvent(context, _event);
-    }
-
     public async afterRequest(context: HttpContext): Promise<void> {
         const _event = new NamespaceEvent(context, this);
         _event.path = createEventPathFromNode(this, NamespaceEvents.Traverse.OnAfter);

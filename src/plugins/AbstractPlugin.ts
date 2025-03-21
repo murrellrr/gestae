@@ -25,6 +25,7 @@ import { IApplicationContext } from "../application/IApplicationContext";
 import { IPlugin } from "./IPlugin";
 import { InitializationContext } from "../application/InitializationContext";
 import { FinalizationContext } from "../application/FinalizationContext";
+import { ApplicationContext } from "../application/ApplicationContext";
 
 export const PluginStates = {
     Unloaded: "unloaded",
@@ -85,11 +86,11 @@ export abstract class AbstractPlugin<O extends IPluginOptions> implements IPlugi
         // do nothing 
     }
 
-    async doStart(context: InitializationContext): Promise<void> {
+    async doStart(context: ApplicationContext): Promise<void> {
         // do nothing 
     }
 
-    async doStop(context: FinalizationContext): Promise<void> {
+    async doStop(context: ApplicationContext): Promise<void> {
         // do nothing 
     }
 
@@ -103,12 +104,12 @@ export abstract class AbstractPlugin<O extends IPluginOptions> implements IPlugi
         this._state = PluginStates.Loaded;
     }
 
-    async start(context: InitializationContext): Promise<void> {
+    async start(context: ApplicationContext): Promise<void> {
         await this.doStart(context);
         this._state = PluginStates.Started;
     }
     
-    async stop(context: FinalizationContext): Promise<void> {
+    async stop(context: ApplicationContext): Promise<void> {
         await this.doStop(context);
         this._state = PluginStates.Loaded;
     }

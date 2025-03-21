@@ -36,8 +36,7 @@ import { GestaeObjectType } from "../../Gestae";
 export const NamespaceEvents = {
     Traverse: {
         OnBefore: {operation: "traverse", action: "before"} as EventRegisterType,
-        On:       {operation: "traverse", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "traverse", action: "after" } as EventRegisterType,
+        OnAfter:  {operation: "traverse", action: "after" } as EventRegisterType
     }
 };
 

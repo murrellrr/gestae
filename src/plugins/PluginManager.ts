@@ -24,6 +24,8 @@ import { ILogger } from "../log/ILogger";
 import { GestaeError } from "../error/GestaeError";
 import { AbstractPlugin, IPluginOptions } from "./AbstractPlugin";
 import { IPluginManager } from "./IPluginManager";
+import { InitializationContext } from "../application/InitializationContext";
+import { ApplicationContext } from "../application/ApplicationContext";
 
 export class PluginManager implements IPluginManager {
     public  readonly plugins:        Record<string, AbstractPlugin<any>>;
@@ -72,7 +74,7 @@ export class PluginManager implements IPluginManager {
                 if(!graph.has(dep)) {
                     throw new Error(`Missing dependency: ${dep} required by ${plugin.canonicalName}`);
                 }
-                inDegree.set(dep, (inDegree.get(dep) || 0) + 1);
+                inDegree.set(dep, (inDegree.get(dep) ?? 0) + 1);
             });
         });
 
@@ -104,5 +106,25 @@ export class PluginManager implements IPluginManager {
             throw new GestaeError("Circular dependency detected!");
 
         return this._sortedPlugins;
+    }
+    
+    async initialize(context: InitializationContext): Promise<void> {
+        this.log.debug("PluginManager.initialize(): Initializing plugins...");
+        const _ordered = this.getLoadOrder();
+        for(const plugin of _ordered) {
+            await plugin.load(context);
+            this.log.debug(`PluginManager.initialize(): Plugin '${plugin.canonicalName}' loaded.`);
+        }
+        this.log.debug("PluginManager.initialize(): Plugins initialized.");
+    }
+
+    async start(context: ApplicationContext): Promise<void> {
+        this.log.debug("PluginManager.start(): Starting plugins...");
+        const _ordered = this.getLoadOrder();
+        for(const plugin of _ordered) {
+            await plugin.start(context);
+            this.log.debug(`PluginManager.start(): Plugin '${plugin.canonicalName}' started.`);
+        }
+        this.log.debug("PluginManager.start(): Plugins started.");
     }
 }
