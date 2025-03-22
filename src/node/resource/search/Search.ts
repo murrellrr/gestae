@@ -23,6 +23,8 @@
 import { HttpMethodEnum } from "../../../http/HTTP";
 import { IHttpContext } from "../../../http/IHttpContext";
 import { 
+    GestaeClassType,
+    getsertClassMetadata,
     getsertObjectMetadata,
     IOptions
 } from "../../../Gestae";
@@ -61,9 +63,10 @@ export interface ISearchOptions extends IOptions {
  * @copyright 2024 KRI, LLC
  */
 export const setSearchMethodMetadata = <T extends Object>(target: T, property: string, options: ISearchOptions = {}) => {
-    let _metadata    = getsertObjectMetadata(target, SEARCH_METADATA_KEY, options);
-    _metadata.method = property;
-    setSearchMetadata(target, _metadata);
+    const _metadata         = getsertObjectMetadata(target, SEARCH_METADATA_KEY, options);
+    _metadata.method        = property;
+    _metadata.pathName      = options.pathName ?? DEFAULT_SEARCH_NAME;
+    _metadata.requestMethod = options.requestMethod ?? HttpMethodEnum.Get;
 };
 
 /**
@@ -71,8 +74,8 @@ export const setSearchMethodMetadata = <T extends Object>(target: T, property: s
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export const setSearchMetadata = <T extends Object>(target: T, options: ISearchOptions = {}) => {
-    const _metadata         = getsertObjectMetadata(target, SEARCH_METADATA_KEY, options);
+export const setSearchMetadata = (target: GestaeClassType, options: ISearchOptions = {}) => {
+    const _metadata         = getsertClassMetadata(target, SEARCH_METADATA_KEY, options);
     _metadata.pathName      = options.pathName ?? DEFAULT_SEARCH_NAME;
     _metadata.requestMethod = options.requestMethod ?? HttpMethodEnum.Get;
 };
@@ -86,7 +89,6 @@ export const setSearchMetadata = <T extends Object>(target: T, options: ISearchO
 export function SearchResource<S extends AbstractSearchResult>(options: ISearchOptions = {}) {
     return function <T extends Object>(target: T, property: string,
                                        descriptor: TypedPropertyDescriptor<SearchResourceFunctionType<S>>) {
-        options.dataAsTarget = options.dataAsTarget ?? true;
         setSearchMethodMetadata(target, property, options);
     };
 } // Cant be constant because it is used as a decorator.
@@ -100,8 +102,7 @@ export function SearchResource<S extends AbstractSearchResult>(options: ISearchO
  * @copyright 2024 KRI, LLC
  */
 export function Searchable(options: ISearchOptions = {}) {
-    return function (target: new (... args: [any]) => any) {
-        options.dataAsTarget = options.dataAsTarget ?? true;
+    return function (target: GestaeClassType) {
         setSearchMetadata(target, options);
     };
 } // Cant be constant because it is used as a decorator.

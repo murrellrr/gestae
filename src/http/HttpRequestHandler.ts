@@ -153,7 +153,7 @@ export abstract class AbstractHttpRequestHandler {
             await this._emitAfterError(_httpc);
         }
         finally {
-            if(await _res.write()) 
+            if(await _res.write()) // TODO: Harden this with try/catch
                 _httpc.log.debug("AbstractHttpRequestHandler.handleRequest(): Response written to client.");
             else 
                 _httpc.log.warn("AbstractHttpRequestHandler.handleRequest(): Failed to write response to client.");
@@ -171,7 +171,7 @@ export class HttpRequestHandler extends AbstractHttpRequestHandler {
     protected async handleError(httpc: HttpContext, error?: any): Promise<void> {
         const _error = GestaeError.toError(error);
         httpc.log.error(`Error processing ${httpc.request.method} request ${httpc.request.url}:\r\n\r\n${JSON.stringify(error, null, 2)}\r\n\r\n${_error.stack}\r\n\r\n`);
-        httpc.response.send(_error);
+        httpc.response.send(_error.safe);
     }
 
     protected async processRequest(httpc: HttpContext): Promise<void> {

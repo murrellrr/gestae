@@ -33,12 +33,12 @@ export class ResourceItem<T extends GestaeObjectType> implements IResourceItem<T
     public  readonly name:       string;
     private          _value:     {} | ResourceResolverType;
 
-    constructor(key: IResourceNode, resources: IResourceReader, 
-                value: {} | ResourceResolverType) {
+    constructor(key: IResourceNode, resources: IResourceReader, value: {} | ResourceResolverType, node?: Node<IResourceItem<T>>) {
         this.key       = key.fullyQualifiedPath;
         this.name      = key.name;
         this._value    = value;
         this.resources = resources;
+        this.node      = node;
     }
 
     get next(): IResourceItem<T> | undefined {

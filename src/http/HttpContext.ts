@@ -51,8 +51,8 @@ export class HttpContext extends AbstractContext implements IHttpContext {
     public readonly httpResponse:    HttpResponse;
     public readonly log:             ILogger;
     public readonly resourceManager: ResourceManager;
-    public          _currentNode:    AbstractNode<any>;
-    public          _failed:         boolean = false;
+    private         _failed:         boolean = false;
+    private         _currentNode:    AbstractNode<any>;
     private         _skip:           boolean = false;
 
     constructor(context: ApplicationContext, request: HttpRequest, response: HttpResponse,
@@ -65,6 +65,11 @@ export class HttpContext extends AbstractContext implements IHttpContext {
         this.log = context.log.child({name: `http`, method: this.httpRequest.method,
                                       path: this.httpRequest.url.pathname });
         this.resourceManager = new ResourceManager(this);
+    }
+
+    set current(current: AbstractNode<any>) {
+        this._skip = false; // Reset skip flag
+        this._currentNode = current; // Set the current node
     }
 
     get resources(): IResourceReader {
@@ -109,9 +114,7 @@ export class HttpContext extends AbstractContext implements IHttpContext {
     }
 
     get skipped(): boolean {
-        const _skipped = this._skip;
-        if(_skipped) this._skip = false;
-        return _skipped;
+        return this._skip;
     }
 
     static create(context: ApplicationContext, request: HttpRequest, response: HttpResponse, 

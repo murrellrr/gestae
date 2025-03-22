@@ -44,10 +44,8 @@ export class SearchableResourceFeatureFactory extends AbstractFeatureFactoryChai
 
     onApply(node: ResourceNode): void {
         const _metadata: ISearchOptions = getsertClassMetadata(node.model, SEARCH_METADATA_KEY);
-
         // Wrap all request handles to process search.
         makeResourceSearchable(node, _metadata);
-
         if(_metadata.method) {
              // check to see if the target implements the search method.
             if(!node.model.prototype[_metadata.method]) 

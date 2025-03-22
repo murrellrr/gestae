@@ -34,6 +34,7 @@ import { IResourceItem } from "./IResourceItem";
  */
 export interface IResourceReader {
     contains(key: IResourceNode): boolean;
+    get hasCurrent() : boolean;
     get current(): IResourceItem<any> | undefined;
     get<T extends GestaeObjectType>(key: IResourceNode): IResourceItem<T>;
     getByName<T extends GestaeObjectType>(name: GestaeClassType | string): IResourceItem<T>;

@@ -66,7 +66,7 @@ export abstract class AbstractResourceHandler {
 
     async beforeRequest(context: HttpContext): Promise<void> {
         let _data: GestaeObjectType = await this.getData(context);
-        const _resource: IResourceItem<any> = context.resourceManager.setValue(this.resource, _data);
+        const _resource: IResourceItem<any> = context.resourceManager.setCurrentValue(this.resource, _data);
         await this.emitData(context, ResourceEvents.before, _resource);
     }
 

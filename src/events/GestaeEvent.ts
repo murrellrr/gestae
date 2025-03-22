@@ -23,6 +23,7 @@
 import "reflect-metadata";
 import { 
     getsertClassMetadata,
+    getsertObjectMetadata,
     IOptions,
 } from "../Gestae";
 import { INode } from "../node/INode";
@@ -166,7 +167,7 @@ export const createHttpEventPath = (event: EventRegisterType) => {
  */
 export const setEventMetadata = (target: any, event: EventRegisterType, property: string, options: IEventOptions = {}): void => {
     let _namesapce = createEventPathFromRegister(event);
-    let _metadata: Record<string, any> = getsertClassMetadata(target, EVENT_OPTIONS_KEY);
+    let _metadata: Record<string, any> = getsertObjectMetadata(target, EVENT_OPTIONS_KEY);
 
     let _event = _metadata[_namesapce];
     if(!_event) {

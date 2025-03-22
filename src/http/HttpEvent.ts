@@ -39,35 +39,47 @@ import { IHttpContext } from "./IHttpContext";
  * @copyright 2024 KRI, LLC
  */
 export const HttpEvents = {
+    before:    "before" as string,
+    on:        "on"     as string,
+    after:     "after"  as string,
+    operation: "http"   as string,
     Http: {
+        operation: "http" as string,
         OnBefore: {action: "before"} as EventRegisterType,
         OnAfter:  {action: "after" } as EventRegisterType,
     },
     Get: {
+        operation: "get" as string,
         OnBefore: {operation: "get", action: "before"} as EventRegisterType,
         OnAfter:  {operation: "get", action: "after" } as EventRegisterType,
     },
     Post: {
+        operation: "post" as string,
         OnBefore: {operation: "post", action: "before"} as EventRegisterType,
         OnAfter:  {operation: "post", action: "after" } as EventRegisterType,
     },
     Put: {
+        operation: "put" as string,
         OnBefore: {operation: "put", action: "before"} as EventRegisterType,
         OnAfter:  {operation: "put", action: "after" } as EventRegisterType,
     },
     Delete: {
+        operation: "delete" as string,
         OnBefore: {operation: "delete", action: "before"} as EventRegisterType,
         OnAfter:  {operation: "delete", action: "after" } as EventRegisterType,
     },
     Patch: {
+        operation: "patch" as string,
         OnBefore: {operation: "patch", action: "before"} as EventRegisterType,
         OnAfter:  {operation: "patch", action: "after" } as EventRegisterType,
     },
     Options: {
+        operation: "options" as string,
         OnBefore: {operation: "options", action: "before"} as EventRegisterType,
         OnAfter:  {operation: "options", action: "after" } as EventRegisterType,
     },
     Head: {
+        operation: "head" as string,
         OnBefore: {operation: "head", action: "before"} as EventRegisterType,
         OnAfter:  {operation: "head", action: "after" } as EventRegisterType,
     }

@@ -24,7 +24,7 @@ import {
     GestaeClassType,
     GestaeObjectType
 } from "../../Gestae";
-import { GestaeError } from "../../error/GestaeError";
+import { GestaeError, InternalServerError } from "../../error/GestaeError";
 import { MethodNotAllowedError } from "../../error/MethodNotAllowedError";
 import { AbstractNode, } from "../AbstractNode";
 import { InitializationContext } from "../../application/InitializationContext";
@@ -50,6 +50,8 @@ import { HttpMethodEnum } from "../../http/HTTP";
 import { ITaskNode } from "./ITaskNode";
 import { Envelope } from "./Envelope";
 
+const TASK_ENVELOPE_KEY = "taskenvelope";
+
 /**
  * @description
  * @author Robert R Murrell
@@ -57,10 +59,10 @@ import { Envelope } from "./Envelope";
  * @copyright 2024 KRI, LLC
  */
 export class TaskNode extends AbstractNode<ITaskOptions> implements ITaskNode {
-    protected readonly method:       TaskMethodType<any, any>;
+    protected readonly method:       TaskMethodType<any, any> | undefined;
     protected readonly resourceKey?: string;
 
-    constructor(model: GestaeClassType<any>, method: TaskMethodType<any, any>, resourceKey?: string, 
+    constructor(model: GestaeClassType<any>, method?: TaskMethodType<any, any>, resourceKey?: string, 
                 options: ITaskOptions = {}, ) {
         super(model, options);
         this.method            = method;
@@ -73,7 +75,7 @@ export class TaskNode extends AbstractNode<ITaskOptions> implements ITaskNode {
     }
 
     /**
-     * @description no more processessing or children after a task.
+     * @description no more processessing of children after a task.
      * @override
      */
     get endpoint(): boolean {
@@ -98,21 +100,24 @@ export class TaskNode extends AbstractNode<ITaskOptions> implements ITaskNode {
     }
 
     public async afterInitialize(context: InitializationContext): Promise<void> {
-        let _eventName = createEventPathFromNode(this, TaskEvents.Execute.On);
-        let _this      = this;
-        context.log.debug(`Binding method '${this.parent!.model.name}.${this.options.method}' on action '${this.name}' to event '${_eventName}' for node '${this.name}'.`);
-        context.applicationContext.eventQueue.on(_eventName, async (event: TaskEvent<any, any>) => {
-            const _target = await event.task.getResourceValue<GestaeObjectType>(event.context);
-            event.data.output = await _this.method.call(_target, event.context, event.data.input);
-        });
+        if(this.method) {
+            let _eventName = createEventPathFromNode(this, TaskEvents.Execute.On);
+            let _this      = this;
+            context.log.debug(
+                `Binding method '${this.parent!.model.name}.${this.options.method}' on action '${this.name}' to event '${_eventName}' for node '${this.name}'.`
+            );
+            context.applicationContext.eventQueue.on(_eventName, async (event: TaskEvent<any, any>) => {
+                const _target = await event.task.getResourceValue<GestaeObjectType>(event.context);
+                event.data.output = await _this.method!.call(_target, event.context, event.data.input);
+            });
+        }   
     }
 
-    protected async emitTaskEvent(context: HttpContext, event: string): Promise<GestaeObjectType> {
-        const _envelope = new Envelope(await context.httpRequest.getBody<GestaeObjectType>());
-        const _event    = new TaskEvent(this, context, _envelope);
-        _event.path     = createEventPathFromNode(this, createEventRegister(TaskEvents.Execute.operation, event));
+    protected async emitTaskEvent(context: HttpContext, envelope: Envelope<any, any>, event: string): Promise<void> {
+        const _event = new TaskEvent(this, context, envelope, 
+            createEventPathFromNode(this, 
+                createEventRegister(TaskEvents.Execute.operation, event)));
         await this.emitEvent(context, _event);
-        return {};
     }
 
     public async beforeRequest(context: HttpContext): Promise<void> {
@@ -120,18 +125,24 @@ export class TaskNode extends AbstractNode<ITaskOptions> implements ITaskNode {
             throw new MethodNotAllowedError(`Method '${context.request.method}' is not supported on task '${this.name}'.`);
 
         const _envelope = new Envelope(await context.httpRequest.getBody<GestaeObjectType>());
-        context.setValue(this.fullyQualifiedPath, _envelope);
+        context.setValue(`${this.fullyQualifiedPath}:${TASK_ENVELOPE_KEY}`, _envelope);
 
-        //await this.emitTaskEvent(context, TaskEvents.before);
+        await this.emitTaskEvent(context, _envelope, TaskEvents.before);
     }
 
     public async onRequest(context: HttpContext): Promise<void> {
-        //await this.emitTaskEvent(context, TaskEvents.on);
-        // TODO: get from context session and send the envelope output to the response.
+        const _envelope = context.getValue<Envelope<any, any>>(`${this.fullyQualifiedPath}:${TASK_ENVELOPE_KEY}`);
+        if(!_envelope) // defensive coding
+            throw new InternalServerError(`Task Envelop not found for '${this.constructor.name}' '${this.name}'.`);
+        await this.emitTaskEvent(context, _envelope, TaskEvents.on);
+        context.response.send(_envelope.output); // send the output of the task to the client
     }
 
     public async afterRequest(context: HttpContext): Promise<void> {
-        //await this.emitTaskEvent(context, TaskEvents.after);
+        const _envelope = context.getValue<Envelope<any, any>>(`${this.fullyQualifiedPath}:${TASK_ENVELOPE_KEY}`);
+        if(!_envelope) // defensive coding
+            throw new InternalServerError(`Task Envelop not found for '${this.constructor.name}' '${this.name}'.`);
+        await this.emitTaskEvent(context, _envelope, TaskEvents.after);
     }
 }
 

@@ -21,8 +21,10 @@
  */
 
 import { IPluginOptions } from "./AbstractPlugin";
+import { IPluginManager } from "./IPluginManager";
 
 export interface IPlugin<O extends IPluginOptions> {
+    get manager(): IPluginManager | undefined;
     get uuid(): string;
     get name(): string;
     get domain(): string;

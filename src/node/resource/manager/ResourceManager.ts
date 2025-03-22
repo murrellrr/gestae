@@ -20,10 +20,7 @@
  *  THE SOFTWARE.
  */
 
-import { 
-    Yallist, 
-    Node 
-} from "yallist";
+import { Yallist } from "yallist";
 import { NotFoundError } from "../../../error/NotFoundError";
 import { IHttpContext } from "../../../http/IHttpContext";
 import { 
@@ -47,7 +44,7 @@ import {
 export class ResourceManager implements IResourceReader, IResourceWriter {
     protected readonly context:          IHttpContext
     private   readonly _resources:       Yallist<ResourceItem<any>> = Yallist.create();
-    private            _currentResource: Node<ResourceItem<any>> | undefined = this._resources.head;
+    private            _currentResource: ResourceItem<any> | undefined;
 
     constructor(context: IHttpContext) {
         this.context = context;
@@ -60,8 +57,12 @@ export class ResourceManager implements IResourceReader, IResourceWriter {
         return false;
     }
 
+    get hasCurrent() : boolean {
+        return this._currentResource !== undefined;
+    }
+
     get current(): IResourceItem<any> | undefined {
-        return this._currentResource?.value as IResourceItem<any>;
+        return this._currentResource;
     }
 
     get<T extends GestaeObjectType>(key: IResourceNode): IResourceItem<T> {
@@ -108,15 +109,20 @@ export class ResourceManager implements IResourceReader, IResourceWriter {
         return undefined;
     }
 
+    protected _set<T extends GestaeObjectType>(key: IResourceNode, value: T | ResourceResolverType): ResourceItem<T> {
+        const _resource       = new ResourceItem<T>(key, this, value);
+        this._resources.push(_resource);
+        _resource.node        = this._resources.tail;
+        return _resource;
+    }
+
     set<T extends GestaeObjectType>(key: IResourceNode, value: T | ResourceResolverType): IResourceItem<T> {
         return this._set<T>(key, value);
     }
 
-    protected _set<T extends GestaeObjectType>(key: IResourceNode, value: T | ResourceResolverType): ResourceItem<T> {
-        const _resource       = new ResourceItem<T>(key, this, value);
-        this._resources.push(_resource);
-        this._currentResource = this._resources.tail;
-        _resource.node        = this._resources.tail;
+    setCurrent<T extends GestaeObjectType>(key: IResourceNode, value: T | ResourceResolverType): IResourceItem<T> {
+        const _resource = this._set<T>(key, value);
+        this._currentResource = _resource;
         return _resource;
     }
 
@@ -126,6 +132,16 @@ export class ResourceManager implements IResourceReader, IResourceWriter {
             _resource = this._set<T>(key, value);
         else
             _resource.setValue(value);
+        return _resource;
+    }
+
+    setCurrentValue<T extends GestaeObjectType>(key: IResourceNode, value: T | ResourceResolverType): IResourceItem<T> {
+        let _resource: ResourceItem<T> | undefined = this._get(key);
+        if(!_resource)
+            _resource = this._set<T>(key, value);
+        else
+            _resource.setValue(value);
+        this._currentResource = _resource;
         return _resource;
     }
 

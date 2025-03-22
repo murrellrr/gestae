@@ -20,6 +20,7 @@
  *  THE SOFTWARE.
  */
 
+import { HttpEvents } from "../../../http/HttpEvent";
 import { GestaeError } from "../../../error/GestaeError";
 import { HttpMethodEnum } from "../../../http/HTTP";
 import { HttpContext } from "../../../http/HttpContext";
@@ -70,8 +71,11 @@ export const makeResourceSearchable = (source: ResourceNode, options: ISearchOpt
 
             // Fire the before events.
             return new Promise((resolve, reject) => { // returning promise so that error handling makes it back to the wrapped resource.
-                emitSearchEvent(source, context, ResourceEvents.Search.OnBefore, _searchContext.searchRequest, 
-                                _searchContext.searchResponse)
+                source.emitHttpPathEvent(context, HttpEvents.before, _pathName)
+                    .then(() => {
+                        return emitSearchEvent(source, context, ResourceEvents.Search.OnBefore, _searchContext.searchRequest, 
+                                               _searchContext.searchResponse);
+                    })
                     .then((response: SearchResponse<any>) => {
                         _searchContext.searchResponse = response;
                         resolve();
@@ -91,8 +95,11 @@ export const makeResourceSearchable = (source: ResourceNode, options: ISearchOpt
         const _searchContext: ISearchContext = context.getValue<ISearchContext>(_contextKey);
         if(_searchContext) {
             return new Promise((resolve, reject) => { // returning promise so that error handling makes it back to the wrapped resource.
-                emitSearchEvent(source, context, ResourceEvents.Search.On, _searchContext.searchRequest, 
-                                _searchContext.searchResponse)
+                source.emitHttpPathEvent(context, HttpEvents.on, _pathName)
+                    .then(() => {
+                        return emitSearchEvent(source, context, ResourceEvents.Search.On, _searchContext.searchRequest, 
+                                               _searchContext.searchResponse);
+                    })
                     .then((response: SearchResponse<any>) => {
                         _searchContext.searchResponse = response;
                         context.response.send(response); // Prepare the response.
@@ -113,10 +120,14 @@ export const makeResourceSearchable = (source: ResourceNode, options: ISearchOpt
         const _searchContext: ISearchContext = context.getValue<ISearchContext>(_contextKey);
         if(_searchContext) {
             return new Promise((resolve, reject) => { // returning promise so that error handling makes it back to the wrapped resource.
-                emitSearchEvent(source, context, ResourceEvents.Search.On, _searchContext.searchRequest, 
+
+                emitSearchEvent(source, context, ResourceEvents.Search.OnAfter, _searchContext.searchRequest, 
                                 _searchContext.searchResponse)
                     .then((response: SearchResponse<any>) => {
                         _searchContext.searchResponse = response;
+                        return source.emitHttpPathEvent(context, HttpEvents.after, _pathName);
+                    })
+                    .then(() => {
                         resolve();
                     })
                     .catch((error: any) => {

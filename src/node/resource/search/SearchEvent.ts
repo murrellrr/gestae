@@ -21,18 +21,18 @@
  */
 
 import { 
-    createEventPathFromNode,
+    createEventPathFromRegister,
     EventRegisterType, 
     IEventOptions, 
     setEventMetadata 
 } from "../../../events/GestaeEvent";
 import { IHttpContext } from "../../../http/IHttpContext";
 import { HttpEvent } from "../../../http/HttpEvent";
-import { INode } from "../../INode";
 import { ISearchOptions } from "./Search";
 import { AbstractSearchResult } from "./AbstractSearchResult";
 import { SearchRequest } from "./SearchRequest";
 import { SearchResponse } from "./SearchResponse";
+import { IResourceNode } from "../IResourceNode";
 
 /**
  * @author Robert R Murrell
@@ -50,8 +50,8 @@ export interface ISearchEventOptions extends IEventOptions {
  */
 export const SearchEvents = {
     before: "before" as string,
-    on:     "on"    as string,  
-    after:  "after" as string,
+    on:     "on"     as string,  
+    after:  "after"  as string,
     Search: {
         operation: "search",
         OnBefore: {operation: "search", action: "before"} as EventRegisterType,
@@ -66,20 +66,24 @@ export const SearchEvents = {
     }
 };
 
+
 export class SearchEvent<R extends AbstractSearchResult> extends HttpEvent<SearchResponse<R>> {
     public readonly request:  SearchRequest;
+    public readonly resource: IResourceNode;
 
-    constructor(context: IHttpContext, request: SearchRequest, response: SearchResponse<R>, 
+    constructor(context: IHttpContext, resource: IResourceNode, request: SearchRequest, response: SearchResponse<R>, 
                 path?: string) {
         super(context, response, path);
-        this.request = request;
+        this.resource = resource;
+        this.request  = request;
     }
 }
 
-export const emitSearchEvent = async (source: INode, context: IHttpContext, event: EventRegisterType, request: SearchRequest, 
+export const emitSearchEvent = async (source: IResourceNode, context: IHttpContext,
+                                      event: EventRegisterType, request: SearchRequest, 
                                       response: SearchResponse<any>): Promise<SearchResponse<any>> => {
-    const _event = new SearchEvent(context, request, response);
-    _event.path = createEventPathFromNode(source, event);
+    const _path  = `gestaejs:resource.search:${source.uri}:${createEventPathFromRegister(event)}`;
+    const _event = new SearchEvent(context, source, request, response, _path);
     await context.applicationContext.eventEmitter.emit(_event);
     return _event.data;
 };

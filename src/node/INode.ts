@@ -42,5 +42,6 @@ export interface INode {
     get model(): GestaeClassType<any>;
     get parentNode(): INode | undefined;
     get childNodes(): Map<string, INode>;
+    get uri(): string;
     get fullyQualifiedPath(): string;
 }

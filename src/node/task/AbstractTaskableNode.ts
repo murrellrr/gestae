@@ -23,7 +23,9 @@
 import { GestaeError } from "../../error/GestaeError";
 import { 
     hasClassMetadata, 
-    getsertClassMetadata 
+    getsertClassMetadata, 
+    getMetadata,
+    getGestaeMetadata
 } from "../../Gestae";
 import { InitializationContext } from "../../application/InitializationContext";
 import { AbstractNode } from "../AbstractNode";
@@ -52,10 +54,14 @@ export abstract class AbstractTaskableNode<O extends INodeOptions> extends Abstr
                 context.log.debug(`${this.constructor.name} '${this.name}' adding task '${_taskConfig.name}' to children.`);
                 
                 // Get the method.
-                let _method = this.model.prototype[_taskConfig.method!] as TaskMethodType<any, any>;
-                if(!_method) 
-                    throw new GestaeError(`Task method '${_taskConfig.method}' not found on '${this.model.name}'.`);
-                
+                let _method: TaskMethodType<any, any> | undefined = undefined;
+                if(_taskConfig.method) {
+                    _method = this.model.prototype[_taskConfig.method] as TaskMethodType<any, any>;
+                    if(!_method) 
+                        throw new GestaeError(`Task method '${_taskConfig.method}' not found on '${this.model.name}'.`);
+                }
+
+                // Get the resource key
                 let _resourceKey;
                 if(RESOURCE_NAME === this.type)
                     _resourceKey = (this as unknown as IResourceNode).name;

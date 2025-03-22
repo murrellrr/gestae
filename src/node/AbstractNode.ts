@@ -27,10 +27,11 @@ import {
 } from "../Gestae";
 import { MethodNotAllowedError } from "../error/MethodNotAllowedError";
 import { NotFoundError } from "../error/NotFoundError";
-import { GestaeEvent } from "../events/GestaeEvent";
+import { createEventPath, GestaeEvent } from "../events/GestaeEvent";
 import { HttpContext } from "../http/HttpContext";
 import { INodeOptions, INode } from "./INode";
 import { FinalizationContext } from "../application/FinalizationContext";
+import { HttpEvent, HttpEvents } from "../http/HttpEvent";
 
 /**
  * @author Robert R Murrell
@@ -38,11 +39,11 @@ import { FinalizationContext } from "../application/FinalizationContext";
  * @copyright 2024 KRI, LLC
  */
 export abstract class AbstractNode<O extends INodeOptions> implements INode {
+    public             uri:       string = "";
     protected readonly _children: Map<string, AbstractNode<any>> = new Map<string, AbstractNode<any>>();
     protected readonly options:   O;
     protected readonly _model:    GestaeClassType<any>;
     protected          parent?:   AbstractNode<any>;
-    protected          uri:       string = "";
     protected readonly _name:     string;
 
     constructor(model: GestaeClassType<any>, options?: O) {
@@ -138,8 +139,16 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
         await this.afterInitialize(context);
     }
 
-    protected async emitEvent(context: HttpContext, event: GestaeEvent) {
+    public async emitEvent(context: HttpContext, event: GestaeEvent) {
         await context.applicationContext.eventEmitter.emit(event);
+    }
+
+    public async emitHttpPathEvent(context: HttpContext, event: string, uriPostfix?: string): Promise<void> {
+        const _uri = (uriPostfix)? `${this.uri}:${uriPostfix}` : this.uri;
+        const _event = new HttpEvent<INode>(context, this, 
+            createEventPath({topic: context.request.method, operation: _uri, action: event}, 
+                            HttpEvents.operation));
+        await this.emitEvent(context, _event);
     }
 
     public async beforeRequest(context: HttpContext): Promise<void> {
@@ -163,10 +172,16 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
         if(context.request.uriTree.target && !this.endpoint)
             throw new MethodNotAllowedError(`The ${this.constructor.name} '${this.name}' is not an endpoint.`);
 
-        context._currentNode = this; // set us as the current node.
+        // emit the before path event.
+        await this.emitHttpPathEvent(context, HttpEvents.before); 
+
+        context.current = this; // set us as the current node.
         await this.beforeRequest(context);
-        if(!context.skipped)
+        if(!context.skipped){
+            // emit the on path event.
+            await this.emitHttpPathEvent(context, HttpEvents.on); // emit the path event.
             await this.onRequest(context);
+        }
         else 
             context.log.debug(`Skipping from ${this.name} on ${this.uri} to ${context.request.uriTree.peek}.`);
     
@@ -181,15 +196,16 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
 
             // intercept errors on doRequest.
             await _child.doRequest(context);
-            context._currentNode = this; // set us as the current node.
+            context.current = this; // set us back as the current node.
         }
 
-        // do the afterRequest and wrap things up.
+        // emit the afterRequest event.
         await this.afterRequest(context);
+        // emit the after path event.
+        await this.emitHttpPathEvent(context, HttpEvents.after);
     }
 
     public async finalize(context: FinalizationContext): Promise<void> {
-        context.log.debug(`${this.constructor.name}.finalize('${this.name}')`);
         await this.beforeFinalize(context);
         for(const child of this.children.values()) {
             await child.finalize(context);

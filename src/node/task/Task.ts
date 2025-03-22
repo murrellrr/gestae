@@ -20,13 +20,14 @@
  *  THE SOFTWARE.
  */
 
-import { HttpMethodEnum } from "../../http/HTTP";
+import { GestaeError } from "../../error/GestaeError";
 import { 
+    GestaeClassType,
     GestaeObjectType,
     IOptions,
+    getsertClassMetadata,
     getsertObjectMetadata
 } from "../../Gestae";
-import { GestaeError } from "../../error/GestaeError";
 import { IHttpContext } from "../../http/IHttpContext";
 
 export const TASK_METDADATA_KEY = "gestaejs:task";
@@ -44,8 +45,48 @@ export interface ITaskOptions extends IOptions {
     name?:           string;
     dataAsTarget?:   boolean;
     method?:         string;
+    inputType?:      GestaeObjectType;
+    outputType?:     GestaeObjectType;
     $method?:        TaskMethodType<any, any>;
     $asynchrounous?: boolean;
+};
+
+const getsertTaskMetadata = (metadata: Record<string, any>, target: GestaeClassType | GestaeObjectType, 
+                             name: string, options: ITaskOptions = {}): ITaskOptions => {
+    let _task = metadata[name];
+    if(!_task) {
+        _task = options;
+        metadata[name] = _task;
+    }
+    else throw GestaeError.toError(`Task '${name}' already exists on '${(typeof target === "object")? target.constructor.name : target.name}'.`);
+    return _task;
+};
+
+export const getsertTaskObjectMetatdata = <T extends GestaeObjectType>(target: T, name: string, 
+                                                                       options: ITaskOptions = {}): ITaskOptions => {
+    return getsertTaskMetadata(getsertObjectMetadata(target, TASK_METDADATA_KEY), target,
+                               name, options);
+};
+
+export const getsertTaskClassMetatdata = (target: GestaeClassType, name: string, 
+                                          options: ITaskOptions = {}): ITaskOptions => {
+    return getsertTaskMetadata(getsertClassMetadata(target, TASK_METDADATA_KEY), target,
+                               name, options);
+};
+
+/**
+ * @description Sets the method configuration for a target.
+ * @param target 
+ * @param property 
+ * @param options 
+ */
+export const setTaskMethodMetadata = <T extends GestaeObjectType>(target: T, property: string, 
+                                                                  options: ITaskOptions = {}): void => {
+    options.name             = options.name ?? property.toLowerCase();
+    const _metadata          = getsertTaskObjectMetatdata(target, options.name, options);
+    _metadata.method         = property;
+    _metadata.$overloads     = options.$overloads     ?? true;
+    _metadata.$asynchrounous = options.$asynchrounous ?? false;
 };
 
 /**
@@ -54,21 +95,10 @@ export interface ITaskOptions extends IOptions {
  * @param event 
  * @param options 
  */
-export const setTaskMetadata = <T extends Object>(target: T, property: string, options: ITaskOptions = {}): void => {
-    let _taskName = options.name?.toLowerCase() ?? property.toLowerCase();
-    let _target   = getsertObjectMetadata(target, TASK_METDADATA_KEY);
-
-    let _task = _target[_taskName];
-    if(!_task) {
-        _task = {};
-        _target[_taskName] = _task;
-    }
-
-    // set the task type info...
-    _task.method         = property;
-    _task.name           = _taskName;
-    _task.$overloads     = options.$overloads ?? true;
-    _task.$asynchrounous = options.$asynchrounous ?? false;
+export const setTaskMetadata = (target: GestaeClassType, options: ITaskOptions = {}): void => {
+    const _metadata          = getsertTaskClassMetatdata(target, options.name!, options);
+    _metadata.$overloads     = options.$overloads     ?? true;
+    _metadata.$asynchrounous = options.$asynchrounous ?? false;
 };
 
 /**
@@ -78,46 +108,24 @@ export const setTaskMetadata = <T extends Object>(target: T, property: string, o
  * @copyright 2024 KRI, LLC
  */
 export function TaskExecute<I extends GestaeObjectType, O extends GestaeObjectType>(options: ITaskOptions = {}) {
-    options.dataAsTarget = options.dataAsTarget ?? true;
-    return function <T extends Object>(target: T, property: string,
-                                       descriptor: TypedPropertyDescriptor<TaskMethodType<I, O>>) {
-        const originalMethod = descriptor.value;
-        if (!originalMethod) return;
+    return function <T extends GestaeObjectType>(target: T, property: string,
+                                                 descriptor: TypedPropertyDescriptor<TaskMethodType<I, O>>) {
+        options.dataAsTarget = options.dataAsTarget ?? true;
+        setTaskMethodMetadata(target, property, options);
+    };
+} // Cant be constant because it is used as a decorator.
 
-        const paramTypes = Reflect.getMetadata("design:paramtypes", target, property) || [];
-        const returnType = Reflect.getMetadata("design:returntype", target, property);
-
-        if(paramTypes.length != 2)
-            throw GestaeError.toError(`Task decorator requires the first parameter as a context and the second as input type in method: ${property}`);
-
-        const ContextType = paramTypes[0];
-        const InputType   = paramTypes[1];
-
-        descriptor.value = async function (context: IHttpContext, input: I) {
-            if(!(context instanceof ContextType))
-                throw GestaeError.toError(
-                    `Task decorator '${property}' expected second argument of type ${ContextType.name}, but received ${typeof context}`
-                );
-            if(!(input instanceof InputType))
-                throw GestaeError.toError(
-                    `Task decorator '${property}' expected first argument of type ${InputType.name}, but received ${typeof input}`
-                );
-
-            const result = await originalMethod.call(this, context, input); // Only passing the required arguments
-
-            if(returnType && !(result instanceof returnType))
-                throw GestaeError.toError(
-                    `Task decorator '${property}' expected return type ${returnType.name}, but got ${typeof result}`
-                );
-
-            return result;
-        };
-
-        options.method         = property;
-        options.name           = options.name?.toLowerCase() ?? property.toLowerCase();
-        options.requestMethod  = options.requestMethod ?? HttpMethodEnum.Post;
-        options.$overloads     = options.$overloads ?? true;
-
-        setTaskMetadata(target, property, options);
+/**
+ * @description Decorator for configuraing a plain-old object as a resource in Gestae.
+ * @param options 
+ * @returns 
+ * @author Robert R Murrell
+ * @license MIT
+ * @copyright 2024 KRI, LLC
+ */
+export function Task(name: string, options: ITaskOptions = {}) {
+    return function (target: GestaeClassType) {
+        options.name = name.toLowerCase();
+        setTaskMetadata(target, options);
     };
 } // Cant be constant because it is used as a decorator.

@@ -41,15 +41,24 @@ export class JSONResponseBody extends AbstractHttpResponseBody<object | string> 
     }
 
     async write(response: http.ServerResponse, body: object | string = {}, code: number = 200, contentType?:string): Promise<boolean> {
-        body = (typeof body === "string")? JSON.parse(body) : body;
-        code = (Object.keys(body).length === 0)? 204 : code;
-        if(response.writable && !response.headersSent) {
-            response.setHeader(CONTENT_TYPE_RESPONSE_HEADER, 
-                               contentType ?? (body as any).$contentType ?? DEFAULT_JSON_CONTENT_TYPE);
-            response.writeHead(code);
-            response.end(JSON.stringify(body));
+        if(!response.writable || response.headersSent) return false;
+
+        // 204 when body is an empty object or empty string
+        if((typeof body === "string" && !body.trim()) ||
+                (typeof body === "object" && !Object.keys(body).length)) {
+            response.writeHead(204);
+            response.end();
             return true;
         }
-        else return false;
+
+        const payload = typeof body === "string" ? JSON.parse(body) : body;
+        response.setHeader(
+            CONTENT_TYPE_RESPONSE_HEADER,
+            contentType ?? payload.$contentType ?? DEFAULT_JSON_CONTENT_TYPE
+        );
+        response.writeHead(code);
+        response.end(JSON.stringify(payload));
+        
+        return true;
     }
 }

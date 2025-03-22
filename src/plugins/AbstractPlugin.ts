@@ -26,6 +26,7 @@ import { IPlugin } from "./IPlugin";
 import { InitializationContext } from "../application/InitializationContext";
 import { FinalizationContext } from "../application/FinalizationContext";
 import { ApplicationContext } from "../application/ApplicationContext";
+import { IPluginManager } from "./IPluginManager";
 
 export const PluginStates = {
     Unloaded: "unloaded",
@@ -42,6 +43,7 @@ export interface IPluginOptions {
 
 export abstract class AbstractPlugin<O extends IPluginOptions> implements IPlugin<O> {
     public  readonly options:    O;
+    public           manager:    IPluginManager | undefined = undefined;
     private          _state:     string = PluginStates.Unloaded;
     private          _canonical: string = "";
     private          _context:   IApplicationContext | undefined;
@@ -54,7 +56,7 @@ export abstract class AbstractPlugin<O extends IPluginOptions> implements IPlugi
     private setCanonicalName(): void {
         if(!this.domain || !this.version || !this.name || !this.uuid)
             throw GestaeError.toError("Plugin fields domain, version, name, and uuid are required.");
-        this._canonical = `${this.domain}/${this.version}/${this.name}/${this.uuid}`;
+        this._canonical = `${this.domain}/${this.name}/${this.version}/${this.uuid}`;
     }
 
     abstract get uuid(): string;

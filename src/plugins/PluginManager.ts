@@ -28,18 +28,18 @@ import { InitializationContext } from "../application/InitializationContext";
 import { ApplicationContext } from "../application/ApplicationContext";
 
 export class PluginManager implements IPluginManager {
-    public  readonly plugins:        Record<string, AbstractPlugin<any>>;
-    private readonly _sortedPlugins: AbstractPlugin<any>[];
-    private readonly log:            ILogger;
+    public  readonly plugins:         Record<string, AbstractPlugin<any>>;
+    private readonly log:             ILogger;
+    private          _sortedPlugins?: AbstractPlugin<any>[];
 
     constructor(log: ILogger) {
         this.plugins        = {};
-        this._sortedPlugins = [];
         this.log            = log.child({ name: "PluginManager" });
     }
 
     addPlugin(plugin: AbstractPlugin<any>, options: IPluginOptions = {}): void {
         this.plugins[plugin.canonicalName] = plugin;
+        plugin.manager = this;
     }
 
     getPlugin(uuid: string): AbstractPlugin<any> | undefined {
@@ -58,6 +58,9 @@ export class PluginManager implements IPluginManager {
      * Throws an error if circular dependencies are detected.
      */
     getLoadOrder(): AbstractPlugin<any>[] {
+        if(this._sortedPlugins) return this._sortedPlugins;
+
+        this._sortedPlugins = [] as AbstractPlugin<any>[];
         const graph:    Map<string, Set<string>> = new Map();
         const inDegree: Map<string, number>      = new Map();
 
@@ -102,8 +105,14 @@ export class PluginManager implements IPluginManager {
         }
 
         // Check if there's a circular dependency (graph not fully processed)
-        if(this._sortedPlugins.length !== Object.keys(this.plugins).length)
-            throw new GestaeError("Circular dependency detected!");
+        if(this._sortedPlugins.length !== Object.keys(this.plugins).length) {
+            const cyclicPlugins = Array.from(inDegree.entries())
+                .filter(([, degree]) => degree > 0)
+                .map(([pluginName]) => pluginName);
+            throw new GestaeError(
+                `Circular dependency detected involving plugin(s): ${cyclicPlugins.join(', ')}`
+            );
+        }
 
         return this._sortedPlugins;
     }

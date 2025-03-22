@@ -57,8 +57,8 @@ export const TaskEvents = {
 export class TaskEvent<I extends Object, O extends Object> extends HttpEvent<Envelope<I, O>> {
     public readonly task: ITaskNode;
 
-    constructor(task: ITaskNode, context: IHttpContext, data: Envelope<I, O>) {
-        super(context, data);
+    constructor(task: ITaskNode, context: IHttpContext, data: Envelope<I, O>, path?: string) {
+        super(context, data, path);
         this.task = task;
     }
 }
