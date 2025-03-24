@@ -23,7 +23,7 @@
 import { IAsyncEventEmitter } from "../events/IAsyncEventEmitter";
 import { AsyncEventEmitter } from "../events/AsyncEventEmitter";
 import { IAsyncEventQueue } from "../events/IAsyncEventQueue";
-import { AbstractContext, } from "../context/AbstractContext";
+import { Context, } from "../context/Context";
 import { ILogger } from "../log/ILogger";
 import { IProperties } from "../properties/IProperties";
 import { IApplicationContext } from "./IApplicationContext";
@@ -46,7 +46,7 @@ export interface IApplicationContextOptions {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class ApplicationContext extends AbstractContext implements IApplicationContext {
+export class ApplicationContext extends Context implements IApplicationContext {
     public  readonly application:   IApplication;
     public  readonly pluginManager: PluginManager;
     private readonly events:        AsyncEventEmitter;

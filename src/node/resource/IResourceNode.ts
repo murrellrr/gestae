@@ -31,7 +31,6 @@ import { IResourceItem } from "./manager/IResourceItem";
  * @copyright 2024 KRI, LLC
  */
 export interface IResourceNode extends INode {
-    
     getResource<T extends GestaeObjectType>(context: IHttpContext): IResourceItem<T>;
     getResourceValue<T  extends GestaeObjectType>(context: IHttpContext, options?: Record<string, any>): Promise<T>;
     getInstance<T extends GestaeObjectType>(... args: any[]): T;

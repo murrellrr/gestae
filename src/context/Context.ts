@@ -28,8 +28,19 @@ import { IContext } from "./IContext";
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class AbstractContext implements IContext {
+export class Context implements IContext {
     private readonly _values: Record<string, any> = {};
+
+    getSubContext(key: string): IContext {
+        let _subcontext = this._values[key];
+        if(!_subcontext){
+            _subcontext = new Context()
+            this._values[key] = _subcontext;
+        }
+        else if(!(_subcontext instanceof Context)) 
+            throw new GestaeError(`Property ${key} is not an instance of AbstractContext`);
+        return _subcontext;
+    }
 
     getValue<T>(key: string, defaultValue?: T): T {
         return this._values[key] ?? defaultValue;

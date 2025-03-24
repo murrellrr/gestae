@@ -26,9 +26,10 @@
  * @copyright 2024 KRI, LLC
  */
 export interface IContext {
+    getSubContext(key: string): IContext;
     getValue<T>(key: string, defaultValue?: T): T;
     getInstance<T extends {}>(_Class: new (...args: any[]) => T, defaultValue?: T): T;
-    setValue(key: string, value: any): void;
+    setValue<T>(key: string, value: T): void;
     setInstance<T extends {}>(_Class: new (...args: any[]) => T, value: T): void;
     contains(key: string): boolean;
     remove(key: string): void;

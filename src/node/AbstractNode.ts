@@ -32,6 +32,8 @@ import { HttpContext } from "../http/HttpContext";
 import { INodeOptions, INode } from "./INode";
 import { FinalizationContext } from "../application/FinalizationContext";
 import { HttpEvent, HttpEvents } from "../http/HttpEvent";
+import { IHttpContext } from "../http/IHttpContext";
+import { IContext } from "../context/IContext";
 
 /**
  * @author Robert R Murrell
@@ -90,6 +92,10 @@ export abstract class AbstractNode<O extends INodeOptions> implements INode {
 
     getInstance<T extends GestaeObjectType>(...args: any[]): T {
         return new this.model(...args);
+    }
+
+    getNodeContext(context: IHttpContext): IContext {
+        return context.getSubContext(this.fullyQualifiedPath);
     }
 
     public async beforeInitialize(context: InitializationContext): Promise<void> {

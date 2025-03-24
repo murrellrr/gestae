@@ -34,9 +34,9 @@ import { AbstractHttpResponseBody } from "./AbstractHttpResponseBody";
 import { HttpPassThrough } from "./HttpPassThrough";
 import { HttpEvent, HttpEvents } from "./HttpEvent";
 import { createApplicationEventPath, createHttpEventPath } from "../events/GestaeEvent";
-import http from "http";
 import { IHttpData } from "./IHttpData";
 import { ApplicationEvent, ApplicationEvents } from "../application/ApplicationEvent";
+import http from "http";
 
 /**
  * @author Robert R Murrell
@@ -148,15 +148,21 @@ export abstract class AbstractHttpRequestHandler {
             await this.processRequest(_httpc);
         }
         catch(error) {
+            this.context.log.error(`AbstractHttpRequestHandler.handleRequest(): Error processing request: ${error}\r\n${(error as any).stack}`);
             await this._emitBeforeError(_httpc);
             await this.handleError(_httpc, error);
             await this._emitAfterError(_httpc);
         }
         finally {
-            if(await _res.write()) // TODO: Harden this with try/catch
-                _httpc.log.debug("AbstractHttpRequestHandler.handleRequest(): Response written to client.");
-            else 
-                _httpc.log.warn("AbstractHttpRequestHandler.handleRequest(): Failed to write response to client.");
+            try {
+                if(await _res.write())
+                    _httpc.log.debug("AbstractHttpRequestHandler.handleRequest(): Response written to client.");
+                else 
+                    _httpc.log.warn("AbstractHttpRequestHandler.handleRequest(): Failed to write response to client.");
+            }
+            catch(error) {
+                this.context.log.error(`AbstractHttpRequestHandler.handleRequest(): Error writing response: ${error}\r\n${(error as any).stack}`);
+            }
             await this._emitHttpMethodAfter(_httpc);
             await this._emitHttpAfter(_httpc);
         }

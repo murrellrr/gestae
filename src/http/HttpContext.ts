@@ -23,7 +23,7 @@
 import { IApplicationContext } from "../application/IApplicationContext";
 import { ApplicationContext } from "../application/ApplicationContext";
 import { ILogger } from "../log/ILogger";
-import { AbstractContext } from "../context/AbstractContext";
+import { Context } from "../context/Context";
 import { IResourceReader } from "../node/resource/manager/IResourceReader";
 import { ResourceManager } from "../node/resource/manager/ResourceManager";
 import { IHttpRequest } from "./IHttpRequest";
@@ -45,7 +45,7 @@ const SKIP_PATH_PREFIX = `gestaejs:skip:`;
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export class HttpContext extends AbstractContext implements IHttpContext {
+export class HttpContext extends Context implements IHttpContext {
     public readonly context:         ApplicationContext;
     public readonly httpRequest:     HttpRequest;
     public readonly httpResponse:    HttpResponse;

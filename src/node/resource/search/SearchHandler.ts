@@ -46,7 +46,7 @@ interface ISearchContext {
  * @param options 
  * @returns 
  */
-export const makeResourceSearchable = (source: ResourceNode, options: ISearchOptions = {}): void => {
+export const wrapResourceSearchable = (source: ResourceNode, options: ISearchOptions = {}): void => {
     // binding the source functions to be wrapped.
     const _originBeforeRequest = source.beforeRequest.bind(source);
     const _originOnRequest     = source.onRequest.bind(source);
@@ -67,7 +67,7 @@ export const makeResourceSearchable = (source: ResourceNode, options: ISearchOpt
                 searchRequest: SearchRequest.create(context.httpRequest),
                 searchResponse: new SearchResponse<any>()
             };
-            context.setValue(_contextKey, _searchContext);
+            source.getNodeContext(context).setValue(_contextKey, _searchContext);
 
             // Fire the before events.
             return new Promise((resolve, reject) => { // returning promise so that error handling makes it back to the wrapped resource.
@@ -92,7 +92,7 @@ export const makeResourceSearchable = (source: ResourceNode, options: ISearchOpt
 
     source.onRequest = async (context: HttpContext) => {
         // check to see if this is a search request.
-        const _searchContext: ISearchContext = context.getValue<ISearchContext>(_contextKey);
+        const _searchContext: ISearchContext = source.getNodeContext(context).getValue<ISearchContext>(_contextKey);
         if(_searchContext) {
             return new Promise((resolve, reject) => { // returning promise so that error handling makes it back to the wrapped resource.
                 source.emitHttpPathEvent(context, HttpEvents.on, _pathName)
@@ -117,7 +117,7 @@ export const makeResourceSearchable = (source: ResourceNode, options: ISearchOpt
 
     source.afterRequest = async (context: HttpContext) => {
         // check to see if this is a search request.
-        const _searchContext: ISearchContext = context.getValue<ISearchContext>(_contextKey);
+        const _searchContext: ISearchContext = source.getNodeContext(context).getValue<ISearchContext>(_contextKey);
         if(_searchContext) {
             return new Promise((resolve, reject) => { // returning promise so that error handling makes it back to the wrapped resource.
 

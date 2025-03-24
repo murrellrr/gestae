@@ -125,13 +125,13 @@ export class TaskNode extends AbstractNode<ITaskOptions> implements ITaskNode {
             throw new MethodNotAllowedError(`Method '${context.request.method}' is not supported on task '${this.name}'.`);
 
         const _envelope = new Envelope(await context.httpRequest.getBody<GestaeObjectType>());
-        context.setValue(`${this.fullyQualifiedPath}:${TASK_ENVELOPE_KEY}`, _envelope);
+        this.getNodeContext(context).setValue(TASK_ENVELOPE_KEY, _envelope);
 
         await this.emitTaskEvent(context, _envelope, TaskEvents.before);
     }
 
     public async onRequest(context: HttpContext): Promise<void> {
-        const _envelope = context.getValue<Envelope<any, any>>(`${this.fullyQualifiedPath}:${TASK_ENVELOPE_KEY}`);
+        const _envelope = this.getNodeContext(context).getValue<Envelope<any, any>>(TASK_ENVELOPE_KEY);
         if(!_envelope) // defensive coding
             throw new InternalServerError(`Task Envelop not found for '${this.constructor.name}' '${this.name}'.`);
         await this.emitTaskEvent(context, _envelope, TaskEvents.on);
@@ -139,7 +139,7 @@ export class TaskNode extends AbstractNode<ITaskOptions> implements ITaskNode {
     }
 
     public async afterRequest(context: HttpContext): Promise<void> {
-        const _envelope = context.getValue<Envelope<any, any>>(`${this.fullyQualifiedPath}:${TASK_ENVELOPE_KEY}`);
+        const _envelope = this.getNodeContext(context).getValue<Envelope<any, any>>(TASK_ENVELOPE_KEY);
         if(!_envelope) // defensive coding
             throw new InternalServerError(`Task Envelop not found for '${this.constructor.name}' '${this.name}'.`);
         await this.emitTaskEvent(context, _envelope, TaskEvents.after);

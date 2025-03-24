@@ -20,6 +20,8 @@
  *  THE SOFTWARE.
  */
 
+import { IContext } from "../context/IContext";
+import { IHttpContext } from "../http/IHttpContext";
 import { IOptions, GestaeClassType } from "../Gestae";
 
 /**
@@ -44,4 +46,5 @@ export interface INode {
     get childNodes(): Map<string, INode>;
     get uri(): string;
     get fullyQualifiedPath(): string;
+    getNodeContext(context: IHttpContext): IContext;
 }

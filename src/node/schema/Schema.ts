@@ -22,7 +22,7 @@
 
 import { SchemaObject } from "ajv";
 import { EventRegisterType, IEventOptions, setEventMetadata } from "../../events/GestaeEvent";
-import { IOptions, setClassMetadata } from "../../Gestae";
+import { GestaeObjectType, IOptions, setClassMetadata } from "../../Gestae";
 import { SchemaEvent } from "./SchemaEvent";
 import { IIOSchema } from "./IIOSchema";
 
@@ -43,25 +43,6 @@ export interface ISchemaOptions extends IOptions {
     scheme?: SchemaObject | IIOSchema;
     validate?: boolean;
 }
-
-/**
- * @description Events emitted by a schema.
- * @author Robert R Murrell
- * @license MIT
- * @copyright 2024 KRI, LLC
- */
-export const SchemaEvents = {
-    Validate: {
-        OnBefore: {operation: "validate", action: "before"} as EventRegisterType,
-        On:       {operation: "validate", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "validate", action: "after" } as EventRegisterType,
-    },
-    Error: {
-        OnBefore: {operation: "error", action: "before"} as EventRegisterType,
-        On:       {operation: "error", action: "on"    } as EventRegisterType,
-        OnAfter:  {operation: "error", action: "after" } as EventRegisterType,
-    }
-};
 
 /**
  * @description Decorator for defining the payload schema of a plain-old object in Gestae.
@@ -85,7 +66,7 @@ export function Schema(options: ISchemaOptions = {}) {
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnSchemaEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
+export function OnSchemaEvent<E extends GestaeObjectType>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: SchemaEvent<E>) => void>) {
         setEventMetadata(target, event, property, options);
@@ -97,7 +78,7 @@ export function OnSchemaEvent<E>(event: EventRegisterType, options: IEventOption
  * @license MIT
  * @copyright 2024 KRI, LLC
  */
-export function OnAsyncSchemaEvent<E>(event: EventRegisterType, options: IEventOptions = {}) {
+export function OnAsyncSchemaEvent<E extends GestaeObjectType>(event: EventRegisterType, options: IEventOptions = {}) {
     return function <T extends Object>(target: T, property: string, 
                                        descriptor: TypedPropertyDescriptor<(event: SchemaEvent<E>) => Promise<void>>) {
         setEventMetadata(target, event, property, options);

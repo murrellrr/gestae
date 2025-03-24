@@ -37,20 +37,17 @@ export class PluginManager implements IPluginManager {
         this.log            = log.child({ name: "PluginManager" });
     }
 
+    hasPlugin(cononical: string): boolean {
+        return !!this.plugins[cononical];
+    }
+
     addPlugin(plugin: AbstractPlugin<any>, options: IPluginOptions = {}): void {
         this.plugins[plugin.canonicalName] = plugin;
         plugin.manager = this;
     }
 
-    getPlugin(uuid: string): AbstractPlugin<any> | undefined {
-        for(const plugin of Object.values(this.plugins)) {
-            if(plugin.uuid === uuid) return plugin;
-        }
-        return undefined;
-    }
-
-    getPluginByCanonicalName(name: string): AbstractPlugin<any> | undefined {
-        return this.plugins[name];
+    getPlugin(cononical: string): AbstractPlugin<any> | undefined {
+        return this.plugins[cononical];
     }
 
     /**

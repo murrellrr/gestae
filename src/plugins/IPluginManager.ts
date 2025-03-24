@@ -27,6 +27,6 @@ import {
 
 export interface IPluginManager {
     addPlugin(plugin: AbstractPlugin<any>, options?: IPluginOptions): void;
-    getPlugin(uuid: string): AbstractPlugin<any> | undefined;
-    getPluginByCanonicalName(cononical: string): AbstractPlugin<any> | undefined;
+    getPlugin(cononical: string): AbstractPlugin<any> | undefined;
+    hasPlugin(cononical: string): boolean;
 };

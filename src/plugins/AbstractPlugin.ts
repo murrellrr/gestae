@@ -54,12 +54,11 @@ export abstract class AbstractPlugin<O extends IPluginOptions> implements IPlugi
     }
 
     private setCanonicalName(): void {
-        if(!this.domain || !this.version || !this.name || !this.uuid)
-            throw GestaeError.toError("Plugin fields domain, version, name, and uuid are required.");
-        this._canonical = `${this.domain}/${this.name}/${this.version}/${this.uuid}`;
+        if(!this.domain || !this.version || !this.name )
+            throw GestaeError.toError("Plugin fields domain, version, and name are required.");
+        this._canonical = `${this.domain}/${this.name}/${this.version}`;
     }
 
-    abstract get uuid(): string;
     abstract get name(): string;
     abstract get domain(): string;
     abstract get version(): string;

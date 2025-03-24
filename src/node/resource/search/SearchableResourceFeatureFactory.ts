@@ -35,7 +35,7 @@ import {
     SearchResourceFunctionType 
 } from "./Search";
 import { SearchEvent } from "./SearchEvent";
-import { makeResourceSearchable } from "./SearchHandler";
+import { wrapResourceSearchable } from "./SearchHandler";
 
 export class SearchableResourceFeatureFactory extends AbstractFeatureFactoryChain<AbstractNode<any>> {
     isFeatureFactory(node: AbstractNode<any>): boolean {
@@ -45,7 +45,7 @@ export class SearchableResourceFeatureFactory extends AbstractFeatureFactoryChai
     onApply(node: ResourceNode): void {
         const _metadata: ISearchOptions = getsertClassMetadata(node.model, SEARCH_METADATA_KEY);
         // Wrap all request handles to process search.
-        makeResourceSearchable(node, _metadata);
+        wrapResourceSearchable(node, _metadata);
         if(_metadata.method) {
              // check to see if the target implements the search method.
             if(!node.model.prototype[_metadata.method]) 

@@ -30,5 +30,5 @@ import { SchemaObject } from "ajv";
  */
 export interface IIOSchema {
     input?: SchemaObject;
-    output: SchemaObject;
+    output?: SchemaObject;
 };

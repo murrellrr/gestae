@@ -157,20 +157,20 @@ export class ResourceNode extends AbstractTaskableNode<IResourceOptions> impleme
                                                 context.request.uriTree.target);
         // Got the resource handler.
         const _handler = this.getResourceHandler(_action, context.request.uriTree.target, _id);
-        context.setValue(`${this.fullyQualifiedPath}:${RESOURCE_HANDLER_KEY}`, _handler);
+        this.getNodeContext(context).setValue(RESOURCE_HANDLER_KEY, _handler);
 
         await _handler.beforeRequest(context);
     }
 
     public async onRequest(context: HttpContext): Promise<void> {
-        const _handler = context.getValue<AbstractResourceHandler>(`${this.fullyQualifiedPath}:${RESOURCE_HANDLER_KEY}`);
+        const _handler = this.getNodeContext(context).getValue<AbstractResourceHandler>(RESOURCE_HANDLER_KEY);
         if(!_handler) // defensive coding
             throw new InternalServerError(`Resource handler not found for '${this.constructor.name}' '${this.name}'.`);
         await _handler.onRequest(context);
     }
 
     public async afterRequest(context: HttpContext): Promise<void> {
-        const _handler = context.getValue<AbstractResourceHandler>(`${this.fullyQualifiedPath}:${RESOURCE_HANDLER_KEY}`);
+        const _handler = this.getNodeContext(context).getValue<AbstractResourceHandler>(RESOURCE_HANDLER_KEY);
         if(!_handler) // defensive coding
             throw new InternalServerError(`Resource handler not found for '${this.constructor.name}' '${this.name}'.`);
         await _handler.afterRequest(context);

@@ -36,6 +36,6 @@ export class SchemaFeatureFactory extends AbstractFeatureFactoryChain<AbstractNo
     }
 
     onApply(node: AbstractNode<any>): void {
-        //deleteMetadata(node.model, SCHEMA_OPTION_KEY);
+        //
     }
 }
